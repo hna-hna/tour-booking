@@ -17,6 +17,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
+    phone = db.Column(db.String(20), nullable=True) 
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -34,7 +35,7 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    tour_id = db.Column(db.Integer, nullable=False) # Liên kết tour sau này
+    tour_id = db.Column(db.Integer, nullable=False) 
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending') # pending, paid, completed, cancelled
     guest_count = db.Column(db.Integer, nullable=False)

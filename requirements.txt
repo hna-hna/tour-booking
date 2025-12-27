@@ -5,3 +5,12 @@ Flask-Migrate
 Flask-JWT-Extended
 python-dotenv
 Werkzeug
+flask-socketio 
+eventlet
+scikit-learn 
+pandas 
+numpy 
+openai 
+python-dotenv
+pg8000 
+psycopg2-binary

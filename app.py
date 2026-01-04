@@ -1,6 +1,11 @@
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from config import Config
+<<<<<<< HEAD
+=======
+from flask_cors import CORS
+
+>>>>>>> 2ffc755a038f243dd08444a94db0882b63acff76
 
 # 1. Import db và jwt từ file trung gian
 from extensions import db, jwt
@@ -12,6 +17,19 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
+<<<<<<< HEAD
+=======
+#cor
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
+
+>>>>>>> 2ffc755a038f243dd08444a94db0882b63acff76
     # 2. Gắn db và jwt vào app (Init App)
     db.init_app(app)
     jwt.init_app(app)
@@ -43,4 +61,9 @@ def create_app():
 # Chạy App
 if __name__ == '__main__':
     app = create_app()
+<<<<<<< HEAD
     app.run(debug=True)
+=======
+    app.run(debug=True)
+    
+>>>>>>> 2ffc755a038f243dd08444a94db0882b63acff76

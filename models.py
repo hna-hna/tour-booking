@@ -17,8 +17,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     full_name = db.Column(db.String(100), nullable=False)
-    phone = db.Column(db.String(20), nullable=True) 
-    role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
+    role = db.Column(db.Enum(UserRole), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -35,7 +34,7 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    tour_id = db.Column(db.Integer, nullable=False) 
+    tour_id = db.Column(db.Integer, nullable=False) # Liên kết tour sau này
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending') # pending, paid, completed, cancelled
     guest_count = db.Column(db.Integer, nullable=False)
@@ -51,3 +50,29 @@ class Payment(db.Model):
     transaction_id = db.Column(db.String(100))
     status = db.Column(db.String(20)) # success, failed
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+# 4. Bảng Tour
+class Tour(db.Model):
+    __tablename__ = 'tours'
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    price = db.Column(db.Float, nullable=False)
+    # Quan hệ với phân công hướng dẫn viên
+    assignments = db.relationship('TourGuideAssignment', backref='tour', lazy=True)
+
+# 5. Bảng Phân công hướng dẫn viên
+class TourGuideAssignment(db.Model):
+    __tablename__ = 'tour_guide_assignments'
+    id = db.Column(db.Integer, primary_key=True)
+    tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
+    guide_name = db.Column(db.String(100), nullable=False)
+    assigned_date = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+# 6. Bảng Logging (Lưu lịch sử hoạt động)
+class Logging(db.Model):
+    __tablename__ = 'logs'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    action = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())    

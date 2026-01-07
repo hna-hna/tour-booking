@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test SocketIO</title>
+    <!-- Thư viện client socket.io -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+</head>
+<body>
+    <h1>Kiểm tra kết nối Socket</h1>
+    <div id="status">Đang kết nối...</div>
+
+    <script type="text/javascript">
+        // Kết nối đến Backend đang chạy ở port 5000
+        var socket = io.connect('http://localhost:5000');
+
+        socket.on('connect', function() {
+            document.getElementById('status').innerText = "✅ Kết nối thành công! (Connected)";
+            console.log("Connected to server");
+        });
+
+        socket.on('disconnect', function() {
+            document.getElementById('status').innerText = "❌ Mất kết nối!";
+        });
+    </script>
+</body>
+</html>

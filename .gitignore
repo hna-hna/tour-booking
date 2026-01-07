@@ -1,0 +1,24 @@
+# --- CHUNG ---
+.DS_Store
+.vscode/
+.idea/
+
+# --- BACKEND (Python) ---
+backend/venv/
+backend/.venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/instance/
+backend/.pytest_cache/
+
+# --- FRONTEND (Node.js/Next.js) ---
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*

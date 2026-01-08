@@ -1,6 +1,7 @@
+#backend/app/api/auth_routes.py
 from flask import Blueprint, request, jsonify
-from extensions import db
-from models import User, UserRole
+from app.extensions import db
+from app.models import User, UserRole
 from flask_jwt_extended import create_access_token
 
 auth_bp = Blueprint('auth', __name__)

@@ -1,3 +1,4 @@
+//frontend/app/main/layout//
 /*mainlayout header,footer*/
 "use client";
 import React, { useState, useEffect } from "react";

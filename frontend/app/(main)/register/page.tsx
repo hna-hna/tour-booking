@@ -1,3 +1,4 @@
+//frontend/app/(main)/register/page.tsx//
 
 "use client";
 import React, { useState } from "react";
@@ -49,7 +50,7 @@ export default function RegisterPage() {
         }
       })
       .catch(() => {
-        alert("❌ Không kết nối được server Flask!");
+        alert("❌ Không kết nối được server Flask!(f12)");
       })
       .finally(() => {
         setLoading(false);

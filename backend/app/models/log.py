@@ -1,27 +1,30 @@
-# backend/app/models/log.py
-from extensions import db
-from datetime import datetime
 
-# 6. Bảng Logging chung (Ghi lại thao tác hệ thống - System Logs)
-class Logging(db.Model):
-    __tablename__ = 'logs'
+# backend/app/models/log.py
+from app.extensions import db
+from datetime import datetime
+#log lưu lịch sử của ng dùng 
+class UserLog(db.Model):
+    __tablename__ = 'user_logs'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    action = db.Column(db.String(255), nullable=False)
+    action = db.Column(db.String(50), nullable=False)
+    target_id = db.Column(db.Integer, nullable=True)
+    details = db.Column(db.String(255), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 7. Bảng Log xem Tour (Dữ liệu đầu vào quan trọng cho AI gợi ý)
+
+# bảng Log xem Tour (dữ liệu đầu vào cho AI gợi ý)
 class TourViewLog(db.Model):
     __tablename__ = 'tour_view_logs'
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) # Nullable cho khách vãng lai
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 8. Bảng Log Tìm kiếm (Dữ liệu để AI hiểu nhu cầu khách)
+#bảng Log Tìm kiếm (dữ liệu để AI hiểu nhu cầu khách)
 class SearchLog(db.Model):
     __tablename__ = 'search_logs'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    keyword = db.Column(db.String(200), nullable=False) # VD: "Đà Lạt", "Biển"
+    keyword = db.Column(db.String(200), nullable=False) 
     searched_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -1,21 +1,17 @@
+#backend/app/api/admin_routes.py
 from flask import Blueprint, request, jsonify
-from extensions import db
-from models import Tour, UserRole, User
+from app.extensions import db
+from app.models.tour import Tour
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 admin_bp = Blueprint('admin', __name__)
 
-# Middleware giả lập check quyền Admin (Hoặc import decorator từ team)
-def admin_required(fn):
-    # Logic check role admin ở đây (bạn có thể dùng logic team đã làm)
-    pass 
-
 # 1. API Lấy danh sách tour đang chờ duyệt (Pending)
 @admin_bp.route('/tours/pending', methods=['GET'])
-# @jwt_required() 
-# @role_required(['admin']) # Nếu team bạn đã có decorator này
+# @jwt_required() bắt login
+# @role_required(['admin'])  decorator check quyền
 def get_pending_tours():
-    # Lấy các tour có status = 'pending'
+    # Lấy các tour có trạng thái = 'pending'
     tours = Tour.query.filter_by(status='pending').all()
     
     result = []
@@ -24,8 +20,10 @@ def get_pending_tours():
             "id": t.id,
             "name": t.name,
             "price": t.price,
+            "description": getattr(t, 'description', ''),
             "supplier_id": t.supplier_id,
-            "created_at": t.created_at
+            "created_at": t.created_at,
+            "status": t.status
         })
     return jsonify(result), 200
 

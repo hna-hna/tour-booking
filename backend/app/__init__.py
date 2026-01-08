@@ -1,13 +1,56 @@
-from flask import Flask
-from .extensions import socketio
+#backend/app/_init__.py
+
+from .extensions import db, jwt, socketio 
+from flask import Flask, jsonify
+from flask_migrate import Migrate
+from config import Config
+from flask_cors import CORS
+
+# 1. Import extensions
+from .extensions import db, jwt, socketio
 
 def create_app():
     app = Flask(__name__)
+    app.config.from_object(Config)
 
-    # config
-    app.config['SECRET_KEY'] = 'secret'
+    # 2. Cấu hình CORS
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": ["*"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+            "allow_headers": ["Content-Type", "Authorization"],
+            "supports_credentials": True
+        }
+    })
 
-    # init extensions
+    # 3. Init Extensions
+    db.init_app(app)
+    jwt.init_app(app)
     socketio.init_app(app)
+    
+    Migrate(app, db)
+
+    # 4. Đăng ký Blueprint (Tôi đã rút gọn URL cho chuyên nghiệp hơn)
+    # Lưu ý: Đảm bảo tên file trong thư mục api là auth_routes.py và profile_routes.py
+    
+    from .api.auth_routes import auth_bp
+    app.register_blueprint(auth_bp, url_prefix='/api/auth') 
+
+    from .api.profile_routes import profile_bp
+    app.register_blueprint(profile_bp, url_prefix='/api/profile')
+
+    from .api.admin_routes import admin_bp
+    app.register_blueprint(admin_bp, url_prefix='/api/admin')
+
+    from .api.log_routes import log_bp
+    app.register_blueprint(log_bp, url_prefix='/api/logs')
+
+    # 5. Socket Events
+   # from .websockets import events
+
+    # Test route
+    @app.route('/')
+    def hello():
+        return jsonify({"msg": "Hello from Backend!"})
 
     return app

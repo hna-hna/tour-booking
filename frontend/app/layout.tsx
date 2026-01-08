@@ -1,5 +1,13 @@
+//frontend/app/layout.tsx//
 /*rôt layour (chứa html, body)*/
-import "./globals.css"; 
+import "./globals.css";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Tour Booking System",
+  description: "Đặt tour du lịch nhanh chóng và tiện lợi",
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -7,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="vi">
-      <body className="antialiased">
+      <body className="antialiased text-gray-900 bg-white">
         {children}
       </body>
     </html>

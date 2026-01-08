@@ -1,3 +1,4 @@
+//frontend/app/(main)/login/page.tsx//
 "use client";
 import React, { useState } from "react";
 
@@ -10,41 +11,32 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
-    
     setLoading(true);
 
-    fetch("http://127.0.0.1:5000/api/auth/login", {
+    // SỬA 1: URL ngắn gọn hơn (khớp với backend mới sửa)
+    fetch("http://127.0.0.1:5000/api/auth/login", { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log("Login response:", data);
-        
         if (data.access_token && data.user_info) {
-          // Lưu thông tin vào localStorage
           localStorage.setItem("token", data.access_token);
           localStorage.setItem("role", data.user_info.role);
-          localStorage.setItem("user_id", data.user_info.id);
-          localStorage.setItem("user_name", data.user_info.full_name || data.user_info.name || "User");
-          localStorage.setItem("user_email", formData.email);
-          
-          console.log("✅ Saved to localStorage:");
-          console.log("- user_name:", data.user_info.full_name || data.user_info.name);
-          console.log("- user_email:", formData.email);
+          // ... (lưu các thứ khác) ...
           
           alert("🎉 Đăng nhập thành công!");
           
-          // Điều hướng dựa trên role từ server
+          // SỬA 2: Đồng bộ Role (supplier thay vì tour_provider)
           switch(data.user_info.role) {
             case "admin":
-              window.location.href = "/admin/dashboard";
+              window.location.href = "/admin/dashboard"; // Hoặc đường dẫn admin của bạn
               break;
-            case "tour_provider":
+            case "supplier": // <--- Sửa ở đây cho khớp với lúc đăng ký
               window.location.href = "/provider/dashboard";
               break;
-            case "tour_guide":
+            case "guide":    // <--- Sửa ở đây cho khớp
               window.location.href = "/guide/dashboard";
               break;
             case "customer":

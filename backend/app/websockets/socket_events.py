@@ -1,5 +1,5 @@
 # socket_events.py
-from extensions import socketio
+from app.extensions import socketio
 from flask import request
 
 # Hàm xử lý khi client kết nối

@@ -71,8 +71,7 @@ export default function ApproveToursPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{tour.name}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{tour.price.toLocaleString()} đ</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                    <button 
-                      onClick={() => handleStatusChange(tour.id, "approved")}
+                    <button onClick={() => handleStatusChange(tour.id, "approved")}
                       className="text-white bg-green-600 hover:bg-green-700 px-3 py-1 rounded transition"
                     >
                       Duyệt

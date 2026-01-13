@@ -31,7 +31,7 @@ export default function LoginPage() {
           // SỬA 2: Đồng bộ Role (supplier thay vì tour_provider)
           switch(data.user_info.role) {
             case "admin":
-              window.location.href = "/admin/dashboard"; // Hoặc đường dẫn admin của bạn
+              window.location.href = "/admin/approve-tours"; // Hoặc đường dẫn admin của bạn
               break;
             case "supplier": // <--- Sửa ở đây cho khớp với lúc đăng ký
               window.location.href = "/provider/dashboard";

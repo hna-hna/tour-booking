@@ -1,3 +1,4 @@
+#backend/app/api/supplier.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour, TourGuideAssignment

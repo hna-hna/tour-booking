@@ -7,6 +7,8 @@ class Tour(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(200), nullable=False)    
     description = db.Column(db.Text)
+    itinerary = db.Column(db.Text)
+    quantity = db.Column(db.Integer)
     price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending') 
     supplier_id = db.Column(db.Integer, db.ForeignKey('users.id'))    

@@ -14,7 +14,7 @@ export default function SupplierCreateTour() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        const res = await fetch("http://127.0.0.1:5000/api/tours", {
+        const res = await fetch("http://127.0.0.1:5000/api/supplier/tours", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ ...form, supplier_id: 1 })

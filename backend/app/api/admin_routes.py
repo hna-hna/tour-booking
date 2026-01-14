@@ -1,4 +1,4 @@
-
+#backend/app/api/admin/routes.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
@@ -9,7 +9,7 @@ from app.models.order import Order          # Import thêm Order
 # Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
-# PHẦN 1: QUẢN LÝ TOUR (Của Thư/Quỳnh)
+# PHẦN 1: QUẢN LÝ TOUR 
 
 # 1. API Lấy danh sách tour đang chờ duyệt
 @admin_bp.route('/tours/pending', methods=['GET'])

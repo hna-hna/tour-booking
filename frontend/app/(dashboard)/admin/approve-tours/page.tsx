@@ -36,7 +36,7 @@ export default function ApproveToursPage() {
     if(!confirm(`Bạn chắc chắn muốn ${status === "approved" ? "DUYỆT" : "TỪ CHỐI"} tour này?`)) return;
 
     try {
-      await axios.put(`http://localhost:5000/api/admin/tours/${id}/status`, { status });
+      await axios.put(`http://localhost:5000/api/admin/tours/${id}/moderate`, { action: status === "approved" ? "approve" : "reject",});
       alert("Thành công!");
       // Tải lại danh sách để mất dòng vừa duyệt
       fetchPendingTours(); 

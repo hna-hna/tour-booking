@@ -1,4 +1,4 @@
-#backend/app/_init__.py
+#backend/app/__init__.py
 
 from .extensions import db, jwt, socketio 
 from flask import Flask, jsonify
@@ -44,6 +44,13 @@ def create_app():
 
     from .api.log_routes import log_bp
     app.register_blueprint(log_bp, url_prefix='/api/logs')
+
+    from .api.supplier import supplier_bp
+    app.register_blueprint(supplier_bp, url_prefix='/api/supplier')
+    
+    from app.api.tour_routes import tour_bp
+    app.register_blueprint(tour_bp)
+
 
     # 5. Socket Events
    # from .websockets import events

@@ -26,17 +26,17 @@ export default function LoginPage() {
           localStorage.setItem("role", data.user_info.role);
           // ... (lưu các thứ khác) ...
           
-          alert("🎉 Đăng nhập thành công!");
+          alert(" Đăng nhập thành công!");
           
-          // SỬA 2: Đồng bộ Role (supplier thay vì tour_provider)
+          // SỬA 2: Đồng bộ Role 
           switch(data.user_info.role) {
             case "admin":
-              window.location.href = "/admin/approve-tours"; // Hoặc đường dẫn admin của bạn
+              window.location.href = "/admin/approve-tours"; 
               break;
-            case "supplier": // <--- Sửa ở đây cho khớp với lúc đăng ký
-              window.location.href = "/provider/dashboard";
+            case "supplier": 
+              window.location.href = "/supplier/upload-manage-tour";
               break;
-            case "guide":    // <--- Sửa ở đây cho khớp
+            case "guide":   
               window.location.href = "/guide/dashboard";
               break;
             case "customer":

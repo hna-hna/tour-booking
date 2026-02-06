@@ -20,6 +20,9 @@ class User(db.Model):
     role = db.Column(db.Enum(UserRole), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    phone = db.Column(db.String(20), nullable=True)      
+    address = db.Column(db.String(255), nullable=True)   
+    avatar = db.Column(db.String(500), nullable=True)    
 # Hàm mã hóa mật khẩu
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

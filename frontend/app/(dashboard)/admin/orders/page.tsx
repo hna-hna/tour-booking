@@ -55,7 +55,7 @@ export default function AdminOrdersPage() {
           <p className="text-gray-500 mt-2">Quản lý các giao dịch booking trong hệ thống</p>
         </div>
         <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 flex items-center gap-2 text-sm font-medium">
-          <span>⬇️</span> Xuất báo cáo
+          <span></span> Xuất báo cáo
         </button>
       </div>
 
@@ -64,7 +64,7 @@ export default function AdminOrdersPage() {
         <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl p-6 text-white shadow-lg shadow-emerald-100">
           <p className="opacity-90 text-sm font-medium">Tổng doanh thu</p>
           <p className="text-3xl font-bold mt-2">{totalRevenue.toLocaleString()} đ</p>
-          <div className="mt-4 text-xs bg-white/20 inline-block px-2 py-1 rounded">💰 Đã thanh toán</div>
+          <div className="mt-4 text-xs bg-white/20 inline-block px-2 py-1 rounded"> Đã thanh toán</div>
         </div>
         <div className="bg-white rounded-2xl p-6 shadow-md border border-gray-100">
           <p className="text-gray-500 text-sm font-medium">Đơn chờ xử lý</p>

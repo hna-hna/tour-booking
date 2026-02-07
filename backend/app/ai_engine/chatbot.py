@@ -3,7 +3,7 @@ import os
 
 class TravelChatbot:
     def __init__(self):
-        # Load API Key từ biến môi trường
+        # load API key từ biến môi trường
         self.api_key = os.getenv("OPENAI_API_KEY")
         
     def get_response(self, user_message, context_data=None):
@@ -14,6 +14,5 @@ class TravelChatbot:
         if not self.api_key:
             return "Chưa cấu hình OpenAI Key."
         
-        # Logic gọi OpenAI API sẽ nằm ở đây
-        # response = openai.ChatCompletion.create(...)
+        # Logic gọi OpenAI API
         return "Đây là phản hồi mẫu từ AI (Mock)."

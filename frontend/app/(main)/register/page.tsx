@@ -43,14 +43,14 @@ export default function RegisterPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.msg === "User registered successfully") {
-          alert("🎉 Đăng ký thành công!");
+          alert(" Đăng ký thành công!");
           window.location.href = "/login";
         } else {
           alert(data.msg || "Đăng ký thất bại!");
         }
       })
       .catch(() => {
-        alert("❌ Không kết nối được server Flask!(f12)");
+        alert(" Không kết nối được server Flask!(f12)");
       })
       .finally(() => {
         setLoading(false);

@@ -1,4 +1,4 @@
-# socket_events.py
+# backend/app/websockets/socket_events.py
 from app.extensions import socketio
 from flask import request
 

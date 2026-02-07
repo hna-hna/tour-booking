@@ -5,13 +5,15 @@ class Order(db.Model):
     __tablename__ = 'orders'
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    tour_id = db.Column(db.Integer, nullable=False) # Liên kết tour sau này
+    tour_id = db.Column(db.Integer, nullable=False) # Liên kết tour 
     total_price = db.Column(db.Float, nullable=False)
     status = db.Column(db.String(20), default='pending') # pending, paid, completed, cancelled
     guest_count = db.Column(db.Integer, nullable=False)
+    is_checked_in = db.Column(db.Boolean, default=False) # HDV điểm danh
+    note = db.Column(db.Text, nullable=True) # Ghi chú của HDV về khách
     booking_date = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 3. Bảng PAYMENTS (Thanh toán)
+# 3. Bảng Thanh toán
 class Payment(db.Model):
     __tablename__ = 'payments'
     id = db.Column(db.Integer, primary_key=True)

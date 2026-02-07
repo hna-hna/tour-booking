@@ -24,20 +24,18 @@ export default function LoginPage() {
         if (data.access_token && data.user_info) {
           localStorage.setItem("token", data.access_token);
           localStorage.setItem("role", data.user_info.role);
-          // ... (lưu các thứ khác) ...
           
-          alert("🎉 Đăng nhập thành công!");
+          alert(" Đăng nhập thành công!");
           
-          // SỬA 2: Đồng bộ Role (supplier thay vì tour_provider)
           switch(data.user_info.role) {
             case "admin":
-              window.location.href = "/admin/approve-tours"; // Hoặc đường dẫn admin của bạn
+              window.location.href = "/admin"; 
               break;
-            case "supplier": // <--- Sửa ở đây cho khớp với lúc đăng ký
+            case "supplier": 
               window.location.href = "/provider/dashboard";
               break;
-            case "guide":    // <--- Sửa ở đây cho khớp
-              window.location.href = "/guide/dashboard";
+            case "guide":   
+              window.location.href = "/guide/";
               break;
             case "customer":
             default:
@@ -49,7 +47,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {
-        alert("❌ Không kết nối được server Flask!");
+        alert(" Không kết nối được server Flask!");
       })
       .finally(() => {
         setLoading(false);

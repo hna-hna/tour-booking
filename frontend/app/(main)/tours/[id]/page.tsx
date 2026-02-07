@@ -1,8 +1,5 @@
 // app/(main)/tours/[id]/page.tsx
 "use client"; 
-// Dùng use client để lấy params dễ dàng hoặc dùng Server Component (tùy bạn chọn)
-// Ở đây mình ví dụ dạng Server Component mặc định (Next.js 13+)
-
 export default function TourDetailPage({ params }: { params: { id: string } }) {
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">

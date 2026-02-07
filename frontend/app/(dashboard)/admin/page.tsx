@@ -3,14 +3,13 @@ import React from "react";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
-  // Dữ liệu giả lập (Sau này bạn sẽ gọi API để thay thế số này)
   const stats = [
     { 
       title: "Tổng Doanh Thu", 
       value: "150.000.000đ", 
       change: "+12%", 
       isPositive: true,
-      icon: "💰",
+      icon: "",
       color: "from-green-500 to-emerald-600"
     },
     { 
@@ -18,7 +17,7 @@ export default function AdminDashboardPage() {
       value: "24", 
       change: "+5", 
       isPositive: true,
-      icon: "📦",
+      icon: "",
       color: "from-blue-500 to-indigo-600"
     },
     { 
@@ -26,16 +25,16 @@ export default function AdminDashboardPage() {
       value: "1,203", 
       change: "+18%", 
       isPositive: true,
-      icon: "👥",
-      color: "from-orange-400 to-pink-500"
+      icon: "",
+      color: "from-blue-500 to-indigo-600"
     },
     { 
       title: "Tour Chờ Duyệt", 
       value: "5", 
       change: "-2", 
-      isPositive: false, // Ít tour chờ duyệt là tốt (ví dụ vậy)
-      icon: "⏳",
-      color: "from-purple-500 to-violet-600"
+      isPositive: false, 
+      icon: "",
+      color: "from-blue-500 to-indigo-600"
     },
   ];
 
@@ -43,7 +42,7 @@ export default function AdminDashboardPage() {
     <div className="p-6 max-w-7xl mx-auto">
       {/* 1. Phần Chào mừng */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">Xin chào, Admin! 👋</h1>
+        <h1 className="text-3xl font-bold text-gray-800">Xin chào, Admin! </h1>
         <p className="text-gray-500 mt-2">Đây là tình hình kinh doanh của hệ thống hôm nay.</p>
       </div>
 
@@ -70,7 +69,7 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-      {/* 3. Khu vực nội dung chính (2 cột) */}
+      {/* 3. Khu vực nội dung chính */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Cột trái: Hoạt động gần đây (Chiếm 2 phần) */}
@@ -114,7 +113,7 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Cột phải: Lối tắt (Chiếm 1 phần) */}
+        {/* Cột phải: Lối tắt  */}
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <h3 className="text-xl font-bold text-gray-800 mb-6">Truy cập nhanh</h3>
           <div className="space-y-4">
@@ -122,7 +121,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-600">
-                    ✅
+                    
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">Duyệt Tour</p>
@@ -137,7 +136,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-600">
-                    👥
+                    
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">Quản lý Users</p>

@@ -21,7 +21,7 @@ export default function MainLayout({
     const email = localStorage.getItem("user_email");
     
     console.log(" Layout Loading - Checking localStorage:");
-    console.log("- Token:", token ? " Có" : "❌ Không");
+    console.log("- Token:", token ? " Có" : " Không");
     console.log("- Role:", role);
     console.log("- Name:", name);
     console.log("- Email:", email);

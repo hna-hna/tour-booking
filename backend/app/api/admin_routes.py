@@ -2,18 +2,18 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
-from app.models.user import User, UserRole  # Import thêm User
-from app.models.order import Order          # Import thêm Order
-# from flask_jwt_extended import jwt_required, get_jwt_identity # Bật lại khi nào có Auth
+from app.models.user import User, UserRole  
+from app.models.order import Order         
+# from flask_jwt_extended import jwt_required, get_jwt_identity 
 
 # Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
-# PHẦN 1: QUẢN LÝ TOUR 
+# QUẢN LÝ TOUR 
 
-# 1. API Lấy danh sách tour đang chờ duyệt
+#  API Lấy danh sách tour đang chờ duyệt
 @admin_bp.route('/tours/pending', methods=['GET'])
-# @jwt_required() bắt login
+# @jwt_required()
 # @role_required(['admin'])  decorator check quyền
 def get_pending_tours():
     # Lấy các tour có trạng thái = 'pending'
@@ -35,7 +35,7 @@ def get_pending_tours():
         })
     return jsonify(result), 200
 
-# 2. API Duyệt hoặc Từ chối Tour
+#API Duyệt hoặc Từ chối Tour
 @admin_bp.route('/tours/<int:tour_id>/moderate', methods=['PUT'])
 # @jwt_required()
 def moderate_tour(tour_id):
@@ -60,11 +60,9 @@ def moderate_tour(tour_id):
     return jsonify({"msg": msg, "status": tour.status}), 200
 
 
-# =======================================================
-# PHẦN 2: QUẢN LÝ USER (Của Na - Mới thêm vào)
-# =======================================================
+# QUẢN LÝ USER
 
-# 3. Lấy danh sách toàn bộ Users
+#lấy danh sách toàn bộ Users
 @admin_bp.route('/users', methods=['GET'])
 def get_all_users():
     users = User.query.all()
@@ -79,7 +77,7 @@ def get_all_users():
         } for u in users
     ]), 200
 
-# 4. Khóa/Mở khóa User
+# Khóa/Mở khóa User
 @admin_bp.route('/users/<int:user_id>/toggle-status', methods=['PUT'])
 def toggle_user_status(user_id):
     user = User.query.get_or_404(user_id)
@@ -91,7 +89,7 @@ def toggle_user_status(user_id):
     status_text = "Hoạt động" if user.is_active else "Đã khóa"
     return jsonify({'message': f'Trạng thái user đã đổi thành: {status_text}', 'is_active': user.is_active}), 200
 
-# 5. Cập nhật thông tin User
+# Cập nhật thông tin User
 @admin_bp.route('/users/<int:user_id>', methods=['PUT'])
 def update_user_info(user_id):
     user = User.query.get_or_404(user_id)
@@ -100,7 +98,7 @@ def update_user_info(user_id):
     if 'full_name' in data:
         user.full_name = data['full_name']
     
-    # Nếu muốn cho phép sửa Role (cẩn thận lỗi Enum nếu gửi sai chuỗi)
+    # Nếu muốn cho phép sửa Role 
     if 'role' in data:
         try:
             # data['role'] phải là 'customer', 'supplier', 'admin'...
@@ -111,7 +109,7 @@ def update_user_info(user_id):
     db.session.commit()
     return jsonify({'message': 'Cập nhật thông tin thành công'}), 200
 
-# 6. Xóa User (Soft delete hoặc Hard delete tùy nhu cầu)
+#Xóa User (Soft delete hoặc Hard delete tùy nhu cầu)
 @admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
@@ -120,11 +118,7 @@ def delete_user(user_id):
     db.session.commit()
     return jsonify({'message': 'Đã xóa user vĩnh viễn'}), 200
 
-
-# PHẦN 3: QUẢN LÝ ĐƠN HÀNG (Của Na - Mới thêm vào)
-
-
-# 7. Lấy danh sách toàn bộ đơn hàng
+# lấy danh sách toàn bộ đơn hàng
 @admin_bp.route('/orders', methods=['GET'])
 def get_all_orders():
     # Sắp xếp đơn mới nhất lên đầu
@@ -137,7 +131,6 @@ def get_all_orders():
         user_email = o.user.email if o.user else "No Email"
         
         # Giả sử trong model Order,thêm quan hệ 'tour' 
-        # Nếu chưa có thì tạm thời để string rỗng
         tour_name = o.tour.name if hasattr(o, 'tour') and o.tour else f"Tour ID: {o.tour_id}"
 
         results.append({

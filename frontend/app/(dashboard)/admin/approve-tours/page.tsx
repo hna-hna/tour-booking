@@ -7,9 +7,9 @@ interface Tour {
   id: number;
   name: string;
   price: number;
-  provider_id: number;
-  created_at?: string; // Thêm trường này nếu API có trả về
-  supplier_name?: string; // Nếu API có trả về tên NCC thì hiển thị, không thì thôi
+  supplier_id: number;
+  created_at?: string; 
+  supplier_name?: string; 
 }
 
 export default function ApproveToursPage() {
@@ -58,12 +58,12 @@ export default function ApproveToursPage() {
         <p className="text-gray-500 mt-2">Danh sách các tour mới chờ phê duyệt từ nhà cung cấp</p>
       </div>
 
-      {/* Stats Section (Thống kê nhanh) */}
+      {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-gradient-to-r from-orange-400 to-pink-500 rounded-2xl p-6 text-white shadow-lg">
+        <div className="bg-gradient-to-r from-green-400 to-black-500 rounded-2xl p-6 text-white shadow-lg">
           <p className="opacity-90 text-sm font-medium">Yêu cầu chờ duyệt</p>
           <p className="text-3xl font-bold mt-2">{tours.length}</p>
-          <div className="mt-4 text-xs bg-white/20 inline-block px-2 py-1 rounded">🕒 Cần xử lý ngay</div>
+          <div className="mt-4 text-xs bg-white/20 inline-block px-2 py-1 rounded"> Cần xử lý ngay</div>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export default function ApproveToursPage() {
       <div className="bg-white rounded-2xl shadow-md border border-gray-100 overflow-hidden">
         {tours.length === 0 ? (
           <div className="p-10 text-center text-gray-500 flex flex-col items-center">
-            <span className="text-4xl mb-3">✨</span>
+            <span className="text-4xl mb-3"></span>
             <p>Tuyệt vời! Không còn tour nào đang chờ duyệt.</p>
           </div>
         ) : (
@@ -111,7 +111,7 @@ export default function ApproveToursPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-600 border border-blue-100">
-                        Provider #{tour.provider_id}
+                        Provider #{tour.supplier_id}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">

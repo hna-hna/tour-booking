@@ -30,8 +30,7 @@ def create_app():
     
     Migrate(app, db)
 
-    # 4. Đăng ký Blueprint (Tôi đã rút gọn URL cho chuyên nghiệp hơn)
-    # Lưu ý: Đảm bảo tên file trong thư mục api là auth_routes.py và profile_routes.py
+    # 4. Đăng ký Blueprint 
     
     from .api.auth_routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/api/auth') 
@@ -48,11 +47,14 @@ def create_app():
     from .api.supplier import supplier_bp
     app.register_blueprint(supplier_bp, url_prefix='/api/supplier')
     
-    from app.api.tour_routes import tour_bp
-    app.register_blueprint(tour_bp)
+    from .api.guide import guide_bp
+    app.register_blueprint(guide_bp)
 
+    from .api.tour_routes import tour_bp
+    app.register_blueprint(tour_bp, url_prefix='/api/tours')
 
     # 5. Socket Events
+    from app import websockets
    # from .websockets import events
 
     # Test route

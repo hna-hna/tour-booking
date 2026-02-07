@@ -14,16 +14,16 @@ export default function AdminLayout({
 
   // Danh sách menu của Admin
   const menuItems = [
-    { name: "Tổng quan", href: "/admin", icon: "📊" },
-    { name: "Quản lý Users", href: "/admin/users", icon: "👥" },
-    { name: "Duyệt Tour", href: "/admin/approve-tours", icon: "✅" },
-    { name: "Đơn hàng", href: "/admin/orders", icon: "📦" },
-    { name: "Thống kê", href: "/admin/reports", icon: "📈" },
+    { name: "Tổng quan", href: "/admin"},
+    { name: "Quản lý Users", href: "/admin/users"},
+    { name: "Duyệt Tour", href: "/admin/approve-tours"},
+    { name: "Đơn hàng", href: "/admin/orders"},
+    { name: "Thống kê", href: "/admin/reports" },
   ];
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* 1. SIDEBAR - Cố định bên trái */}
+      {/* 1. SIDEBAR */}
       <aside 
         className={`bg-slate-900 text-white transition-all duration-300 flex flex-col fixed h-full z-20 ${
           isSidebarOpen ? "w-64" : "w-20"
@@ -32,8 +32,8 @@ export default function AdminLayout({
         {/* Logo Area */}
         <div className="h-16 flex items-center justify-center border-b border-slate-700">
           <div className="flex items-center gap-2 font-bold text-xl">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white">
-              A
+            <div className="w-8 h-8  rounded-lg flex items-center justify-center text-white">
+          
             </div>
             {isSidebarOpen && <span className="text-emerald-400">Admin Panel</span>}
           </div>
@@ -76,7 +76,7 @@ export default function AdminLayout({
         </div>
       </aside>
 
-      {/* 2. MAIN CONTENT - Bên phải */}
+      {/* 2. MAIN CONTENT*/}
       <div 
         className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
           isSidebarOpen ? "ml-64" : "ml-20"
@@ -99,7 +99,7 @@ export default function AdminLayout({
           </div>
         </header>
 
-        {/* Nội dung thay đổi của từng trang sẽ nằm ở đây */}
+        {/* Nội dung */}
         <main className="flex-1 overflow-x-hidden">
           {children}
         </main>

@@ -59,8 +59,8 @@ export default function AdminUsersPage() {
       {/* Stats Cards - Thống kê */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
-          { title: "Tổng người dùng", value: totalUsers, icon: "👥", color: "from-emerald-400 to-teal-500" },
-          { title: "Đang hoạt động", value: activeUsers, icon: "✅", color: "from-blue-400 to-indigo-500" },
+          { title: "Tổng người dùng", value: totalUsers, color: "from-emerald-400 to-teal-500" },
+          { title: "Đang hoạt động", value: activeUsers,  color: "from-blue-400 to-indigo-500" },
           { title: "Nhà cung cấp", value: providers, icon: "uD83C\uDFE2", color: "from-orange-400 to-red-500" },
         ].map((stat, index) => (
           <div key={index} className={`relative overflow-hidden rounded-2xl p-6 bg-gradient-to-r ${stat.color} text-white shadow-lg transform hover:-translate-y-1 transition-all`}>

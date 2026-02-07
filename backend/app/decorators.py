@@ -19,7 +19,7 @@ def role_required(allowed_roles):
                 claims = get_jwt()
                 user_role = claims.get("role")
                 
-                #So sánh: Role của user có nằm trong danh sách cho phép không?
+                #kiểm tra Role của user có nằm trong danh sách cho phép không?
                 if user_role not in allowed_roles:
                     return jsonify({"msg": "Bạn không có quyền truy cập chức năng này!"}), 403
                     

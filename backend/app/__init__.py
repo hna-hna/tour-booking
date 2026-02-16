@@ -5,18 +5,21 @@ from flask import Flask, jsonify
 from flask_migrate import Migrate
 from config import Config
 from flask_cors import CORS
+from datetime import timedelta
+
 
 # 1. Import extensions
 from .extensions import db, jwt, socketio
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__ , static_folder='static', static_url_path='/static')
     app.config.from_object(Config)
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 
     # 2. Cấu hình CORS
     CORS(app, resources={
         r"/api/*": {
-            "origins": ["*"],
+            "origins": ["http://localhost:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True

@@ -3,10 +3,10 @@ from app.extensions import db
 from datetime import datetime
 from enum import Enum
 
-class GuideStatus(Enum):
-    AVAILABLE = 'available'    # Trống lịch
-    BUSY = 'busy'             # Bận lịch
-    ON_LEAVE = 'on_leave'     # Tạm nghỉ
+class GuideStatus(Enum): # trạng thái hdv
+    AVAILABLE = 'AVAILABLE'    # Trống lịch
+    BUSY = 'BUSY'             # Bận lịch
+    ON_LEAVE = 'ON_LEAVE'     # Tạm nghỉ
 
 class TourGuide(db.Model):
     __tablename__ = 'tour_guides'
@@ -27,10 +27,11 @@ class TourGuide(db.Model):
     
     # Trạng thái làm việc
     status = db.Column(
-        db.Enum(GuideStatus, values_callable=lambda x: [e.value for e in x]),
-        default=GuideStatus.AVAILABLE,
-        nullable=False
-    )
+    db.Enum(GuideStatus, values_callable=lambda x: [e.value for e in x]),
+    default=GuideStatus.AVAILABLE.value,
+    nullable=False
+)
+
     
    
     # Metadata
@@ -52,9 +53,10 @@ class TourGuide(db.Model):
             'years_of_experience': self.years_of_experience,
             'languages': self.languages,
             'specialties': self.specialties,
-            'status': self.status.value if self.status else 'available',
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'status': self.status if isinstance(self.status, str) else self.status.value,
+
+            'created_at': self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            'updated_at': self.updated_at.isoformat() if isinstance(self.updated_at, datetime) else self.updated_at,
         }
 
 
@@ -66,12 +68,12 @@ class TourGuideAssignment(db.Model):
     tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
     guide_id = db.Column(db.Integer, db.ForeignKey('tour_guides.id'), nullable=False)
     assigned_date = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text)  # Ghi chú về phân công
+    notes = db.Column(db.Text, nullable=True)  # Ghi chú về phân công(vd: đón khách tại sb,..)
     
-    # Relationships
-    tour = db.relationship('Tour', backref='guide_assignments')
+    # Relationships(truy xuất dl)
+    tour = db.relationship('Tour', back_populates='guide_assignments')
     
-    def to_dict(self):
+    def to_dict(self):   
         return {
             'id': self.id,
             'tour_id': self.tour_id,

@@ -40,7 +40,7 @@ function CheckoutContent() {
     }
     setLoading(true);
 
-    // Ép chuyển hướng bằng window.location để đảm bảo thành công 100%
+    // Ép chuyển hướng bằng window.location 
     const targetUrl = `/payments?id=${tourId}&amount=${totalAmount}&guests=${guestCount}&date=${selectedDate}`;
     
     setTimeout(() => {
@@ -53,7 +53,7 @@ function CheckoutContent() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-10">
           <h1 className="text-3xl font-black text-gray-900 italic uppercase tracking-tighter">Xác nhận đặt Tour</h1>
-          {/* ĐOẠN HIỂN THỊ TÊN TOUR CỦA BẠN ĐÂY */}
+          {/* ĐOẠN HIỂN THỊ TÊN TOUR  */}
           {tour ? (
             <div className="flex items-center gap-2 mt-2">
                <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">Tour đang chọn</span>

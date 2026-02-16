@@ -52,7 +52,8 @@ def login():
     user = User.query.filter_by(email=email).first()
 
     # Kiểm tra mật khẩu đúng không
-    if user and user.check_password(password):
+    if user.password_hash == password:
+
         # Tạo Token (Vé vào cổng), lưu thêm ID và Role vào trong vé
         token = create_access_token(identity=str(user.id), additional_claims={"role": user.role.value})
         

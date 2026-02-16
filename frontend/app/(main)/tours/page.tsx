@@ -8,6 +8,7 @@ interface Tour {
   name: string;
   price: number;
   description: string;
+  image: string;
 }
 
 export default function ToursListPage() {
@@ -36,12 +37,27 @@ export default function ToursListPage() {
             key={tour.id}
             className="bg-white rounded-xl shadow-md hover:shadow-lg transition"
           >
-            <div className="h-48 bg-gray-200"></div>
+            <div className="h-48 bg-gray-200 rounded-t-xl overflow-hidden">
+  {tour.image ? (
+    <img
+      src={tour.image}
+      alt={tour.name}
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x200?text=No+Image";
+      }}
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center text-gray-400">
+      Không có ảnh
+    </div>
+  )}
+</div>
 
             <div className="p-4">
               <h3 className="font-bold text-xl mb-2">{tour.name}</h3>
               <p className="text-gray-600 mb-4 line-clamp-2">
-                {tour.description || "Không có mô tả"}
+                {tour.description || ""}
               </p>
 
               <div className="flex justify-between items-center">

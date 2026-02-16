@@ -1,11 +1,14 @@
 # backend/app/api/supplier.py
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify,current_app
 from app.extensions import db
 from app.models.tour import Tour
-from app.models.tour_guide import TourGuide, TourGuideAssignment, GuideStatus
+from app.models.tour_guide import TourGuide, TourGuideAssignment
 from app.models.order import Order
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, and_
+from werkzeug.utils import secure_filename
+from app.models.order import Order, Payment
+import os
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
@@ -15,43 +18,92 @@ supplier_bp = Blueprint('supplier_bp', __name__)
 def get_my_tours():
     sid = get_jwt_identity()
     tours = Tour.query.filter_by(supplier_id=sid).all()
-    return jsonify([{
-        "id": t.id,
-        "name": t.name,
-        "price": t.price,
-        "quantity": t.quantity,  
-        "status": t.status,
-        "guide_name": getattr(t, 'guide_name', 'Chưa phân công'),
-        "itinerary": getattr(t, 'itinerary', ''),
-        "description": getattr(t, 'description', '')
-    } for t in tours]), 200
+    
+    result = []
+    for t in tours:
+        # Logic lấy tên HDV từ bảng liên kết
+        guide_name = "Chưa phân công"
+        guide_id = None
+        
+        # Kiểm tra xem tour này có phân công ai chưa
+        # (Lấy người đầu tiên trong danh sách phân công)
+        if t.guide_assignments: 
+            assignment = t.guide_assignments[0] # Lấy assignment đầu tiên
+            # Query lấy thông tin chi tiết HDV
+            guide = TourGuide.query.get(assignment.guide_id)
+            if guide:
+                guide_name = guide.full_name
+                guide_id = guide.id
+
+        result.append({
+            "id": t.id,
+            "name": t.name,
+            "price": t.price,
+            "quantity": t.quantity,  
+            "status": t.status,
+            "image": t.image,
+            "guide_name": guide_name, # Đã lấy được tên thật
+            "guide_id": guide_id,     # Trả về ID để frontend dùng lúc Edit
+            "itinerary": t.itinerary,
+            "description": t.description
+        })
+
+    return jsonify(result), 200
+
+
+# LẤY CHI TIẾT 1 TOUR (Bổ sung để hiển thị đủ ảnh)
+@supplier_bp.route('/tours/<int:tour_id>', methods=['GET'])
+def get_tour_detail_supplier(tour_id):
+    tour = Tour.query.get_or_404(tour_id)
+    return jsonify({
+        "id": tour.id,
+        "name": tour.name,
+        "description": tour.description or "",
+        "itinerary": tour.itinerary or "",
+        "price": tour.price,
+        "quantity": tour.quantity,
+        "status": tour.status,
+        "image": tour.image,  
+        "supplier_id": tour.supplier_id
+    }), 200
+
 
 # 2. CREATE: Tạo Tour mới
+
+
 @supplier_bp.route('/tours', methods=['POST'])
 @jwt_required()
 def create_tour():
     sid = get_jwt_identity()
-    data = request.get_json()
-    
+    data = request.get_json() # Chuyển sang nhận JSON cho đồng bộ
     try:
+        # Nhận link ảnh trực tiếp (đã upload lên Supabase từ Frontend)
+        image_url = data.get('image')
+        guide_id = data.get('guide_id')
+   
+    
+        
+
+        # 3. Tạo đối tượng Tour
         new_tour = Tour(
             name=data.get('name'),
             description=data.get('description'),
             itinerary=data.get('itinerary'),
             price=data.get('price'),
-            quantity=data.get('quantity', 20),  
-            supplier_id=sid,  
-            status='pending'
+            quantity=data.get('quantity', 20),
+            supplier_id=sid,
+            status='pending',
+            image=image_url  
         )
         
         db.session.add(new_tour)
-        db.session.flush()  # Để lấy tour_id phục vụ việc phân công HDV
+        db.session.flush()  # Lấy ID tour vừa tạo
         
-        # Phân công Hướng dẫn viên (HDV) nếu có truyền guide_id
-        if data.get('guide_id'):
+        # 4. Phân công HDV (Nếu có)
+        if guide_id:
             assignment = TourGuideAssignment(
                 tour_id=new_tour.id,
-                guide_id=data.get('guide_id')
+                guide_id=guide_id
             )
             db.session.add(assignment)
             
@@ -60,6 +112,7 @@ def create_tour():
         
     except Exception as e:
         db.session.rollback()
+        print("Error creating tour:", str(e)) # In lỗi ra terminal để debug
         return jsonify({"error": str(e)}), 500
 
 # 3. CẬP NHẬT TOUR (Chỉ khi pending hoặc rejected)
@@ -72,8 +125,7 @@ def update_my_tour(tour_id):
     if tour.status not in ['pending', 'rejected']:
         return jsonify({"msg": "Không thể sửa tour đã được duyệt"}), 403
     
-    data = request.json
-    
+    data = request.get_json() or {}
     # Cập nhật các field
     tour.name = data.get('name', tour.name)
     tour.price = data.get('price', tour.price)
@@ -81,6 +133,7 @@ def update_my_tour(tour_id):
     tour.description = data.get('description', tour.description)
     tour.guide_name = data.get('guide_name', tour.guide_name)
     tour.quantity = data.get('quantity', tour.quantity)  
+    tour.image = data.get('image', tour.image)
     
     db.session.commit()
     return jsonify({"msg": "Cập nhật thành công"}), 200
@@ -144,7 +197,7 @@ def create_guide():
             years_of_experience=data.get('years_of_experience', 0),
             languages=data.get('languages'),
             specialties=data.get('specialties'),
-            status=GuideStatus.AVAILABLE,
+             status=data.get("status", "AVAILABLE").upper(),  
            
         )
         
@@ -160,62 +213,34 @@ def create_guide():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# 3. Cập nhật thông tin HDV
-@supplier_bp.route('/guides/<int:guide_id>', methods=['PUT'])
-@jwt_required()
-def update_guide(guide_id):
-    sid = get_jwt_identity()
-    guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first_or_404()
-    
-    data = request.get_json()
-    
-    # Update fields
-    if 'full_name' in data:
-        guide.full_name = data['full_name']
-    if 'phone' in data:
-        guide.phone = data['phone']
-    if 'email' in data:
-        guide.email = data['email']
-    if 'license_number' in data:
-        guide.license_number = data['license_number']
-    if 'years_of_experience' in data:
-        guide.years_of_experience = data['years_of_experience']
-    if 'languages' in data:
-        guide.languages = data['languages']
-    if 'specialties' in data:
-        guide.specialties = data['specialties']
-    
-    if 'status' in data:
-        try:
-            guide.status = GuideStatus(data['status'])
-        except ValueError:
-            return jsonify({"error": "Invalid status"}), 400
-    
-    db.session.commit()
-    return jsonify({
-        "message": "Cập nhật thành công",
-        "guide": guide.to_dict()
-    }), 200
-
-# 4. Cập nhật trạng thái HDV (available/busy/on_leave)
+# Cập nhật trạng thái HDV (AVAILABLE/BUSY/ON_LEAVE)
 @supplier_bp.route('/guides/<int:guide_id>/status', methods=['PATCH'])
 @jwt_required()
 def update_guide_status(guide_id):
     sid = get_jwt_identity()
-    guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first_or_404()
-    
+    guide = TourGuide.query.filter_by(
+        id=guide_id,
+        supplier_id=sid
+    ).first_or_404()
+
     data = request.get_json()
-    status = data.get('status')
-    
-    try:
-        guide.status = GuideStatus(status)
-        db.session.commit()
+    status = data.get('status', '').strip().upper()
+
+    if status not in ['AVAILABLE', 'BUSY', 'ON_LEAVE']:
         return jsonify({
-            "message": f"Đã cập nhật trạng thái thành {status}",
-            "guide": guide.to_dict()
-        }), 200
-    except ValueError:
-        return jsonify({"error": "Trạng thái không hợp lệ. Chỉ chấp nhận: available, busy, on_leave"}), 400
+            "error": "Trạng thái không hợp lệ. Chỉ chấp nhận: AVAILABLE, BUSY, ON_LEAVE"
+        }), 400
+
+    guide.status = status  # ✅ GÁN STRING
+    db.session.commit()
+
+    return jsonify({
+        "message": f"Đã cập nhật trạng thái thành {status}",
+        "guide": guide.to_dict()
+    }), 200
+
+
+
 
 # 5. Xóa HDV
 @supplier_bp.route('/guides/<int:guide_id>', methods=['DELETE'])
@@ -314,43 +339,50 @@ def get_pending_orders():
 def get_revenue_summary():
     sid = get_jwt_identity()
     
-    # Lấy tất cả tour của supplier
-    my_tour_ids = [t.id for t in Tour.query.filter_by(supplier_id=sid).all()]
+    # Query: Tính tổng doanh thu và tổng số đơn từ bảng Payment
+    stats = db.session.query(
+        func.count(Order.id).label('total_orders'),
+        func.sum(Payment.amount).label('total_revenue')
+    ).join(Payment, Order.id == Payment.order_id)\
+     .join(Tour, Order.tour_id == Tour.id)\
+     .filter(Tour.supplier_id == sid)\
+     .filter(Payment.status == 'success')\
+     .first()
+
+    # Xử lý kết quả (tránh lỗi None)
+    total_orders = stats.total_orders or 0
+    total_revenue = stats.total_revenue or 0 # Nếu không có đơn nào, trả về 0
     
-    # Tổng doanh thu từ đơn đã thanh toán
-    completed_orders = Order.query.filter(
-        and_(
-            Order.tour_id.in_(my_tour_ids),
-            Order.status.in_(['Đã thanh toán', 'Hoàn thành'])
-        )
-    ).all()
-    
-    total_revenue = sum([o.total_price for o in completed_orders])
+    # Tính toán hoa hồng (15%)
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
     
-    # Doanh thu đang chờ (Escrow)
-    pending_orders = Order.query.filter(
-        and_(
-            Order.tour_id.in_(my_tour_ids),
-            Order.status == 'Đã thanh toán'
-        )
-    ).all()
+    # Query: Tính tiền đang chờ (Escrow) - Đơn có Payment status là 'pending'
+    escrow_stats = db.session.query(func.sum(Payment.amount))\
+        .join(Order, Payment.order_id == Order.id)\
+        .join(Tour, Order.tour_id == Tour.id)\
+        .filter(Tour.supplier_id == sid)\
+        .filter(Payment.status == 'pending')\
+        .scalar()
+        
+    escrow_amount = escrow_stats or 0
     
-    escrow_amount = sum([o.total_price * 0.85 for o in pending_orders])
-    
-    
-    paid_out_amount = 0  # Tạm thời set 0, cần thêm logic thanh toán cho supplier
-    
+    # Query: Đếm số lượng đơn đang chờ
+    pending_orders_count = db.session.query(func.count(Order.id))\
+        .join(Tour, Order.tour_id == Tour.id)\
+        .filter(Tour.supplier_id == sid)\
+        .filter(Order.status == 'pending')\
+        .scalar()
+
     return jsonify({
-        'total_revenue': total_revenue,           # Tổng doanh thu (100%)
-        'admin_commission': admin_commission,     # Hoa hồng admin (15%)
-        'supplier_revenue': supplier_revenue,     # Doanh thu của supplier (85%)
-        'escrow_amount': escrow_amount,           # Đang chờ xử lý
-        'paid_out_amount': paid_out_amount,       # Đã nhận
-        'pending_payout': supplier_revenue - paid_out_amount,  # Còn chờ nhận
-        'total_orders': len(completed_orders),
-        'pending_orders': len(pending_orders)
+        'total_revenue': total_revenue,       
+        'admin_commission': admin_commission, 
+        'supplier_revenue': supplier_revenue, 
+        'escrow_amount': escrow_amount,       
+        'paid_out_amount': 0,                 
+        'pending_payout': supplier_revenue,   
+        'total_orders': total_orders,
+        'pending_orders': pending_orders_count or 0
     }), 200
 
 # 9. Báo cáo chi tiết theo tour
@@ -359,26 +391,29 @@ def get_revenue_summary():
 def get_revenue_by_tour():
     sid = get_jwt_identity()
     
-    tours = Tour.query.filter_by(supplier_id=sid).all()
+    # Group by Tour
+    results = db.session.query(
+        Tour.id,
+        Tour.name,
+        func.count(Order.id).label('total_bookings'),
+        func.sum(Payment.amount).label('total_revenue')
+    ).join(Order, Tour.id == Order.tour_id)\
+     .join(Payment, Order.id == Payment.order_id)\
+     .filter(Tour.supplier_id == sid)\
+     .filter(Payment.status == 'success')\
+     .group_by(Tour.id, Tour.name)\
+     .all()
     
-    result = []
-    for tour in tours:
-        orders = Order.query.filter(
-            and_(
-                Order.tour_id == tour.id,
-                Order.status.in_(['Đã thanh toán', 'Hoàn thành'])
-            )
-        ).all()
-        
-        total = sum([o.total_price for o in orders])
-        
-        result.append({
-            'tour_id': tour.id,
-            'tour_name': tour.name,
-            'total_revenue': total,
-            'admin_commission': total * 0.15,
-            'supplier_revenue': total * 0.85,
-            'total_bookings': len(orders)
+    data = []
+    for r in results:
+        rev = r.total_revenue or 0
+        data.append({
+            'tour_id': r.id,
+            'tour_name': r.name,
+            'total_revenue': rev,
+            'admin_commission': rev * 0.15,
+            'supplier_revenue': rev * 0.85,
+            'total_bookings': r.total_bookings
         })
     
-    return jsonify(result), 200
+    return jsonify(data), 200

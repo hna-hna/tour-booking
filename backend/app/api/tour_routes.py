@@ -13,6 +13,7 @@ def get_public_tours():
             "name": t.name,
             "price": t.price,
             "description": t.description,
+            "image": t.image
         }
         for t in tours
     ]), 200
@@ -24,8 +25,9 @@ def get_tour_detail(tour_id):
     return jsonify({
         "id": tour.id,
         "name": tour.name,
-        "price": tour.price, # Giá thực nhà cung cấp đã upload
-        "description": tour.description,
-        "itinerary": tour.itinerary,
-        "quantity": tour.quantity
+        "price": tour.price,
+        "description": tour.description or "", 
+        "itinerary": tour.itinerary or "",
+        "quantity": tour.quantity,
+        "image": tour.image 
     }), 200

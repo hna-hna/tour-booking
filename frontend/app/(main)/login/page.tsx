@@ -13,7 +13,7 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    // SỬA 1: URL ngắn gọn hơn (khớp với backend mới sửa)
+    //  1: URL ngắn gọn hơn 
     fetch("http://127.0.0.1:5000/api/auth/login", { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -28,7 +28,7 @@ export default function LoginPage() {
           
           alert(" Đăng nhập thành công!");
           
-          // SỬA 2: Đồng bộ Role 
+          //  2: Đồng bộ Role 
           switch(data.user_info.role) {
             case "admin":
               window.location.href = "/admin/approve-tours"; 
@@ -49,7 +49,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {
-        alert("❌ Không kết nối được server Flask!");
+        alert(" Không kết nối được server Flask!");
       })
       .finally(() => {
         setLoading(false);

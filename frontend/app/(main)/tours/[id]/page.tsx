@@ -1,11 +1,11 @@
 // app/(main)/tours/[id]/page.tsx
-"use client"; 
+"use client";
 import { use, useEffect, useState } from "react";
 import axios from "axios";
 
 export default function TourDetail({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  
+
   // Thêm State để lưu dữ liệu tour
   const [tour, setTour] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,18 +37,30 @@ export default function TourDetail({ params }: { params: Promise<{ id: string }>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {tour.name} {/* Thay tên thật */}
           </h1>
-          
+
           {/* Ảnh: Kiểm tra nếu có image_url thì hiển thị, không thì để placeholder */}
-          <div className="bg-gray-200 h-96 rounded-xl mb-6 overflow-hidden">
-            {tour.image_url && (
-              <img src={tour.image_url} className="w-full h-full object-cover" alt={tour.name} />
-            )}
-          </div>
+          <div className="bg-gray-200 h-96 rounded-xl mb-6 overflow-hidden flex items-center justify-center">
+  {tour.image ? (
+    <img 
+      src={tour.image} 
+      key={tour.image} // Thêm key để React ép render lại khi link thay đổi
+      className="w-full h-full object-cover" 
+      alt={tour.name}
+      referrerPolicy="no-referrer" // Thêm dòng này nếu Supabase chặn referrer từ localhost
+      onError={(e) => {
+        console.log("Link ảnh bị lỗi:", tour.image); // In ra console để xem link thực tế là gì
+        (e.target as HTMLImageElement).src = "https://via.placeholder.com/800x400?text=Loi_Link_Anh";
+      }} 
+    />
+  ) : (
+    <p className="text-gray-400">Không có dữ liệu ảnh</p>
+  )}
+</div>
 
           <div className="prose max-w-none">
             <h3 className="text-2xl font-bold mb-2">Lịch trình</h3>
             {/* Thay mô tả thật */}
-            <p className="whitespace-pre-line">{tour.description || "Đang cập nhật nội dung..."}</p>
+            <p className="whitespace-pre-line">{tour.itinerary || tour.description || "Đang cập nhật nội dung..."}</p>
           </div>
         </div>
 
@@ -60,8 +72,8 @@ export default function TourDetail({ params }: { params: Promise<{ id: string }>
             <p className="text-3xl font-bold text-emerald-600 mb-6">
               {tour.price?.toLocaleString()}đ
             </p>
-            
-            <a 
+
+            <a
               href={`/checkout?id=${tour.id}`} // Truyền ID sang trang checkout
               className="block w-full text-center bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition"
             >

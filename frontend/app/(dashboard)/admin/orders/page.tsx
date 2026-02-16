@@ -19,7 +19,7 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:5000/api/admin/orders');
+        const res = await fetch('http://localhost:5000/api/admin/orders');
         const data = await res.json();
         setOrders(data);
       } catch (e) { console.error(e); } 

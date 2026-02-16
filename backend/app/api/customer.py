@@ -21,6 +21,9 @@ def search_tours():
 
     tours = query.all()
 
+
+
+
     # 3. Trả về kết quả
     results = []
     for tour in tours:

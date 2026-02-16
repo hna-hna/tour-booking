@@ -20,7 +20,6 @@ class Tour(db.Model):
     # Quan hệ với phân công hướng dẫn viên
     assignments = db.relationship('TourGuideAssignment', back_populates='tour', cascade='all, delete-orphan')
 
-<<<<<<< HEAD
 #Bảng Phân công hướng dẫn viên
 class TourGuideAssignment(db.Model):
     __tablename__ = 'tour_guide_assignments'
@@ -29,6 +28,4 @@ class TourGuideAssignment(db.Model):
     guide_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) 
     status = db.Column(db.String(20), default='pending') 
     assigned_date = db.Column(db.DateTime, default=db.func.current_timestamp())
-=======
->>>>>>> origin/ththu
 

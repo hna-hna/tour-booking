@@ -62,6 +62,7 @@ class TourGuideAssignment(db.Model):
     """Bảng phân công HDV cho tour cụ thể"""
     __tablename__ = 'tour_guide_assignments'
     
+    __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
     tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
     guide_id = db.Column(db.Integer, db.ForeignKey('tour_guides.id'), nullable=False)

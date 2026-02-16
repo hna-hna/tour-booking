@@ -2,16 +2,10 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
-<<<<<<< HEAD
 from app.models.user import User, UserRole  
 from app.models.order import Order         
-# from flask_jwt_extended import jwt_required, get_jwt_identity 
-=======
-from app.models.user import User, UserRole  # Import thêm User
-from app.models.order import Order          # Import thêm Order
 from sqlalchemy import func
 # from flask_jwt_extended import jwt_required, get_jwt_identity # Bật lại khi nào có Auth
->>>>>>> origin/ththu
 
 # Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')

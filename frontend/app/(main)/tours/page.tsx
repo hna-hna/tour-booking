@@ -16,7 +16,7 @@ export default function ToursListPage() {
 
   useEffect(() => {
     axios
-      .get("http://localhost:5000/api/tours")
+      .get("http://127.0.0.1:5000/api/tours")
       .then((res) => setTours(res.data))
       .catch(console.error)
       .finally(() => setLoading(false));

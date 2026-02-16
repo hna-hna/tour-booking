@@ -27,6 +27,7 @@ export default function LoginPage() {
           
           alert(" Đăng nhập thành công!");
           
+<<<<<<< HEAD
           switch(data.user_info.role) {
             case "admin":
               window.location.href = "/admin"; 
@@ -36,6 +37,18 @@ export default function LoginPage() {
               break;
             case "guide":   
               window.location.href = "/guide/";
+=======
+          // SỬA 2: Đồng bộ Role 
+          switch(data.user_info.role) {
+            case "admin":
+              window.location.href = "/admin/approve-tours"; 
+              break;
+            case "supplier": 
+              window.location.href = "/supplier/upload-manage-tour";
+              break;
+            case "guide":   
+              window.location.href = "/guide/dashboard";
+>>>>>>> origin/ththu
               break;
             case "customer":
             default:

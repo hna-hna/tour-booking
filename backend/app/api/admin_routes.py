@@ -2,9 +2,16 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
+<<<<<<< HEAD
 from app.models.user import User, UserRole  
 from app.models.order import Order         
 # from flask_jwt_extended import jwt_required, get_jwt_identity 
+=======
+from app.models.user import User, UserRole  # Import thêm User
+from app.models.order import Order          # Import thêm Order
+from sqlalchemy import func
+# from flask_jwt_extended import jwt_required, get_jwt_identity # Bật lại khi nào có Auth
+>>>>>>> origin/ththu
 
 # Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
@@ -145,3 +152,38 @@ def get_all_orders():
         })
 
     return jsonify(results), 200
+        
+        
+# 8. API Tổng quan 
+@admin_bp.route('/dashboard/stats', methods=['GET'])
+def get_admin_dashboard_stats():
+   
+    # Tổng doanh thu:
+    # Lấy tổng dòng tiền (Gross Merchandise Value) từ các đơn đã thanh toán
+    total_flow = db.session.query(func.sum(Order.total_price)).filter(Order.status == 'Đã thanh toán').scalar() or 0
+    
+    # 1. Hoa hồng Admin thực nhận (15%)
+    admin_commission = total_flow * 0.15
+    
+    # 2. Tiền hệ thống đang giữ cho NCC (85% - Quỹ Escrow)
+    escrow_balance = total_flow * 0.85  
+    
+    # Đơn hàng mới: Tổng số đơn hàng trong hệ thống
+    total_orders = Order.query.count()
+    
+    # Khách hàng: Số lượng User có vai trò là customer
+    total_customers = User.query.filter_by(role=UserRole.CUSTOMER).count()
+    
+    # Tour chờ duyệt: Số tour có status là pending
+    pending_tours = Tour.query.filter_by(status='pending').count()
+    
+    return jsonify({
+        "total_revenue": total_flow,          # Tổng doanh số (100%)
+        "admin_commission": admin_commission, # Tiền của bạn (15%)
+        "escrow_balance": escrow_balance,     # Tiền trả NCC (85%)
+        "total_orders": Order.query.count(),
+        "total_customers": User.query.filter_by(role=UserRole.CUSTOMER).count(),
+        "pending_tours": Tour.query.filter_by(status='pending').count()
+    }), 200
+
+ 

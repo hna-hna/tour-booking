@@ -15,7 +15,7 @@ def create_app():
 
     # 2. Cấu hình CORS
     CORS(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": ["*"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
@@ -48,10 +48,16 @@ def create_app():
     app.register_blueprint(supplier_bp, url_prefix='/api/supplier')
     
     from .api.guide import guide_bp
-    app.register_blueprint(guide_bp)
-
+    app.register_blueprint(guide_bp, url_prefix='/api/guide')
+    
     from .api.tour_routes import tour_bp
     app.register_blueprint(tour_bp, url_prefix='/api/tours')
+
+    from .api.customer import customer_bp
+    app.register_blueprint(customer_bp, url_prefix='/api/customer') # Lưu ý prefix
+
+    from .api.chat_routes import chat_bp
+    app.register_blueprint(chat_bp, url_prefix='/api/chat')
 
     # 5. Socket Events
     from app import websockets

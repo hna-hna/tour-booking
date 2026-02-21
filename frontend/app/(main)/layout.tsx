@@ -193,6 +193,15 @@ export default function MainLayout({
                       </svg>
                       Hồ sơ
                     </a>
+                    <a
+                      href="/chat"
+                      className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
+                    >
+                      <svg className="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Tin nhắn
+                    </a>
 
                     <a
                       href="/bookings"
@@ -224,7 +233,7 @@ export default function MainLayout({
                 <a 
                   href="/login" 
                   className="text-gray-700 hover:text-emerald-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition-all"
-                >
+               suppressHydrationWarning>
                   Đăng nhập
                 </a>
                 <a 

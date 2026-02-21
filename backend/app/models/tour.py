@@ -18,14 +18,4 @@ class Tour(db.Model):
     start_date = db.Column(db.DateTime, nullable=True) # Ngày đi
     end_date = db.Column(db.DateTime, nullable=True)   # Ngày về
     # Quan hệ với phân công hướng dẫn viên
-    assignments = db.relationship('TourGuideAssignment', back_populates='tour', cascade='all, delete-orphan')
-
-#Bảng Phân công hướng dẫn viên
-class TourGuideAssignment(db.Model):
-    __tablename__ = 'tour_guide_assignments'
-    id = db.Column(db.Integer, primary_key=True)
-    tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
-    guide_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True) 
-    status = db.Column(db.String(20), default='pending') 
-    assigned_date = db.Column(db.DateTime, default=db.func.current_timestamp())
 

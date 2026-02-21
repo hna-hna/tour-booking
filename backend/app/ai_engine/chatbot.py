@@ -1,18 +1,26 @@
 import openai
 import os
 
-class TravelChatbot:
-    def __init__(self):
-        # load API key từ biến môi trường
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        
-    def get_response(self, user_message, context_data=None):
-        """
-        user_message: Câu hỏi của khách
-        context_data: Dữ liệu tour liên quan để cung cấp cho AI làm ngữ cảnh
-        """
-        if not self.api_key:
-            return "Chưa cấu hình OpenAI Key."
-        
-        # Logic gọi OpenAI API
-        return "Đây là phản hồi mẫu từ AI (Mock)."
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def ask_openai(message, context_data=""):
+    """
+    context_data: Chuỗi chứa thông tin các tour hiện có để AI trả lời đúng trọng tâm.
+    """
+    system_prompt = f"""
+    Bạn là trợ lý ảo của công ty du lịch. 
+    Dưới đây là danh sách tour của chúng tôi: {context_data}.
+    Hãy tư vấn ngắn gọn, thân thiện và chốt đơn giúp khách hàng.
+    """
+    
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": message}
+            ]
+        )
+        return response.choices[0].message['content']
+    except Exception as e:
+        return "Xin lỗi, hiện tại tôi đang quá tải. Vui lòng thử lại sau."

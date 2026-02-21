@@ -1,14 +1,16 @@
 #backend/app/api/guide.py 
 from flask import Blueprint, jsonify, request
 from app.extensions import db
-from app.models.tour import Tour, TourGuideAssignment
+from app.models.tour import Tour
+from app.models.tour_guide import TourGuideAssignment
 from app.models.user import User
 from app.models.order import Order
 
-guide_bp = Blueprint('guide', __name__, url_prefix="/api/guide")
+guide_bp = Blueprint('guide', __name__)
 
 # --- BIẾN DÙNG CHUNG ĐỂ TEST (Đổi thành 100 để khớp SQL của bạn) ---
-CURRENT_GUIDE_ID = 100
+CURRENT_GUIDE_ID = 3
+
 
 # 1. Lấy danh sách tour ĐÃ ĐỒNG Ý (Trang Lịch dẫn tour - status: accepted)
 @guide_bp.route('/tours', methods=['GET'])
@@ -34,7 +36,7 @@ def get_assigned_tours():
 # 2. Lấy danh sách LỊCH SỬ tour (Trang Lịch sử - status: completed)
 @guide_bp.route('/tours/history', methods=['GET'])
 def get_tour_history():
-    user_id = 100
+    user_id = CURRENT_GUIDE_ID
     
     assignments = TourGuideAssignment.query.filter_by(guide_id=user_id, status='completed').all()
     results = []
@@ -140,7 +142,7 @@ def guide_profile():
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 def finish_tour(tour_id):
     # 1. Tìm bản ghi phân công của HDV này với Tour này
-    user_id = 100 # Hardcode ID Guide (Sau này dùng get_jwt_identity())
+    user_id = CURRENT_GUIDE_ID
     
     assignment = TourGuideAssignment.query.filter_by(
         tour_id=tour_id, 

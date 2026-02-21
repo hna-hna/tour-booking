@@ -68,7 +68,7 @@ class TourGuideAssignment(db.Model):
     guide_id = db.Column(db.Integer, db.ForeignKey('tour_guides.id'), nullable=False)
     assigned_date = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)  # Ghi chú về phân công
-    
+    status = db.Column(db.String(20), default='pending')
     # Relationships
     tour = db.relationship('Tour', backref='guide_assignments')
     

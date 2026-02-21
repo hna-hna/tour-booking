@@ -1,4 +1,3 @@
-//frontend/app/(main)/login/page.tsx//
 "use client";
 import React, { useState } from "react";
 
@@ -13,7 +12,6 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    // SỬA 1: URL ngắn gọn hơn (khớp với backend mới sửa)
     fetch("http://127.0.0.1:5000/api/auth/login", { 
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -22,24 +20,16 @@ export default function LoginPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.access_token && data.user_info) {
+          // Lưu thông tin vào Storage
           localStorage.setItem("token", data.access_token);
+          localStorage.setItem("user_id", data.user_id); 
           localStorage.setItem("role", data.user_info.role);
           
-          alert(" Đăng nhập thành công!");
+          alert("Đăng nhập thành công!");
           
-<<<<<<< HEAD
-          switch(data.user_info.role) {
-            case "admin":
-              window.location.href = "/admin"; 
-              break;
-            case "supplier": 
-              window.location.href = "/provider/dashboard";
-              break;
-            case "guide":   
-              window.location.href = "/guide/";
-=======
-          // SỬA 2: Đồng bộ Role 
-          switch(data.user_info.role) {
+          // LOGIC ĐIỀU HƯỚNG ĐÃ TỐI ƯU
+          const role = data.user_info.role;
+          switch(role) {
             case "admin":
               window.location.href = "/admin/approve-tours"; 
               break;
@@ -47,8 +37,7 @@ export default function LoginPage() {
               window.location.href = "/supplier/upload-manage-tour";
               break;
             case "guide":   
-              window.location.href = "/guide/dashboard";
->>>>>>> origin/ththu
+              window.location.href = "/guide/";
               break;
             case "customer":
             default:
@@ -60,7 +49,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {
-        alert(" Không kết nối được server Flask!");
+        alert("Không kết nối được server Flask!");
       })
       .finally(() => {
         setLoading(false);
@@ -79,29 +68,23 @@ export default function LoginPage() {
 
         {/* Form Content */}
         <div className="p-8 space-y-5">
-          <div>
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
-              required
-            />
-          </div>
+          <input
+            type="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
+            required
+          />
 
-          <div>
-            <input
-              type="password"
-              name="password"
-              placeholder="Mật khẩu"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
-              required
-            />
-          </div>
+          <input
+            type="password"
+            placeholder="Mật khẩu"
+            value={formData.password}
+            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
+            required
+          />
 
           <button
             onClick={handleLogin}
@@ -118,10 +101,7 @@ export default function LoginPage() {
           <div className="text-center pt-2">
             <p className="text-gray-600">
               Chưa có tài khoản?{" "}
-              <a
-                href="/register"
-                className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline transition-all"
-              >
+              <a href="/register" className="text-emerald-600 font-semibold hover:text-emerald-700 hover:underline">
                 Đăng ký ngay
               </a>
             </p>

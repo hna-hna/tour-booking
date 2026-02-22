@@ -39,7 +39,7 @@ class TourGuide(db.Model):
     
     # Relationships
     supplier = db.relationship('User', backref='tour_guides')
-    assignments = db.relationship('TourGuideAssignment', backref='guide', lazy='dynamic')
+    assignments = db.relationship('SupplierGuideAssignment', backref='guide', lazy='dynamic')
     
     def to_dict(self):
         return {
@@ -58,9 +58,9 @@ class TourGuide(db.Model):
         }
 
 
-class TourGuideAssignment(db.Model):
-    """Bảng phân công HDV cho tour cụ thể"""
-    __tablename__ = 'tour_guide_assignments'
+class SupplierGuideAssignment(db.Model):
+    """Bảng phân công HDV cho tour cụ thể (tạo bởi Supplier)"""
+    __tablename__ = 'supplier_guide_assignments'
     
     __table_args__ = {'extend_existing': True}
     id = db.Column(db.Integer, primary_key=True)
@@ -70,7 +70,7 @@ class TourGuideAssignment(db.Model):
     notes = db.Column(db.Text)  # Ghi chú về phân công
     
     # Relationships
-    tour = db.relationship('Tour', backref='guide_assignments')
+    tour = db.relationship('Tour', backref='supplier_guide_assignments')
     
     def to_dict(self):
         return {

@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({ 
-    email: "", 
+  const [formData, setFormData] = useState({
+    email: "",
     password: ""
   });
   const [loading, setLoading] = useState(false);
@@ -14,7 +14,7 @@ export default function LoginPage() {
     setLoading(true);
 
     // SỬA 1: URL ngắn gọn hơn (khớp với backend mới sửa)
-    fetch("http://127.0.0.1:5000/api/auth/login", { 
+    fetch("http://127.0.0.1:5000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -24,31 +24,19 @@ export default function LoginPage() {
         if (data.access_token && data.user_info) {
           localStorage.setItem("token", data.access_token);
           localStorage.setItem("role", data.user_info.role);
-          
-          alert(" Đăng nhập thành công!");
-          
-<<<<<<< HEAD
-          switch(data.user_info.role) {
+
+          alert("Đăng nhập thành công!");
+
+          // CHỈ DÙNG 1 CẤU TRÚC SWITCH ĐÃ ĐƯỢC ĐỒNG BỘ ROLE
+          switch (data.user_info.role) {
             case "admin":
-              window.location.href = "/admin"; 
+              window.location.href = "/admin/approve-tours";
               break;
-            case "supplier": 
-              window.location.href = "/provider/dashboard";
-              break;
-            case "guide":   
-              window.location.href = "/guide/";
-=======
-          // SỬA 2: Đồng bộ Role 
-          switch(data.user_info.role) {
-            case "admin":
-              window.location.href = "/admin/approve-tours"; 
-              break;
-            case "supplier": 
+            case "supplier":
               window.location.href = "/supplier/upload-manage-tour";
               break;
-            case "guide":   
-              window.location.href = "/guide/dashboard";
->>>>>>> origin/ththu
+            case "guide":
+              window.location.href = "/guide";
               break;
             case "customer":
             default:
@@ -60,7 +48,7 @@ export default function LoginPage() {
         }
       })
       .catch(() => {
-        alert(" Không kết nối được server Flask!");
+        alert("Không kết nối được server Flask!");
       })
       .finally(() => {
         setLoading(false);
@@ -98,7 +86,7 @@ export default function LoginPage() {
               placeholder="Mật khẩu"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
+              className="w-full px-4 py-3 bg-gray-200 border-2 border-gray-200 rounded-xl outline-none focus:border-emerald-500 focus:bg-white transition-all"
               required
             />
           </div>
@@ -106,11 +94,10 @@ export default function LoginPage() {
           <button
             onClick={handleLogin}
             disabled={loading}
-            className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] ${
-              loading
-                ? "bg-gray-400 cursor-not-allowed"
-                : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
-            }`}
+            className={`w-full py-4 rounded-xl text-white font-bold text-lg shadow-lg transition-all transform hover:scale-[1.02] active:scale-[0.98] ${loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700"
+              }`}
           >
             {loading ? "ĐANG XỬ LÝ..." : "ĐĂNG NHẬP"}
           </button>

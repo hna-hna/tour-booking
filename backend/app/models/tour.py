@@ -29,3 +29,6 @@ class TourGuideAssignment(db.Model):
     status = db.Column(db.String(20), default='pending') 
     assigned_date = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+    # Quan hệ ngược lại với Tour
+    tour = db.relationship('Tour', back_populates='assignments')
+

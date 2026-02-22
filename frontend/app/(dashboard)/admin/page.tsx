@@ -1,14 +1,13 @@
 /* app/(dashboard)/admin/page.tsx */
-'use client' 
+'use client'
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
-<<<<<<< HEAD
-=======
   // --- PHẦN KẾT NỐI BACKEND ---
   const [statsData, setStatsData] = useState<any>(null);
-  const [orders, setOrders] = useState([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [revenueByTour, setRevenueByTour] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -22,6 +21,11 @@ export default function AdminDashboardPage() {
         const resOrders = await fetch("http://127.0.0.1:5000/api/admin/orders");
         const dataOrders = await resOrders.json();
         setOrders(dataOrders.slice(0, 5)); // Lấy 5 đơn mới nhất
+
+        // Gọi API Doanh thu theo tour
+        const resRevenue = await fetch("http://127.0.0.1:5000/api/admin/dashboard/revenue-by-tour");
+        const dataRevenue = await resRevenue.json();
+        setRevenueByTour(dataRevenue);
       } catch (error) {
         console.error("Lỗi kết nối API:", error);
       }
@@ -30,45 +34,44 @@ export default function AdminDashboardPage() {
   }, []);
 
   // Cập nhật giá trị từ statsData vào mảng stats của bạn
->>>>>>> origin/ththu
   const stats = [
-    { 
-      title: "Tổng Doanh Thu", 
-      value: statsData ? `${statsData.admin_commission.toLocaleString()}đ` : "0đ", 
-      change: "+15%", 
+    {
+      title: "Tổng Doanh Thu",
+      value: statsData ? `${statsData.total_revenue.toLocaleString()}đ` : "0đ",
+      change: "GMV",
       isPositive: true,
-      icon: "",
+      icon: "💰",
       color: "from-green-500 to-emerald-600"
     },
-    { 
-      title: "Đơn Hàng Mới", 
-      value: statsData ? statsData.total_orders.toString() : "0", 
+    {
+      title: "Lợi Nhuận (15%)",
+      value: statsData ? `${statsData.admin_commission.toLocaleString()}đ` : "0đ",
+      change: "Phí",
       isPositive: true,
       icon: "",
-      color: "from-blue-500 to-indigo-600"
+      color: "from-orange-500 to-red-600"
     },
-    { 
-      title: "Khách Hàng", 
-      value: statsData ? statsData.total_customers.toLocaleString() : "0", 
+    {
+      title: "Đơn Hàng Mới",
+      value: statsData ? statsData.total_orders.toString() : "0",
       isPositive: true,
-      icon: "",
+      icon: "📦",
       color: "from-blue-500 to-indigo-600"
     },
-    { 
-      title: "Tour Chờ Duyệt", 
-<<<<<<< HEAD
-      value: "5", 
-      change: "-2", 
-      isPositive: false, 
-      icon: "",
+    {
+      title: "Khách Hàng",
+      value: statsData ? statsData.total_customers.toLocaleString() : "0",
+      isPositive: true,
+      icon: "👥",
       color: "from-blue-500 to-indigo-600"
-=======
-      value: statsData ? statsData.pending_tours.toString() : "0", 
-      change: "Pending", 
-      isPositive: false, 
+    },
+    {
+      title: "Tour Chờ Duyệt",
+      value: statsData ? statsData.pending_tours.toString() : "0",
+      change: "Pending",
+      isPositive: false,
       icon: "⏳",
       color: "from-purple-500 to-violet-600"
->>>>>>> origin/ththu
     },
   ];
 
@@ -81,11 +84,11 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* 2. Các thẻ tổng quan (Stats Cards)  */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
         {stats.map((stat, index) => (
           <div key={index} className={`rounded-2xl p-6 shadow-lg text-white bg-gradient-to-br ${stat.color} relative overflow-hidden`}>
             <div className="absolute right-0 top-0 w-24 h-24 bg-white opacity-10 rounded-full -mr-6 -mt-6"></div>
-            
+
             <div className="relative z-10">
               <div className="flex justify-between items-start">
                 <div className="p-2 bg-white/20 rounded-lg text-2xl">
@@ -102,13 +105,9 @@ export default function AdminDashboardPage() {
         ))}
       </div>
 
-<<<<<<< HEAD
-      {/* 3. Khu vực nội dung chính */}
-=======
       {/* 3. Khu vực nội dung chính (2 cột)  */}
->>>>>>> origin/ththu
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Cột trái: Hoạt động gần đây */}
         <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
           <div className="flex justify-between items-center mb-6">
@@ -117,7 +116,7 @@ export default function AdminDashboardPage() {
               Xem tất cả
             </Link>
           </div>
-          
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -139,9 +138,8 @@ export default function AdminDashboardPage() {
                     <td className="py-4 text-sm text-gray-600">{order.tour_name}</td>
                     <td className="py-4 font-bold text-gray-800">{order.total_price?.toLocaleString()}đ</td>
                     <td className="py-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        order.status === 'Đã thanh toán' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
-                      }`}>
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${order.status === 'Đã thanh toán' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                        }`}>
                         {order.status}
                       </span>
                     </td>
@@ -160,7 +158,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-orange-200 flex items-center justify-center text-orange-600">
-                    
+
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">Duyệt Tour</p>
@@ -175,7 +173,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-600">
-                    
+
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">Quản lý Users</p>
@@ -186,6 +184,65 @@ export default function AdminDashboardPage() {
               </div>
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* 4. Thống kê Doanh thu theo Tour */}
+      <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <h3 className="text-xl font-bold text-gray-800 mb-6">Doanh thu theo Tour</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-xs font-semibold text-gray-500 uppercase border-b border-gray-100">
+                <th className="pb-3 px-4">Tour</th>
+                <th className="pb-3 px-4 text-center">Số lượng đơn</th>
+                <th className="pb-3 px-4 text-right">Tổng thanh toán</th>
+                <th className="pb-3 px-4 text-right text-emerald-600">Phí nền tảng (15%)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {revenueByTour.length > 0 ? (
+                revenueByTour.map((tour: any) => (
+                  <tr key={tour.tour_id} className="hover:bg-gray-50 transition-colors">
+                    <td className="py-4 px-4">
+                      <div className="font-bold text-gray-800">{tour.tour_name}</div>
+                      <div className="text-xs text-gray-400">ID: {tour.tour_id}</div>
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-bold text-sm">
+                        {tour.total_bookings}
+                      </span>
+                    </td>
+                    <td className="py-4 px-4 text-right font-bold text-gray-800">
+                      {tour.total_revenue?.toLocaleString()}đ
+                    </td>
+                    <td className="py-4 px-4 text-right font-black text-emerald-600">
+                      {tour.admin_commission?.toLocaleString()}đ
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                    Chưa có dữ liệu doanh thu
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            {revenueByTour.length > 0 && (
+              <tfoot className="bg-gray-50 border-t-2">
+                <tr className="font-black text-gray-800">
+                  <td className="py-4 px-4" colSpan={2}>TỔNG CỘNG</td>
+                  <td className="py-4 px-4 text-right">
+                    {revenueByTour.reduce((sum, tour) => sum + (tour.total_revenue || 0), 0).toLocaleString()}đ
+                  </td>
+                  <td className="py-4 px-4 text-right text-emerald-600">
+                    {revenueByTour.reduce((sum, tour) => sum + (tour.admin_commission || 0), 0).toLocaleString()}đ
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
         </div>
       </div>
     </div>

@@ -1,16 +1,13 @@
 // app/(main)/tours/[id]/page.tsx
-"use client"; 
-<<<<<<< HEAD
-export default function TourDetailPage({ params }: { params: { id: string } }) {
-=======
+"use client";
 import { use, useEffect, useState } from "react";
 import axios from "axios";
 
-export default function TourDetail({ params }: { params: Promise<{ id: string }> }) {
+export default function TourDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  
+
   // Thêm State để lưu dữ liệu tour
-  const [tour, setTour] = useState(null);
+  const [tour, setTour] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Gọi API lấy dữ liệu thật
@@ -31,8 +28,6 @@ export default function TourDetail({ params }: { params: Promise<{ id: string }>
 
   if (loading) return <div className="p-8 text-center font-bold">Đang tải dữ liệu tour...</div>;
   if (!tour) return <div className="p-8 text-center text-red-500">Tour không tồn tại!</div>;
-
->>>>>>> origin/ththu
   return (
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -41,7 +36,7 @@ export default function TourDetail({ params }: { params: Promise<{ id: string }>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {tour.name} {/* Thay tên thật */}
           </h1>
-          
+
           {/* Ảnh: Kiểm tra nếu có image_url thì hiển thị, không thì để placeholder */}
           <div className="bg-gray-200 h-96 rounded-xl mb-6 overflow-hidden">
             {tour.image_url && (
@@ -64,8 +59,8 @@ export default function TourDetail({ params }: { params: Promise<{ id: string }>
             <p className="text-3xl font-bold text-emerald-600 mb-6">
               {tour.price?.toLocaleString()}đ
             </p>
-            
-            <a 
+
+            <a
               href={`/checkout?id=${tour.id}`} // Truyền ID sang trang checkout
               className="block w-full text-center bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition"
             >

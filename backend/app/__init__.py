@@ -14,14 +14,7 @@ def create_app():
     app.config.from_object(Config)
 
     # 2. Cấu hình CORS
-    CORS(app, resources={
-        r"/api/*": {
-            "origins": ["*"],
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-            "allow_headers": ["Content-Type", "Authorization"],
-            "supports_credentials": True
-        }
-    })
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}}, supports_credentials=True)
 
     # 3. Init Extensions
     db.init_app(app)
@@ -52,6 +45,9 @@ def create_app():
 
     from .api.tour_routes import tour_bp
     app.register_blueprint(tour_bp, url_prefix='/api/tours')
+
+    from .api.order_routes import order_bp
+    app.register_blueprint(order_bp, url_prefix='/api/orders')
 
     # 5. Socket Events
     from app import websockets

@@ -122,27 +122,28 @@ def delete_user(user_id):
 # lấy danh sách toàn bộ đơn hàng
 @admin_bp.route('/orders', methods=['GET'])
 def get_all_orders():
-    # Sắp xếp đơn mới nhất lên đầu
-    orders = Order.query.order_by(Order.booking_date.desc()).all()
+    # Sử dụng outerjoin để lấy thông tin user và tour
+    query_result = db.session.query(Order, User, Tour)\
+        .outerjoin(User, Order.user_id == User.id)\
+        .outerjoin(Tour, Order.tour_id == Tour.id)\
+        .order_by(Order.booking_date.desc())\
+        .all()
     
     results = []
-    for o in orders:
-        # Xử lý quan hệ để tránh lỗi nếu user hoặc tour bị xóa
-        user_name = o.user.full_name if o.user else "Unknown User"
-        user_email = o.user.email if o.user else "No Email"
-        
-        # Giả sử trong model Order,thêm quan hệ 'tour' 
-        tour_name = o.tour.name if hasattr(o, 'tour') and o.tour else f"Tour ID: {o.tour_id}"
+    for order, user, tour in query_result:
+        user_name = user.full_name if user else "Unknown User"
+        user_email = user.email if user else "No Email"
+        tour_name = tour.name if tour else f"Tour ID: {order.tour_id}"
 
         results.append({
-            'id': o.id,
+            'id': order.id,
             'customer_name': user_name,
             'customer_email': user_email,
             'tour_name': tour_name,
-            'total_price': o.total_price,
-            'status': o.status,
-            'guest_count': o.guest_count,
-            'booking_date': o.booking_date.strftime('%Y-%m-%d %H:%M') if o.booking_date else None
+            'total_price': order.total_price,
+            'status': order.status,
+            'guest_count': order.guest_count,
+            'booking_date': order.booking_date.strftime('%Y-%m-%d %H:%M') if order.booking_date else None
         })
 
     return jsonify(results), 200
@@ -154,7 +155,9 @@ def get_admin_dashboard_stats():
    
     # Tổng doanh thu:
     # Lấy tổng dòng tiền (Gross Merchandise Value) từ các đơn đã thanh toán
-    total_flow = db.session.query(func.sum(Order.total_price)).filter(Order.status == 'Đã thanh toán').scalar() or 0
+    total_flow = db.session.query(func.sum(Order.total_price)).filter(
+        Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed'])
+    ).scalar() or 0
     
     # 1. Hoa hồng Admin thực nhận (15%)
     admin_commission = total_flow * 0.15
@@ -180,4 +183,36 @@ def get_admin_dashboard_stats():
         "pending_tours": Tour.query.filter_by(status='pending').count()
     }), 200
 
- 
+# 9. Báo cáo chi tiết theo tour (Admin)
+@admin_bp.route('/dashboard/revenue-by-tour', methods=['GET'])
+def get_admin_revenue_by_tour():
+    # Lấy admin_commission 15% là doanh thu của admin
+    tours = Tour.query.all()
+    
+    result = []
+    for tour in tours:
+        orders = Order.query.filter(
+            db.and_(
+                Order.tour_id == tour.id,
+                # Admin quan tâm mọi trạng thái có tiền hoặc chỉ "Đã thanh toán"? Tương tự như supplier, lấy các đơn Đã thanh toán hoặc Hoàn thành
+                Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed']) 
+            )
+        ).all()
+        
+        total = sum([o.total_price for o in orders])
+        
+        # Chỉ đưa vào kết quả nếu tour đó có doanh thu hoặc có yêu cầu hiển thị tất cả
+        if total > 0:
+            result.append({
+                'tour_id': tour.id,
+                'tour_name': tour.name,
+                'total_revenue': total, # Tổng tiền khách đã trả
+                'admin_commission': total * 0.15, # Tiền nền tảng nhận được
+                'supplier_revenue': total * 0.85, # Tiền trả nhà cung cấp
+                'total_bookings': len(orders)
+            })
+    
+    # Sắp xếp theo tổng doanh thu giảm dần
+    result.sort(key=lambda x: x['total_revenue'], reverse=True)
+            
+    return jsonify(result), 200

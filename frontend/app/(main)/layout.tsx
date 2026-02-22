@@ -19,17 +19,17 @@ export default function MainLayout({
     const role = localStorage.getItem("role");
     const name = localStorage.getItem("user_name");
     const email = localStorage.getItem("user_email");
-    
+
     console.log(" Layout Loading - Checking localStorage:");
     console.log("- Token:", token ? " Có" : " Không");
     console.log("- Role:", role);
     console.log("- Name:", name);
     console.log("- Email:", email);
-    
+
     if (token) {
       setIsLoggedIn(true);
       setUserRole(role);
-      
+
       // Lấy tên từ localStorage
       if (name && name !== "No Name" && name !== "null" && name !== "" && name !== "User") {
         console.log(" Sử dụng tên:", name);
@@ -61,15 +61,16 @@ export default function MainLayout({
     }
   };
 
-  // Lấy URL dashboard theo role
   const getDashboardUrl = () => {
-    switch(userRole) {
+    switch (userRole) {
       case "admin":
-        return "/admin/dashboard";
+        return "/admin";
       case "tour_provider":
-        return "/provider/dashboard";
+      case "supplier":
+        return "/supplier";
       case "tour_guide":
-        return "/guide/dashboard";
+      case "guide":
+        return "/guide";
       case "customer":
       default:
         return "/customer/dashboard";
@@ -111,29 +112,29 @@ export default function MainLayout({
 
           {/* Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <a 
-              href="/" 
+            <a
+              href="/"
               className="text-gray-700 hover:text-emerald-600 font-medium transition-colors relative group"
             >
               Trang chủ
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-emerald-600 group-hover:w-full transition-all"></span>
             </a>
-            <a 
-              href="/tours" 
+            <a
+              href="/tours"
               className="text-gray-700 hover:text-emerald-600 font-medium transition-colors relative group"
             >
               Danh sách Tour
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-emerald-600 group-hover:w-full transition-all"></span>
             </a>
-            <a 
-              href="/about" 
+            <a
+              href="/about"
               className="text-gray-700 hover:text-emerald-600 font-medium transition-colors relative group"
             >
               Về chúng tôi
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-emerald-600 group-hover:w-full transition-all"></span>
             </a>
-            <a 
-              href="/contact" 
+            <a
+              href="/contact"
               className="text-gray-700 hover:text-emerald-600 font-medium transition-colors relative group"
             >
               Liên hệ
@@ -156,10 +157,10 @@ export default function MainLayout({
                   <span className="font-medium text-gray-700 max-w-[150px] truncate">
                     {userName}
                   </span>
-                  <svg 
+                  <svg
                     className={`w-4 h-4 text-gray-500 transition-transform ${showDropdown ? 'rotate-180' : ''}`}
-                    fill="none" 
-                    stroke="currentColor" 
+                    fill="none"
+                    stroke="currentColor"
                     viewBox="0 0 24 24"
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -173,7 +174,7 @@ export default function MainLayout({
                       <p className="text-sm font-semibold text-gray-900 truncate">{userName}</p>
                       <p className="text-xs text-gray-500 mt-1">Xin chào!</p>
                     </div>
-                    
+
                     <a
                       href={getDashboardUrl()}
                       className="flex items-center px-4 py-2.5 text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-colors"
@@ -221,14 +222,14 @@ export default function MainLayout({
             ) : (
               // Hiển thị khi chưa đăng nhập
               <>
-                <a 
-                  href="/login" 
+                <a
+                  href="/login"
                   className="text-gray-700 hover:text-emerald-600 font-medium px-4 py-2 rounded-lg hover:bg-gray-100 transition-all"
                 >
                   Đăng nhập
                 </a>
-                <a 
-                  href="/register" 
+                <a
+                  href="/register"
                   className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold px-6 py-2.5 rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
                 >
                   Đăng ký ngay

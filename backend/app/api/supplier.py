@@ -2,7 +2,7 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
-from app.models.tour_guide import TourGuide, TourGuideAssignment, GuideStatus
+from app.models.tour_guide import TourGuide, SupplierGuideAssignment, GuideStatus
 from app.models.order import Order
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, and_
@@ -49,7 +49,7 @@ def create_tour():
         
         # Phân công Hướng dẫn viên (HDV) nếu có truyền guide_id
         if data.get('guide_id'):
-            assignment = TourGuideAssignment(
+            assignment = SupplierGuideAssignment(
                 tour_id=new_tour.id,
                 guide_id=data.get('guide_id')
             )

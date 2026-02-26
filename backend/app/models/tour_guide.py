@@ -39,7 +39,7 @@ class TourGuide(db.Model):
     # Relationships
     supplier = db.relationship('User', backref='tour_guides')
     # assignments dùng 'SupplierGuideAssignment' để khớp với bảng bên dưới
-    assignments = db.relationship('SupplierGuideAssignment', backref='guide', lazy='dynamic')
+    assignments = db.relationship('TourGuideAssignment', backref='guide', lazy='dynamic')
     
     def to_dict(self):
         return {
@@ -59,23 +59,21 @@ class TourGuide(db.Model):
 
 
 
-class SupplierGuideAssignment(db.Model):
+class TourGuideAssignment(db.Model):
     """Bảng phân công HDV cho tour cụ thể (tạo bởi Supplier)"""
-    __tablename__ = 'supplier_guide_assignments'
+    __tablename__ = 'tour_guide_assignments'
     
-    # Đảm bảo không lỗi khi định nghĩa lại bảng trong quá trình migration
     __table_args__ = {'extend_existing': True}
     
     id = db.Column(db.Integer, primary_key=True)
     tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
     guide_id = db.Column(db.Integer, db.ForeignKey('tour_guides.id'), nullable=False)
     assigned_date = db.Column(db.DateTime, default=datetime.utcnow)
-    notes = db.Column(db.Text, nullable=True) # Ghi chú (vd: đón khách tại sân bay,...)
-    status = db.Column(db.String(20), default='pending') # Trạng thái phân công: pending, accepted, rejected, completed
+    notes = db.Column(db.Text, nullable=True)
+    status = db.Column(db.String(20), default='pending')
 
-    # Relationships
-    # Sử dụng backref='guide_assignments' để tour.guide_assignments có thể truy cập được
-    tour = db.relationship('Tour', backref=db.backref('guide_assignments', lazy=True))
+    # FIX: Dùng back_populates thay vì backref để tránh xung đột tên guide_assignments
+    tour = db.relationship('Tour', back_populates='guide_assignments')
     
     def to_dict(self):   
         return {

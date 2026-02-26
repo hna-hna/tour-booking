@@ -43,32 +43,46 @@ def register():
         return jsonify({"msg": f"Lỗi server: {str(e)}"}), 500
 
 # 2. API ĐĂNG NHẬP (Login)
+# backend/app/api/auth_routes.py
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    email = data.get('email')
-    password = data.get('password')
+    try:
+        data = request.get_json()
+        email = data.get('email')
+        password = data.get('password')
 
-    user = User.query.filter_by(email=email).first()
+        if not email or not password:
+            return jsonify({"msg": "Vui lòng nhập đầy đủ email và mật khẩu"}), 400
 
-    # KIỂM TRA MẬT KHẨU: 
-    # Phải dùng check_password để giải mã hash thay vì so sánh == trực tiếp
-    if user and user.check_password(password):
-        # Tạo Token, lưu thêm identity và Role
-        token = create_access_token(
-            identity=str(user.id), 
-            additional_claims={"role": user.role.value}
-        )
-        
-        return jsonify({
-            "msg": "Đăng nhập thành công",
-            "access_token": token,
-            "user_id": user.id, # Thêm dòng này để khớp với frontend bạn đã viết
-            "user_info": {
-                "id": user.id,
-                "name": user.full_name,
-                "role": user.role.value
-            }
-        }), 200
-    
-    return jsonify({"msg": "Sai email hoặc mật khẩu!"}), 401
+        # Tìm user trong database
+        user = User.query.filter_by(email=email).first()
+
+        # BƯỚC QUAN TRỌNG: Kiểm tra xem user có tồn tại hay không trước khi check pass
+        if user is None:
+            return jsonify({"msg": "Email không tồn tại!"}), 401
+
+        # Kiểm tra mật khẩu (Sử dụng cách so sánh trực tiếp của bạn)
+        if user.password_hash == password:
+            # Tạo Token
+            token = create_access_token(
+                identity=str(user.id), 
+                additional_claims={"role": user.role.value}
+            )
+            
+            return jsonify({
+                "msg": "Đăng nhập thành công",
+                "access_token": token,
+                "user_id": user.id,
+                "user_info": {
+                    "id": user.id,
+                    "name": user.full_name,
+                    "role": user.role.value
+                }
+            }), 200
+        else:
+            return jsonify({"msg": "Mật khẩu không chính xác!"}), 401
+
+    except Exception as e:
+        print(f"Lỗi hệ thống: {str(e)}")
+        return jsonify({"msg": "Đã xảy ra lỗi hệ thống trên Server"}), 500

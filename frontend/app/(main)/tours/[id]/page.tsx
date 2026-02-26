@@ -1,24 +1,14 @@
 // app/(main)/tours/[id]/page.tsx
 "use client";
-<<<<<<< HEAD
 
-=======
->>>>>>> origin/thanh-thu
 import { use, useEffect, useState } from "react";
 import axios from "axios";
 
 export default function TourDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Giải mã params (Next.js 15+ yêu cầu dùng 'use' hoặc await cho params)
+  // Giải mã params theo chuẩn Next.js 15
   const resolvedParams = use(params);
-<<<<<<< HEAD
-=======
 
-  // Thêm State để lưu dữ liệu tour
-  const [tour, setTour] = useState(null);
-  const [loading, setLoading] = useState(true);
->>>>>>> origin/thanh-thu
-
-  // State lưu trữ dữ liệu tour và trạng thái tải
+  // State lưu trữ dữ liệu
   const [tour, setTour] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -43,7 +33,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     }
   }, [resolvedParams.id]);
 
-  // Trạng thái Loading chuyên nghiệp
+  // Trạng thái Loading
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
@@ -51,7 +41,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     </div>
   );
 
-  // Trạng thái Error khi không tìm thấy Tour
+  // Trạng thái Error
   if (error || !tour) return (
     <div className="p-20 text-center">
       <h2 className="text-2xl font-bold text-red-500">Tour không tồn tại hoặc đã bị gỡ bỏ!</h2>
@@ -72,14 +62,17 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
           <h1 className="text-4xl font-extrabold text-gray-900 mb-6 leading-tight">
             {tour.name}
           </h1>
-<<<<<<< HEAD
           
-          {/* Hình ảnh Tour */}
+          {/* Hình ảnh Tour - Tối ưu hóa xử lý ảnh lỗi */}
           <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-xl bg-gray-100 mb-8">
             <img 
-              src={tour.image_url || "/placeholder-tour.jpg"} 
+              src={tour.image || tour.image_url || "/placeholder-tour.jpg"} 
               className="w-full h-full object-cover" 
               alt={tour.name} 
+              referrerPolicy="no-referrer"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = "https://via.placeholder.com/800x400?text=Loi_Link_Anh";
+              }}
             />
             <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-bold text-emerald-700 shadow-sm">
               Tour Phổ Biến
@@ -98,7 +91,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               </p>
             </section>
 
-            {tour.itinerary && (
+            {(tour.itinerary) && (
               <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                 <h3 className="text-2xl font-bold text-gray-800 mb-4">Lịch trình dự kiến</h3>
                 <div className="prose prose-emerald max-w-none text-gray-600 whitespace-pre-line">
@@ -122,59 +115,18 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               <span className="text-gray-400 text-sm">/ khách</span>
             </div>
             
-            <div className="space-y-4 mb-8">
+            <div className="space-y-4 mb-8 border-t border-b border-gray-50 py-4">
               <div className="flex items-center gap-3 text-sm text-gray-600">
-                <span> Xác nhận tức thì</span>
+                <span className="text-emerald-500">✓</span> Xác nhận tức thì
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600">
-                <span> Bảo hiểm du lịch trọn gói</span>
+                <span className="text-emerald-500">✓</span> Bảo hiểm du lịch trọn gói
               </div>
             </div>
 
             <a 
               href={`/checkout?id=${tour.id}`}
-              className="group relative flex w-full justify-center items-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
-=======
-
-          {/* Ảnh: Kiểm tra nếu có image_url thì hiển thị, không thì để placeholder */}
-          <div className="bg-gray-200 h-96 rounded-xl mb-6 overflow-hidden flex items-center justify-center">
-  {tour.image ? (
-    <img 
-      src={tour.image} 
-      key={tour.image} // Thêm key để React ép render lại khi link thay đổi
-      className="w-full h-full object-cover" 
-      alt={tour.name}
-      referrerPolicy="no-referrer" // Thêm dòng này nếu Supabase chặn referrer từ localhost
-      onError={(e) => {
-        console.log("Link ảnh bị lỗi:", tour.image); // In ra console để xem link thực tế là gì
-        (e.target as HTMLImageElement).src = "https://via.placeholder.com/800x400?text=Loi_Link_Anh";
-      }} 
-    />
-  ) : (
-    <p className="text-gray-400">Không có dữ liệu ảnh</p>
-  )}
-</div>
-
-          <div className="prose max-w-none">
-            <h3 className="text-2xl font-bold mb-2">Lịch trình</h3>
-            {/* Thay mô tả thật */}
-            <p className="whitespace-pre-line">{tour.itinerary || tour.description || "Đang cập nhật nội dung..."}</p>
-          </div>
-        </div>
-
-        {/* Cột phải: Form đặt tour */}
-        <div className="md:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-100 sticky top-24">
-            <p className="text-gray-500 mb-1 font-medium">Giá mỗi khách</p>
-            {/* Thay giá thật từ database */}
-            <p className="text-3xl font-bold text-emerald-600 mb-6">
-              {tour.price?.toLocaleString()}đ
-            </p>
-
-            <a
-              href={`/checkout?id=${tour.id}`} // Truyền ID sang trang checkout
-              className="block w-full text-center bg-emerald-600 text-white py-3 rounded-xl font-bold hover:bg-emerald-700 transition"
->>>>>>> origin/thanh-thu
+              className="group flex w-full justify-center items-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
             >
               ĐẶT TOUR NGAY
               <span className="group-hover:translate-x-1 transition-transform">→</span>

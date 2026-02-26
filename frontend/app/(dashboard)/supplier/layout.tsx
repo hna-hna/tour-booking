@@ -15,7 +15,7 @@ export default function SupplierLayout({
   const menuItems = [
     
     { name: "Quản lý Tour", href: "/supplier/upload-manage-tour" },
-    { name: "Hướng dẫn viên", href: "/supplier/tour_guide_management" },
+    { name: "Quản lý Hướng dẫn viên", href: "/supplier/tour_guide_management" },
     { name: "Doanh thu", href: "/supplier/revenue" },
     
   ];

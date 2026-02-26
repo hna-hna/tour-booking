@@ -1,4 +1,4 @@
-#backend/app/api/auth_routes.py
+# backend/app/api/auth_routes.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import User, UserRole
@@ -51,14 +51,19 @@ def login():
 
     user = User.query.filter_by(email=email).first()
 
-    # Kiểm tra mật khẩu đúng không
-    if user.password_hash == password:
-        # Tạo Token (Vé vào cổng), lưu thêm ID và Role vào trong vé
-        token = create_access_token(identity=str(user.id), additional_claims={"role": user.role.value})
+    # KIỂM TRA MẬT KHẨU: 
+    # Phải dùng check_password để giải mã hash thay vì so sánh == trực tiếp
+    if user and user.check_password(password):
+        # Tạo Token, lưu thêm identity và Role
+        token = create_access_token(
+            identity=str(user.id), 
+            additional_claims={"role": user.role.value}
+        )
         
         return jsonify({
             "msg": "Đăng nhập thành công",
             "access_token": token,
+            "user_id": user.id, # Thêm dòng này để khớp với frontend bạn đã viết
             "user_info": {
                 "id": user.id,
                 "name": user.full_name,

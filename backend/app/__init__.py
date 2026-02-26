@@ -1,38 +1,40 @@
-#backend/app/__init__.py
+# backend/app/__init__.py
 
 from .extensions import db, jwt, socketio 
 from flask import Flask, jsonify
 from flask_migrate import Migrate
 from config import Config
 from flask_cors import CORS
-
-# 1. Import extensions
-from .extensions import db, jwt, socketio
+from datetime import timedelta
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__ , static_folder='static', static_url_path='/static')
     app.config.from_object(Config)
+    app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(hours=24)
 
-    # 2. Cấu hình CORS
+    # 1. Cấu hình CORS duy nhất và đầy đủ
+    # Cho phép cả localhost và 127.0.0.1 để tránh lỗi khi trình duyệt nhận diện khác nhau
     CORS(app, resources={
-        r"/*": {
-            "origins": ["*"],
+        r"/api/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
+        },
+        r"/*": {
+            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
+            "supports_credentials": True
         }
     })
-    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}}, supports_credentials=True)
 
-    # 3. Init Extensions
+    # 2. Init Extensions
     db.init_app(app)
     jwt.init_app(app)
     socketio.init_app(app)
     
     Migrate(app, db)
 
-    # 4. Đăng ký Blueprint 
-    
+    # 3. Đăng ký các Blueprint (API Routes)
     from .api.auth_routes import auth_bp
     app.register_blueprint(auth_bp, url_prefix='/api/auth') 
 
@@ -55,7 +57,7 @@ def create_app():
     app.register_blueprint(tour_bp, url_prefix='/api/tours')
 
     from .api.customer import customer_bp
-    app.register_blueprint(customer_bp, url_prefix='/api/customer') # Lưu ý prefix
+    app.register_blueprint(customer_bp, url_prefix='/api/customer')
 
     from .api.chat_routes import chat_bp
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
@@ -63,9 +65,8 @@ def create_app():
     from .api.order_routes import order_bp
     app.register_blueprint(order_bp, url_prefix='/api/orders')
 
-    # 5. Socket Events
+    # 4. Socket Events
     from app import websockets
-   # from .websockets import events
 
     # Test route
     @app.route('/')

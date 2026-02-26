@@ -7,14 +7,15 @@ tour_bp = Blueprint("tour", __name__, url_prefix="/api/tours")
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
 def get_public_tours():
+    # Chỉ lấy các tour đã được Admin phê duyệt
     tours = Tour.query.filter_by(status="approved").all()
     return jsonify([
         {
             "id": t.id,
             "name": t.name,
             "price": t.price,
-            "description": t.description,
-            "image": getattr(t, 'image', None),
+            "description": t.description or "",
+            "image": t.image,
             "start_date": t.start_date,
             "end_date": t.end_date
         }
@@ -29,13 +30,13 @@ def get_tour_detail(tour_id):
     return jsonify({
         "id": tour.id,
         "name": tour.name,
-        "description": tour.description,
+        "description": tour.description or "",
         "price": tour.price,
-        "image": getattr(tour, 'image', None),
+        "image": tour.image,
         "start_date": tour.start_date,
         "end_date": tour.end_date,
         "status": tour.status,
-        "itinerary": tour.itinerary, 
+        "itinerary": tour.itinerary or "", 
         "quantity": getattr(tour, 'quantity', 0),
         "supplier_id": getattr(tour, 'supplier_id', None)
     }), 200

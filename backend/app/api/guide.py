@@ -1,4 +1,4 @@
-#backend/app/api/guide.py 
+# backend/app/api/guide.py 
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models.tour import Tour
@@ -8,14 +8,12 @@ from app.models.order import Order
 
 guide_bp = Blueprint('guide', __name__)
 
-# --- BIẾN DÙNG CHUNG ĐỂ TEST (Đổi thành 100 để khớp SQL của bạn) ---
-CURRENT_GUIDE_ID = 3
-
+# --- BIẾN DÙNG CHUNG ĐỂ TEST (Đặt là 100 để khớp với dữ liệu mẫu của bạn) ---
+CURRENT_GUIDE_ID = 100
 
 # 1. Lấy danh sách tour ĐÃ ĐỒNG Ý (Trang Lịch dẫn tour - status: accepted)
 @guide_bp.route('/tours', methods=['GET'])
 def get_assigned_tours():
-    # Sau này thay bằng get_jwt_identity()
     user_id = CURRENT_GUIDE_ID 
     
     assignments = TourGuideAssignment.query.filter_by(guide_id=user_id, status='accepted').all()
@@ -96,7 +94,7 @@ def respond_to_request(request_id):
     db.session.commit()
     return jsonify({"msg": msg}), 200
 
-# 5. Lấy danh sách khách hàng của 1 Tour (Dùng cho trang Chi tiết)
+# 5. Lấy danh sách khách hàng của 1 Tour
 @guide_bp.route('/tours/<int:tour_id>/customers', methods=['GET'])
 def get_tour_customers(tour_id):
     orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
@@ -141,37 +139,27 @@ def guide_profile():
         
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 def finish_tour(tour_id):
-    # 1. Tìm bản ghi phân công của HDV này với Tour này
     user_id = CURRENT_GUIDE_ID
     
     assignment = TourGuideAssignment.query.filter_by(
         tour_id=tour_id, 
         guide_id=user_id,
-        status='accepted' # Chỉ tour đang nhận mới được hoàn thành
+        status='accepted'
     ).first()
     
     if not assignment:
         return jsonify({"msg": "Bạn chưa nhận tour này hoặc tour không tồn tại"}), 404
 
-    # 2. Tìm bản ghi Tour gốc
     tour = Tour.query.get(tour_id)
     if not tour:
         return jsonify({"msg": "Tour không tồn tại"}), 404
 
     try:
-        # --- ĐỒNG BỘ TRẠNG THÁI TẠI ĐÂY ---
-        
-        # Việc 1: Đổi trạng thái phân công -> completed
+        # Cập nhật trạng thái phân công và trạng thái Tour gốc
         assignment.status = 'completed'
-        
-        # Việc 2: Đổi trạng thái Tour gốc -> completed
         tour.status = 'completed'
         
-        # (Tại đây bạn có thể thêm logic chia tiền hoa hồng 85/15 cho NCC và Admin sau này)
-        
-        # Việc 3: Lưu tất cả thay đổi cùng lúc
         db.session.commit()
-        
         return jsonify({"msg": "Chúc mừng! Bạn đã hoàn thành tour.", "status": "completed"}), 200
         
     except Exception as e:

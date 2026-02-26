@@ -14,6 +14,7 @@ function CheckoutContent() {
   const [selectedDate, setSelectedDate] = useState("");
   const [tour, setTour] = useState<any>(null);
   const [note, setNote] = useState("");
+
   useEffect(() => {
     if (tourId) {
       // Đảm bảo Backend Flask đang chạy tại port 5000
@@ -42,14 +43,12 @@ function CheckoutContent() {
     }
     setLoading(true);
 
-    // Chuyển hướng sang trang thanh toán kèm theo các thông số
-    const targetUrl = `/payments?
-    id=${tourId}&amount=${totalAmount}&guests=${guestCount}&date=${selectedDate}`;
-    
+    // Sử dụng window.location.href để đảm bảo chuyển hướng sạch và thành công 100%
+    const targetUrl = `/payments?id=${tourId}&amount=${totalAmount}&guests=${guestCount}&date=${selectedDate}`;
+
     setTimeout(() => {
-      router.push(targetUrl);
+      window.location.href = targetUrl;
     }, 400);
-    
   };
 
   return (
@@ -127,21 +126,21 @@ function CheckoutContent() {
               </div>
               <div className="mt-6">
                 <label className="block text-[10px] font-bold text-gray-400 mb-2 uppercase tracking-[0.2em]">
-          Ghi chú cho Hướng dẫn viên
+                  Ghi chú cho Hướng dẫn viên
                 </label>
                 <textarea
-                 rows={3}
-                placeholder="Ví dụ: Tôi ăn chay, gia đình có trẻ nhỏ..."
-                className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-emerald-500 outline-none transition-all shadow-inner resize-none"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
+                  rows={3}
+                  placeholder="Ví dụ: Tôi ăn chay, gia đình có trẻ nhỏ..."
+                  className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-emerald-500 outline-none transition-all shadow-inner resize-none"
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
                 />
               </div>
             </div>
           </div>
 
           {/* Cột phải: Tổng tiền (Sticky) */}
-          <div className="h-fit lg:sticky lg:top-10">
+          <div className="h-fit sticky top-10">
             <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-md overflow-hidden">
               <div className="bg-gray-50 -mx-6 -mt-6 p-4 mb-6 border-b border-gray-100">
                 <h2 className="text-md font-bold text-center text-gray-700 uppercase">
@@ -207,7 +206,7 @@ function CheckoutContent() {
 // Hàm export chính của trang
 export default function CheckoutPage() {
   return (
-    <Suspense fallback={<div className="p-20 text-center font-bold">Đang tải trang thanh toán...</div>}>
+    <Suspense fallback={<div className="p-20 text-center font-bold text-gray-500 italic">Đang tải trang thanh toán...</div>}>
       <CheckoutContent />
     </Suspense>
   );

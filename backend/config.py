@@ -1,5 +1,7 @@
 import os
 from dotenv import load_dotenv
+from datetime import timedelta
+
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -11,4 +13,4 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = "khoa-bi-mat"
-    
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(days=7)

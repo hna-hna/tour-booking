@@ -5,3 +5,5 @@ Flask-Migrate
 Flask-JWT-Extended
 python-dotenv
 Werkzeug
+flask_socketio
+flask_cors

@@ -2,8 +2,8 @@
 import React, { useState } from "react";
 
 export default function LoginPage() {
-  const [formData, setFormData] = useState({ 
-    email: "", 
+  const [formData, setFormData] = useState({
+    email: "",
     password: ""
   });
   const [loading, setLoading] = useState(false);
@@ -12,7 +12,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    fetch("http://127.0.0.1:5000/api/auth/login", { 
+    // URL đã được đồng bộ với backend Flask
+    fetch("http://127.0.0.1:5000/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
@@ -20,14 +21,14 @@ export default function LoginPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.access_token && data.user_info) {
-          // Lưu thông tin vào Storage
+          // Lưu thông tin vào LocalStorage
           localStorage.setItem("token", data.access_token);
           localStorage.setItem("user_id", data.user_id); 
           localStorage.setItem("role", data.user_info.role);
           
           alert("Đăng nhập thành công!");
           
-          // LOGIC ĐIỀU HƯỚNG ĐÃ TỐI ƯU
+          // Logic điều hướng dựa trên Role đã đồng bộ
           const role = data.user_info.role;
           switch(role) {
             case "admin":
@@ -37,7 +38,7 @@ export default function LoginPage() {
               window.location.href = "/supplier/upload-manage-tour";
               break;
             case "guide":   
-              window.location.href = "/guide/";
+              window.location.href = "/guide";
               break;
             case "customer":
             default:

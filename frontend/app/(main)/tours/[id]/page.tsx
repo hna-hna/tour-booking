@@ -1,3 +1,4 @@
+// app/(main)/tours/[id]/page.tsx
 "use client";
 
 import { use, useEffect, useState } from "react";
@@ -6,7 +7,8 @@ import axios from "axios";
 export default function TourDetailPage({ params }: { params: Promise<{ id: string }> }) {
   // Giải mã params (Next.js 15+ yêu cầu dùng 'use' hoặc await cho params)
   const resolvedParams = use(params);
-  
+
+  // State lưu trữ dữ liệu tour và trạng thái tải
   const [tour, setTour] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -31,6 +33,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     }
   }, [resolvedParams.id]);
 
+  // Trạng thái Loading chuyên nghiệp
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
@@ -38,6 +41,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     </div>
   );
 
+  // Trạng thái Error khi không tìm thấy Tour
   if (error || !tour) return (
     <div className="p-20 text-center">
       <h2 className="text-2xl font-bold text-red-500">Tour không tồn tại hoặc đã bị gỡ bỏ!</h2>
@@ -67,7 +71,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               alt={tour.name} 
             />
             <div className="absolute top-4 left-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full text-sm font-bold text-emerald-700 shadow-sm">
-             Tour Phổ Biến
+              Tour Phổ Biến
             </div>
           </div>
 
@@ -85,8 +89,8 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
 
             {tour.itinerary && (
               <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                <h3 className="text-2xl font-bold text-gray-800 mb-4"> Lịch trình dự kiến</h3>
-                <div className="prose prose-emerald max-w-none text-gray-600">
+                <h3 className="text-2xl font-bold text-gray-800 mb-4">Lịch trình dự kiến</h3>
+                <div className="prose prose-emerald max-w-none text-gray-600 whitespace-pre-line">
                   {tour.itinerary}
                 </div>
               </section>
@@ -109,10 +113,10 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             
             <div className="space-y-4 mb-8">
               <div className="flex items-center gap-3 text-sm text-gray-600">
-                <span>✅ Xác nhận tức thì</span>
+                <span> Xác nhận tức thì</span>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600">
-                <span>🛡️ Bảo hiểm du lịch trọn gói</span>
+                <span> Bảo hiểm du lịch trọn gói</span>
               </div>
             </div>
 

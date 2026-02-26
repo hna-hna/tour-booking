@@ -22,6 +22,7 @@ def create_app():
             "supports_credentials": True
         }
     })
+    CORS(app, resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}}, supports_credentials=True)
 
     # 3. Init Extensions
     db.init_app(app)
@@ -58,6 +59,9 @@ def create_app():
 
     from .api.chat_routes import chat_bp
     app.register_blueprint(chat_bp, url_prefix='/api/chat')
+
+    from .api.order_routes import order_bp
+    app.register_blueprint(order_bp, url_prefix='/api/orders')
 
     # 5. Socket Events
     from app import websockets

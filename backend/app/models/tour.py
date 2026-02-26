@@ -19,3 +19,6 @@ class Tour(db.Model):
     end_date = db.Column(db.DateTime, nullable=True)   # Ngày về
     # Quan hệ với phân công hướng dẫn viên
 
+    # Quan hệ ngược lại với Tour
+    tour = db.relationship('Tour', back_populates='assignments')
+

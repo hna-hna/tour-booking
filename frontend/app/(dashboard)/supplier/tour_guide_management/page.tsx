@@ -46,8 +46,15 @@ export default function TourGuideManagementPage() {
   const fetchGuides = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem("token")
+      console.log("TOKEN:", token); 
+      if (!token) {
+        alert("Bạn chưa đăng nhập!");
+        return;
+      }
+      
       const res = await axios.get("http://localhost:5000/api/supplier/guides", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setGuides(res.data);
     } catch (error) {

@@ -52,6 +52,7 @@ def get_tour_history():
             })
     return jsonify(results), 200
 
+
 # 3. Lấy danh sách YÊU CẦU dẫn tour (Trang Yêu cầu - status: pending)
 @guide_bp.route('/requests', methods=['GET'])
 def get_tour_requests():

@@ -6,6 +6,8 @@ from app.models.tour_guide import TourGuide, TourGuideAssignment
 from app.models.order import Order, Payment
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, and_
+from app.models.user import User, UserRole
+from werkzeug.security import generate_password_hash
 import os
 
 supplier_bp = Blueprint('supplier_bp', __name__)
@@ -116,11 +118,32 @@ def get_my_guides():
 @supplier_bp.route('/guides', methods=['POST'])
 @jwt_required()
 def create_guide():
-    sid = get_jwt_identity()
+    sid = int(get_jwt_identity())
     data = request.get_json()
-    
+
     try:
+        # Validate
+        if not data.get("email") or not data.get("full_name"):
+            return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
+
+        existing_user = User.query.filter_by(email=data.get("email")).first()
+        if existing_user:
+            return jsonify({"msg": "Email đã tồn tại"}), 400
+
+        # 1️⃣ Tạo User
+        new_user = User(
+            email=data.get("email"),
+            password_hash=generate_password_hash("123456"),
+            full_name=data.get("full_name"),
+            role=UserRole.GUIDE,
+            is_active=True
+        )
+        db.session.add(new_user)
+        db.session.flush()
+
+        # 2️⃣ Tạo TourGuide profile
         guide = TourGuide(
+            user_id=new_user.id,
             supplier_id=sid,
             full_name=data.get('full_name'),
             phone=data.get('phone'),
@@ -131,13 +154,20 @@ def create_guide():
             specialties=data.get('specialties'),
             status=data.get("status", "AVAILABLE").upper()
         )
+
         db.session.add(guide)
         db.session.commit()
-        return jsonify({"message": "Thêm HDV thành công", "guide": guide.to_dict()}), 201
+
+        return jsonify({
+            "message": "Thêm HDV thành công",
+            "guide": guide.to_dict()
+        }), 201
+
     except Exception as e:
         db.session.rollback()
+        print("🔥 CREATE GUIDE ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-
+        
 # 5. BÁO CÁO DOANH THU (Commission 15%)
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()

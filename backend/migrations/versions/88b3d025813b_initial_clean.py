@@ -1,8 +1,8 @@
-"""lan2.2
+"""initial clean
 
-Revision ID: 6d0a8fbd175d
+Revision ID: 88b3d025813b
 Revises: 
-Create Date: 2026-01-13 14:12:54.922275
+Create Date: 2026-03-01 18:42:44.438623
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '6d0a8fbd175d'
+revision = '88b3d025813b'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -26,8 +26,22 @@ def upgrade():
     sa.Column('role', sa.Enum('CUSTOMER', 'SUPPLIER', 'GUIDE', 'ADMIN', name='userrole'), nullable=False),
     sa.Column('is_active', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('phone', sa.String(length=20), nullable=True),
+    sa.Column('address', sa.String(length=255), nullable=True),
+    sa.Column('avatar', sa.String(length=500), nullable=True),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('email')
+    )
+    op.create_table('messages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('sender_id', sa.Integer(), nullable=False),
+    sa.Column('receiver_id', sa.Integer(), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('is_read', sa.Boolean(), nullable=True),
+    sa.Column('timestamp', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['receiver_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('orders',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -36,6 +50,8 @@ def upgrade():
     sa.Column('total_price', sa.Float(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('guest_count', sa.Integer(), nullable=False),
+    sa.Column('is_checked_in', sa.Boolean(), nullable=True),
+    sa.Column('note', sa.Text(), nullable=True),
     sa.Column('booking_date', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
@@ -48,14 +64,35 @@ def upgrade():
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('tour_guides',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('supplier_id', sa.Integer(), nullable=False),
+    sa.Column('full_name', sa.String(length=200), nullable=False),
+    sa.Column('phone', sa.String(length=20), nullable=True),
+    sa.Column('email', sa.String(length=100), nullable=True),
+    sa.Column('license_number', sa.String(length=50), nullable=True),
+    sa.Column('years_of_experience', sa.Integer(), nullable=True),
+    sa.Column('languages', sa.String(length=200), nullable=True),
+    sa.Column('specialties', sa.Text(), nullable=True),
+    sa.Column('status', sa.Enum('AVAILABLE', 'BUSY', 'ON_LEAVE', name='guidestatus'), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('updated_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['supplier_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('tours',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('name', sa.String(length=200), nullable=False),
+    sa.Column('image', sa.String(length=255), nullable=True),
     sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('itinerary', sa.Text(), nullable=True),
+    sa.Column('quantity', sa.Integer(), nullable=True),
     sa.Column('price', sa.Float(), nullable=False),
     sa.Column('status', sa.String(length=20), nullable=True),
     sa.Column('supplier_id', sa.Integer(), nullable=True),
     sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.Column('start_date', sa.DateTime(), nullable=True),
+    sa.Column('end_date', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['supplier_id'], ['users.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -80,12 +117,25 @@ def upgrade():
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_table('reviews',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('user_id', sa.Integer(), nullable=False),
+    sa.Column('tour_id', sa.Integer(), nullable=False),
+    sa.Column('rating', sa.Integer(), nullable=False),
+    sa.Column('comment', sa.Text(), nullable=True),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
+    sa.ForeignKeyConstraint(['tour_id'], ['tours.id'], ),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('tour_guide_assignments',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('tour_id', sa.Integer(), nullable=False),
-    sa.Column('guide_id', sa.Integer(), nullable=True),
+    sa.Column('guide_id', sa.Integer(), nullable=False),
     sa.Column('assigned_date', sa.DateTime(), nullable=True),
-    sa.ForeignKeyConstraint(['guide_id'], ['users.id'], ),
+    sa.Column('notes', sa.Text(), nullable=True),
+    sa.Column('status', sa.String(length=20), nullable=True),
+    sa.ForeignKeyConstraint(['guide_id'], ['tour_guides.id'], ),
     sa.ForeignKeyConstraint(['tour_id'], ['tours.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
@@ -105,10 +155,13 @@ def downgrade():
     # ### commands auto generated by Alembic - please adjust! ###
     op.drop_table('tour_view_logs')
     op.drop_table('tour_guide_assignments')
+    op.drop_table('reviews')
     op.drop_table('payments')
     op.drop_table('user_logs')
     op.drop_table('tours')
+    op.drop_table('tour_guides')
     op.drop_table('search_logs')
     op.drop_table('orders')
+    op.drop_table('messages')
     op.drop_table('users')
     # ### end Alembic commands ###

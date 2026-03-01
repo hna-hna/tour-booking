@@ -11,8 +11,8 @@ export default function HomePage() {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const endpoint = token 
-      ? "http://localhost:5000/api/customer/tours/recommend" // API AI gợi ý
-      : "http://localhost:5000/api/customer/tours/popular"; // API Tour phổ biến (chưa login)
+      ? "http://localhost:5000/api/tours/recommend" // API AI gợi ý
+      : "http://localhost:5000/api/tours/popular"; // API Tour phổ biến (chưa login)
 
     if (token) setUserType("user");
 

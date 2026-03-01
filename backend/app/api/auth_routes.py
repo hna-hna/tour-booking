@@ -1,7 +1,7 @@
 # backend/app/api/auth_routes.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db
-from app.models import User, UserRole
+from app.models import User, UserRole, TourGuide, GuideStatus
 from flask_jwt_extended import create_access_token
 
 auth_bp = Blueprint('auth', __name__)
@@ -36,8 +36,27 @@ def register():
     
     try:
         db.session.add(new_user)
+        db.session.flush()  
+        # flush để lấy new_user.id trước khi commit
+
+        # Nếu là GUIDE → tạo profile trong tour_guides
+        if role_enum == UserRole.GUIDE:
+            guide_profile = TourGuide(
+                user_id=new_user.id,
+                supplier_id=data.get("supplier_id"),
+                full_name=new_user.full_name,
+                email=new_user.email,
+                status=GuideStatus.AVAILABLE
+            )
+            db.session.add(guide_profile)
+
         db.session.commit()
-        return jsonify({"msg": "Đăng ký thành công!", "email": new_user.email}), 201
+
+        return jsonify({
+            "msg": "Đăng ký thành công!",
+            "email": new_user.email
+        }), 201
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"msg": f"Lỗi server: {str(e)}"}), 500
@@ -63,7 +82,7 @@ def login():
             return jsonify({"msg": "Email không tồn tại!"}), 401
 
         # Kiểm tra mật khẩu (Sử dụng cách so sánh trực tiếp của bạn)
-        if user.password_hash == password:
+        if user.check_password(password):
             # Tạo Token
             token = create_access_token(
                 identity=str(user.id), 

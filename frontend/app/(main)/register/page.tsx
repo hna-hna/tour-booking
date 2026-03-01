@@ -127,7 +127,6 @@ export default function RegisterPage() {
               <option value="customer">Khách hàng</option>
               <option value="supplier">Nhà cung cấp tour</option>
               <option value="guide">Hướng dẫn viên</option>
-              <option value="admin">Quản trị viên</option>
             </select>
           </div>
 

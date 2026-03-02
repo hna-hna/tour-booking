@@ -1,12 +1,15 @@
+#backend/app/websockets/events.py
 from app.extensions import socketio, db
 from app.models import Message
+from flask import request
 from flask_socketio import emit, join_room
 
 @socketio.on('join')
 def on_join(data):
     """User join vào room chat riêng (ví dụ room theo user_id)"""
-    room = data['room']
-    join_room(room)
+    room = data.get('room')
+    if room: 
+        join_room(room)
     print(f"User joined room: {room}")
 
 @socketio.on('send_message')

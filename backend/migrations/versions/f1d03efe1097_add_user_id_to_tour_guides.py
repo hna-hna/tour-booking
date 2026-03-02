@@ -1,4 +1,3 @@
-"""add user_id to tour_guides
 
 Revision ID: f1d03efe1097
 Revises: 88b3d025813b

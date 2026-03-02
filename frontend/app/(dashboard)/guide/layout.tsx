@@ -72,7 +72,7 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
             onClick={handleLogout}
             className="flex items-center gap-4 px-4 py-3 w-full rounded-xl transition-all hover:bg-red-500 hover:text-white text-cyan-200 group"
           >
-            <span className="text-xl">🚪</span>
+            <span className="text-xl"></span>
             {isSidebarOpen && <span className="font-medium">Đăng xuất</span>}
           </button>
         </div>

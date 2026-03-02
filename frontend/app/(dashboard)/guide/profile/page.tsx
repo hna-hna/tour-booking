@@ -2,37 +2,66 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 
+const SUPPORTED_LANGUAGES = ["Tiếng Việt", "Tiếng Anh", "Tiếng Trung", "Tiếng Nhật", "Tiếng Pháp"];
+const STATUS_OPTIONS = [
+  { value: "AVAILABLE", label: "Sẵn sàng", color: "text-green-600" },
+  { value: "BUSY", label: "Bận lịch", color: "text-amber-600" },
+  { value: "ON_LEAVE", label: "Nghỉ phép", color: "text-red-600" },
+];
+
 export default function GuideProfilePage() {
   const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false); // Trạng thái khi đang gọi API lưu
+  const [isSaving, setIsSaving] = useState(false);
   
-  // Dữ liệu form khi sửa
   const [formData, setFormData] = useState({
     full_name: "",
     phone: "",
+    years_of_experience: 0,
+    languages: [] as string[],
+    status: "AVAILABLE",
   });
 
+  // Hàm lấy token dùng chung
+  const getAuthHeader = () => {
+    const token = localStorage.getItem("token");
+    return { Authorization: `Bearer ${token}` };
+  };
+
   const fetchProfile = () => {
-    axios.get("http://localhost:5000/api/guide/profile")
+    // Đổi sang 127.0.0.1 và thêm headers
+    axios.get("http://127.0.0.1:5000/api/guide/profile", {
+      headers: getAuthHeader()
+    })
       .then((res) => {
         setProfile(res.data);
         setFormData({
           full_name: res.data.full_name || "",
-          phone: res.data.phone || ""
+          phone: res.data.phone || "",
+          years_of_experience: res.data.years_of_experience || 0,
+          languages: res.data.languages ? res.data.languages.split(", ") : [],
+          status: res.data.status || "AVAILABLE",
         });
       })
       .catch((err) => {
         console.error("Lỗi lấy hồ sơ:", err);
+        if (err.response?.status === 401) alert("Phiên đăng nhập hết hạn!");
       });
   };
 
   useEffect(() => {
     fetchProfile();
   }, []);
-
+  const toggleLanguage = (lang: string) => {
+    setFormData(prev => ({
+      ...prev,
+      languages: prev.languages.includes(lang)
+        ? prev.languages.filter(l => l !== lang)
+        : [...prev.languages, lang],
+    }));
+  };
+  
   const handleSave = async () => {
-    // Kiểm tra dữ liệu trống cơ bản
     if (!formData.full_name.trim()) {
       alert("Vui lòng nhập họ và tên");
       return;
@@ -40,15 +69,17 @@ export default function GuideProfilePage() {
 
     setIsSaving(true);
     try {
-      await axios.put("http://localhost:5000/api/guide/profile", formData);
+      // Đổi sang 127.0.0.1 và thêm headers cho lệnh PUT
+      await axios.put("http://127.0.0.1:5000/api/guide/profile", formData, {
+        headers: getAuthHeader()
+      });
       
-      // Cập nhật thành công
-      setProfile({ ...profile, ...formData }); 
+      setProfile({ ...profile, ...formData , languages: formData.languages.join(", ") }); 
       setIsEditing(false);
       alert("Cập nhật thông tin thành công! ");
     } catch (error) {
       console.error("Lỗi cập nhật:", error);
-      alert("Lỗi cập nhật. Vui lòng kiểm tra lại kết nối server.");
+      alert("Không thể lưu thay đổi. Vui lòng thử lại.");
     } finally {
       setIsSaving(false);
     }
@@ -66,124 +97,104 @@ export default function GuideProfilePage() {
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Hồ sơ cá nhân</h1>
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Banner */}
-        <div className="h-40 bg-gradient-to-r from-cyan-600 to-blue-600 relative">
-           <div className="absolute -bottom-12 left-8">
-              <div className="w-28 h-28 bg-white rounded-3xl p-1 shadow-xl rotate-3">
-                 <div className="w-full h-full bg-cyan-50 rounded-2xl flex items-center justify-center text-5xl">
-                  
-                 </div>
-              </div>
-           </div>
-        </div>
+        {/* Banner giữ nguyên */}
+        <div className="h-32 bg-gradient-to-r from-cyan-600 to-blue-600" />
 
-        <div className="pt-16 px-8 pb-8">
-           <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-10">
+        <div className="px-8 pb-8 pt-4">
+          <div className="flex justify-between items-start mb-8">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-800">{profile.full_name}</h2>
+              <p className="text-cyan-600 font-medium">Hướng dẫn viên du lịch</p>
+            </div>
+            <button 
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              className={`${isEditing ? 'bg-green-600' : 'bg-cyan-600'} text-white px-6 py-2 rounded-xl font-bold transition-all`}
+            >
+              {isSaving ? "Đang lưu..." : isEditing ? "Lưu lại" : "Chỉnh sửa"}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              {/* Họ tên & Phone tương tự như cũ */}
               <div>
-                 <h2 className="text-3xl font-bold text-gray-800">{profile.full_name}</h2>
-                 <p className="text-cyan-600 font-semibold flex items-center gap-2 mt-1">
-                   <span className="w-2 h-2  rounded-full animate-pulse"></span>
-                   Hướng dẫn viên chuyên nghiệp
-                 </p>
+                <label className="text-xs font-bold text-gray-400 uppercase">Họ và tên</label>
+                {isEditing ? (
+                  <input className="w-full border p-2 rounded-lg" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} />
+                ) : <p className="font-semibold text-gray-700">{profile.full_name}</p>}
               </div>
-              
-              {/* Nút điều khiển */}
-              {!isEditing ? (
-                  <button 
-                    onClick={() => setIsEditing(true)}
-                    className="bg-gray-50 text-gray-700 px-5 py-2.5 rounded-xl font-bold hover:bg-gray-100 border border-gray-200 transition-all flex items-center gap-2 active:scale-95"
-                  >
-                     Chỉnh sửa hồ sơ
-                  </button>
-              ) : (
-                  <div className="flex gap-3">
-                    <button 
-                        onClick={() => {
-                          setIsEditing(false);
-                          setFormData({ full_name: profile.full_name, phone: profile.phone || "" }); // Reset lại data cũ
-                        }}
-                        disabled={isSaving}
-                        className="px-5 py-2.5 rounded-xl font-bold text-gray-500 hover:bg-gray-100 transition-all disabled:opacity-50"
-                    >
-                        Hủy
-                    </button>
-                    <button 
-                        onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-cyan-600 text-white px-8 py-2.5 rounded-xl font-bold hover:bg-cyan-700 shadow-lg shadow-cyan-100 transition-all active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                    >
-                        {isSaving ? "⏳ Đang lưu..." : "Lưu thay đổi"}
-                    </button>
+
+              {/* PHẦN NGÔN NGỮ */}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase">Ngôn ngữ thông thạo</label>
+                {isEditing ? (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {SUPPORTED_LANGUAGES.map(lang => (
+                      <button
+                        key={lang}
+                        onClick={() => toggleLanguage(lang)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                          formData.languages.includes(lang) ? "bg-cyan-600 text-white border-cyan-600" : "bg-gray-50 text-gray-500 border-gray-200"
+                        }`}
+                      >
+                        {lang}
+                      </button>
+                    ))}
                   </div>
-              )}
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-              {/* Cột trái */}
-              <div className="space-y-6">
-                 <div className="group">
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Họ và tên</label>
-                    {isEditing ? (
-                        <input 
-                            type="text" 
-                            className="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none transition-all"
-                            value={formData.full_name}
-                            onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-                            placeholder="Nhập họ tên đầy đủ"
-                        />
-                    ) : (
-                        <p className="text-lg font-semibold text-gray-700 p-1">{profile.full_name}</p>
-                    )}
-                 </div>
-
-                 <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Địa chỉ Email</label>
-                    <div className="bg-gray-50 p-3 rounded-xl text-gray-500 border border-dashed border-gray-200 flex justify-between items-center">
-                      <span>{profile.email}</span>
-                      <span className="text-[10px] bg-gray-200 px-2 py-0.5 rounded-md">Cố định</span>
-                    </div>
-                 </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {profile.languages ? profile.languages.split(", ").map((l: string) => (
+                      <span key={l} className="bg-cyan-50 text-cyan-700 px-3 py-1 rounded-full text-xs font-bold">{l}</span>
+                    )) : "Chưa cập nhật"}
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Cột phải */}
-              <div className="space-y-6">
-                 <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Số điện thoại</label>
+            <div className="space-y-6">
+              {/* THÔNG SỐ HOẠT ĐỘNG */}
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Thông số</label>
+                <div className="flex gap-4">
+                  <div className="flex-1 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <span className="block text-[10px] font-bold text-gray-400">TRẠNG THÁI</span>
                     {isEditing ? (
-                        <input 
-                            type="text" 
-                            className="w-full border border-gray-200 bg-gray-50 rounded-xl p-3 focus:ring-2 focus:ring-cyan-500 focus:bg-white outline-none transition-all"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                            placeholder="Ví dụ: 090xxxxxxx"
-                        />
+                      <select 
+                        className="w-full bg-transparent font-bold text-sm outline-none text-cyan-700 cursor-pointer"
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      >
+                       {STATUS_OPTIONS.map(opt => (
+                         <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    ) : (      
+                      <span className={`font-black text-sm ${
+                         STATUS_OPTIONS.find(o => o.value === profile.status)?.color || "text-gray-700"
+                      }`}>
+                         {STATUS_OPTIONS.find(o => o.value === profile.status)?.label || profile.status}
+                      </span>
+                )}            
+                  </div>
+                  <div className="flex-1 bg-gray-50 p-3 rounded-2xl border border-gray-100">
+                    <span className="block text-[10px] font-bold text-gray-400">KINH NGHIỆM</span>
+                    {isEditing ? (
+                       <input 
+                         type="number" 
+                         className="w-full bg-transparent font-bold text-sm outline-none" 
+                         value={formData.years_of_experience} 
+                         onChange={e => setFormData({...formData, years_of_experience: parseInt(e.target.value)})} 
+                       />
                     ) : (
-                        <p className="text-lg font-semibold text-gray-700 p-1">{profile.phone || "Chưa cập nhật"}</p>
+                      <span className="text-gray-700 font-black text-sm">{profile.years_of_experience} Năm</span>
                     )}
-                 </div>
-
-                 <div>
-                    <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2 ml-1">Thông số hoạt động</label>
-                    <div className="flex gap-4">
-                        <div className="border px-4 py-2 rounded-2xl">
-                          <span className="block text-[10px] font-bold">ĐÁNH GIÁ</span>
-                          <span className=""> {profile.rating || 5.0}</span>
-                        </div>
-                        <div className=" border  px-4 py-2 rounded-2xl">
-                          <span className="block text-[10px]  font-bold">KINH NGHIỆM</span>
-                          <span className=""> {profile.experience || "1 năm"}</span>
-                        </div>
-                    </div>
-                 </div>
+                  </div>
+                </div>
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       </div>
-
-      <p className="text-center text-gray-400 text-xs mt-8 italic">
-        * Lưu ý: Email là định danh duy nhất của tài khoản và không thể thay đổi. 
-        Nếu cần hỗ trợ, vui lòng liên hệ Quản trị viên.
-      </p>
     </div>
   );
 }

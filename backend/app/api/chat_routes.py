@@ -1,6 +1,5 @@
-# backend/app/api/chat_routes.py
 from flask import Blueprint, request, jsonify
-from app.extensions import db
+from app.extensions import db, socketio
 from app.models.user import User
 from app.models.chat import Message
 from app.models.tour import Tour
@@ -12,74 +11,47 @@ from app.services.recommendation_service import get_popular_tours
 import requests 
 import re
 import json
-import os
 
 chat_bp = Blueprint('chat', __name__)
 
-
 def detect_intent(message):
     msg = message.lower()
-
     intent = {
         "sea": "biển" in msg,
         "mountain": "núi" in msg,
         "family": "gia đình" in msg
     }
-
-    # Detect ngân sách (ví dụ: 3 triệu)
     budget_match = re.search(r'(\d+)\s*triệu', msg)
     budget = None
     if budget_match:
         budget = int(budget_match.group(1)) * 1000000
-
     return intent, budget
-
 
 def filter_tours(intent, budget):
     query = Tour.query.filter_by(status='approved')
-
     if intent["sea"]:
-        query = query.filter(
-            or_(
-                Tour.description.ilike("%biển%")
-            )
-        )
-
+        query = query.filter(Tour.description.ilike("%biển%"))
     if intent["mountain"]:
-        query = query.filter(
-            or_(
-                Tour.location.ilike("%núi%"),
-                Tour.description.ilike("%núi%")
-            )
-        )
-
+        query = query.filter(or_(Tour.location.ilike("%núi%"), Tour.description.ilike("%núi%")))
     if budget:
         query = query.filter(Tour.price <= budget)
-
     return query.all()
-
 
 def ensure_minimum_tours(tours, min_count=3):
     if len(tours) >= min_count:
         return tours
-
-    popular = get_popular_tours(min_count)  # Hàm bạn đã có
+    popular = get_popular_tours(min_count)
     existing_ids = {t.id for t in tours}
-
     for p in popular:
         if p.id not in existing_ids:
             tours.append(p)
         if len(tours) >= min_count:
             break
-
     return tours
 
-# Cấu hình ollama
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "llama3"
-# ================================
-# 1. API Lấy danh sách người đã từng chat
-# ================================
+
 @chat_bp.route('/partners', methods=['GET'])
 @jwt_required()
 def get_chat_partners():
@@ -229,14 +201,10 @@ def chat_with_ai():
         print(f"Ollama Error: {e}")
         return jsonify({"reply": "Xin lỗi, hệ thống AI đang bảo trì."}), 500
 
-# =================================
-# 3. API Lấy toàn bộ lịch sử chat giữa 2 người
-# =================================
 @chat_bp.route('/messages/<int:partner_id>', methods=['GET'])
 @jwt_required()
 def get_full_chat_history(partner_id):
-    current_user_id = get_jwt_identity()
-
+    current_user_id = int(get_jwt_identity())
     try:
         messages = Message.query.filter(
             or_(
@@ -244,29 +212,61 @@ def get_full_chat_history(partner_id):
                 (Message.sender_id == partner_id) & (Message.receiver_id == current_user_id)
             )
         ).order_by(Message.timestamp.asc()).all()
+        result = [{
+            "id": msg.id,
+            "sender_id": msg.sender_id,
+            "receiver_id": msg.receiver_id,
+            "content": msg.content,
+            "is_read": msg.is_read,
+            "timestamp": msg.timestamp.isoformat()
+        } for msg in messages]
+        Message.query.filter(Message.sender_id == partner_id, Message.receiver_id == current_user_id).update({"is_read": True})
+        db.session.commit()
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-        result = []
+@chat_bp.route('/send', methods=['POST'])
+@jwt_required()
+def send_message():
+    current_user_id = int(get_jwt_identity()) # ID người gửi lấy từ Token
+    data = request.get_json()
+    try:
+        receiver_id = int(data.get('receiver_id')) # ID người nhận lấy từ request
+        content = data.get('content')
+    except:
+        return jsonify({"error": "Dữ liệu không hợp lệ"}), 400
 
-        for msg in messages:
-            result.append({
-                "id": msg.id,
-                "sender_id": msg.sender_id,
-                "receiver_id": msg.receiver_id,
-                "content": msg.content,
-                "is_read": msg.is_read,
-                "timestamp": msg.timestamp.isoformat()
-            })
+    if not content or receiver_id == current_user_id:
+        return jsonify({"error": "Nội dung hoặc người nhận không hợp lệ"}), 400
 
-        # Tự động đánh dấu đã đọc
-        Message.query.filter(
-            Message.sender_id == partner_id,
-            Message.receiver_id == current_user_id,
-            Message.is_read == False
-        ).update({"is_read": True})
+    # QUAN TRỌNG: Kiểm tra nếu tự nhắn cho mình (để debug)
+    if receiver_id == current_user_id:
+        return jsonify({"error": "Không thể tự gửi cho chính mình"}), 400
 
+    try:
+        new_msg = Message(
+            sender_id=current_user_id,
+            receiver_id=receiver_id,
+            content=content,
+            timestamp=datetime.utcnow()
+        )
+        db.session.add(new_msg)
         db.session.commit()
 
-        return jsonify(result), 200
-
+        # Dữ liệu bắn qua Socket phải đầy đủ để Frontend không cần load lại
+        socket_data = {
+            'id': new_msg.id,
+            'sender_id': current_user_id,
+            'receiver_id': receiver_id,
+            'content': content,
+            'timestamp': new_msg.timestamp.isoformat()
+        }
+        
+        # Gửi đến phòng của người nhận
+        socketio.emit('receive_message', socket_data, room=f"user_{receiver_id}")
+        
+        return jsonify({"msg": "Đã gửi", "data": socket_data}), 201
     except Exception as e:
+        db.session.rollback()
         return jsonify({"error": str(e)}), 500

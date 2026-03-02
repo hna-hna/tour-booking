@@ -8,10 +8,24 @@ export default function GuideTourHistoryPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // API lấy các tour HDV đã được phân công (assigned)
     const fetchHistory = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/guide/tours/history");
+        // 1. Lấy token từ localStorage
+        const token = localStorage.getItem("token");
+
+        if (!token) {
+          console.error("Không tìm thấy token. Vui lòng đăng nhập lại.");
+          setLoading(false);
+          return;
+        }
+
+        // 2. Gọi API với đầy đủ Header và địa chỉ 127.0.0.1
+        const res = await axios.get("http://127.0.0.1:5000/api/guide/tours/history", {
+          headers: {
+            Authorization: `Bearer ${token}`, // Gửi "thẻ bài" JWT ở đây
+          },
+        });
+
         setHistory(res.data);
       } catch (err) {
         console.error("Lỗi tải lịch sử tour:", err);
@@ -19,12 +33,14 @@ export default function GuideTourHistoryPage() {
         setLoading(false);
       }
     };
+    
     fetchHistory();
   }, []);
 
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64 italic text-gray-500">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600 mr-3"></div>
         Đang tải lịch sử hành trình...
       </div>
     );
@@ -32,6 +48,7 @@ export default function GuideTourHistoryPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
+      {/* ... Phần giao diện giữ nguyên như bạn đã viết ... */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Lịch sử Tour</h1>
@@ -72,18 +89,18 @@ export default function GuideTourHistoryPage() {
                 
                 <div className="space-y-3 mb-6">
                   <div className="flex items-center text-sm text-gray-500 gap-3">
-                    <span className="w-5 text-center"></span>
-                    <span>Khởi hành: {new Date(item.start_date).toLocaleDateString('vi-VN')}</span>
+                    <span></span>
+                    <span>Khởi hành: {item.start_date ? new Date(item.start_date).toLocaleDateString('vi-VN') : "N/A"}</span>
                   </div>
                   <div className="flex items-center text-sm text-gray-500 gap-3">
-                    <span className="w-5 text-center"></span>
-                    <span className="truncate">{item.location || "Đang cập nhật địa điểm"}</span>
+                    <span></span>
+                    <span className="truncate">{item.location || "Việt Nam"}</span>
                   </div>
                 </div>
 
                 <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
                    <div className="text-[10px] text-gray-400">
-                      Ngày phân công: {new Date(item.assigned_date).toLocaleDateString('vi-VN')}
+                     Phân công: {item.assigned_date ? new Date(item.assigned_date).toLocaleDateString('vi-VN') : "N/A"}
                    </div>
                    <Link 
                     href={`/guide/tours/${item.tour_id}`}

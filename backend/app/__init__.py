@@ -15,7 +15,7 @@ def create_app():
     # 1. Cấu hình CORS duy nhất và đầy đủ
     # Cho phép cả localhost và 127.0.0.1 để tránh lỗi khi trình duyệt nhận diện khác nhau
     CORS(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],

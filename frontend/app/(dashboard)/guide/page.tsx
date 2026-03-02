@@ -16,9 +16,23 @@ export default function GuideDashboard() {
   const [tours, setTours] = useState<MyTour[]>([]);
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/guide/tours")
+    // 1. Lấy token từ localStorage (được lưu khi bạn đăng nhập)
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      console.error("Không tìm thấy token. Vui lòng đăng nhập!");
+      // Bạn có thể redirect về trang login ở đây nếu cần
+      return;
+    }
+
+    // 2. Gửi API kèm theo Header Authorization
+    axios.get("http://127.0.0.1:5000/api/guide/tours", {
+      headers: {
+        Authorization: `Bearer ${token}` // Đây là dòng quan trọng nhất để sửa lỗi 401
+      }
+    })
       .then((res) => {
-        console.log("Dữ liệu tour nhận được:", res.data); // Log ra để kiểm tra
+        console.log("Dữ liệu tour nhận được:", res.data);
         setTours(res.data);
       })
       .catch((err) => {

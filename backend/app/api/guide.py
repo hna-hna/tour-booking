@@ -1,22 +1,29 @@
-# backend/app/api/guide.py 
 from flask import Blueprint, jsonify, request
 from app.extensions import db
 from app.models.tour import Tour
-from app.models.tour_guide import TourGuideAssignment
+from app.models.tour_guide import TourGuide, TourGuideAssignment
 from app.models.user import User
 from app.models.order import Order
+from flask_jwt_extended import jwt_required, get_jwt_identity
 
 guide_bp = Blueprint('guide', __name__)
 
-# --- BIẾN DÙNG CHUNG ĐỂ TEST (Đặt là 100 để khớp với dữ liệu mẫu của bạn) ---
-CURRENT_GUIDE_ID = 100
+# --- HÀM TRỢ GIÚP LẤY GUIDE ---
+def get_current_guide(user_id):
+    return TourGuide.query.filter_by(user_id=user_id).first()
 
-# 1. Lấy danh sách tour ĐÃ ĐỒNG Ý (Trang Lịch dẫn tour - status: accepted)
+# 1. Lấy danh sách tour ĐÃ ĐỒNG Ý
 @guide_bp.route('/tours', methods=['GET'])
+@jwt_required()
 def get_assigned_tours():
-    user_id = CURRENT_GUIDE_ID 
-    
-    assignments = TourGuideAssignment.query.filter_by(guide_id=user_id, status='accepted').all()
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+
+    if not guide:
+        return jsonify({"msg": "Không tìm thấy profile hướng dẫn viên"}), 404
+
+    # Dùng guide.id để lọc trong bảng Assignment
+    assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='accepted').all()
     results = []
     for assign in assignments:
         tour = Tour.query.get(assign.tour_id)
@@ -24,19 +31,24 @@ def get_assigned_tours():
             results.append({
                 "id": tour.id,
                 "name": tour.name,
-                "start_date": tour.start_date, 
-                "end_date": tour.end_date,
+                "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None, 
+                "end_date": tour.end_date.strftime('%Y-%m-%d') if tour.end_date else None,
                 "image": getattr(tour, 'image', None),
                 "status": "accepted"
             })
     return jsonify(results), 200
 
-# 2. Lấy danh sách LỊCH SỬ tour (Trang Lịch sử - status: completed)
+# 2. Lấy danh sách LỊCH SỬ tour
 @guide_bp.route('/tours/history', methods=['GET'])
+@jwt_required()
 def get_tour_history():
-    user_id = CURRENT_GUIDE_ID
-    
-    assignments = TourGuideAssignment.query.filter_by(guide_id=user_id, status='completed').all()
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+
+    if not guide:
+        return jsonify([]), 200
+
+    assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='completed').all()
     results = []
     for assign in assignments:
         tour = Tour.query.get(assign.tour_id)
@@ -45,20 +57,24 @@ def get_tour_history():
                 "id": assign.id,
                 "tour_id": tour.id,
                 "tour_name": tour.name,
-                "start_date": tour.start_date,
+                "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None,
                 "assigned_date": assign.assigned_date,
                 "status": assign.status,
                 "location": "Việt Nam"
             })
     return jsonify(results), 200
 
-
-# 3. Lấy danh sách YÊU CẦU dẫn tour (Trang Yêu cầu - status: pending)
+# 3. Lấy danh sách YÊU CẦU dẫn tour
 @guide_bp.route('/requests', methods=['GET'])
+@jwt_required()
 def get_tour_requests():
-    user_id = CURRENT_GUIDE_ID
-    
-    assignments = TourGuideAssignment.query.filter_by(guide_id=user_id, status='pending').all()
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+
+    if not guide:
+        return jsonify([]), 200
+
+    assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='pending').all()
     results = []
     for assign in assignments:
         tour = Tour.query.get(assign.tour_id)
@@ -67,17 +83,18 @@ def get_tour_requests():
                 "request_id": assign.id,
                 "tour_id": tour.id,
                 "name": tour.name,
-                "start_date": tour.start_date,
+                "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None,
                 "price": getattr(tour, 'price', 0),
                 "assigned_date": assign.assigned_date
             })
     return jsonify(results), 200
 
-# 4. Phản hồi yêu cầu (Chấp nhận hoặc Từ chối)
+# 4. Phản hồi yêu cầu
 @guide_bp.route('/requests/<int:request_id>/respond', methods=['PUT'])
+@jwt_required() 
 def respond_to_request(request_id):
     data = request.get_json()
-    action = data.get('action') # 'accept' hoặc 'reject'
+    action = data.get('action') 
     
     assign = TourGuideAssignment.query.get(request_id)
     if not assign:
@@ -95,8 +112,9 @@ def respond_to_request(request_id):
     db.session.commit()
     return jsonify({"msg": msg}), 200
 
-# 5. Lấy danh sách khách hàng của 1 Tour
+# 5. Lấy danh sách khách hàng
 @guide_bp.route('/tours/<int:tour_id>/customers', methods=['GET'])
+@jwt_required()
 def get_tour_customers(tour_id):
     orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
     customers = []
@@ -113,56 +131,81 @@ def get_tour_customers(tour_id):
             })
     return jsonify(customers), 200
 
-# 6. Lấy và cập nhật Profile Guide
+# 6. Profile Guide
 @guide_bp.route('/profile', methods=['GET', 'PUT'])
+@jwt_required()
 def guide_profile():
-    user_id = CURRENT_GUIDE_ID
+    user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    
+    guide = TourGuide.query.filter_by(user_id=user_id).first()
+
     if not user:
         return jsonify({"msg": "Không tìm thấy người dùng"}), 404
 
     if request.method == 'GET':
+        raw_status = getattr(guide, 'status', 'AVAILABLE')
+        
+        # Kiểm tra nếu nó là Enum thì lấy .value, nếu là string sẵn rồi thì thôi
+        status_value = raw_status.value if hasattr(raw_status, 'value') else str(raw_status)
+
         return jsonify({
             "id": user.id,
             "full_name": user.full_name,
             "email": user.email,
             "phone": getattr(user, 'phone', ''),
-            "experience": "Hiện tại chưa cập nhật"
+            "status": status_value,
+            "years_of_experience": getattr(guide, 'years_of_experience', 0),
+            "languages": getattr(guide, 'languages', '') # Trả về chuỗi "Tiếng Việt, Tiếng Anh"
         }), 200
     
     if request.method == 'PUT':
         data = request.get_json()
         if 'full_name' in data: user.full_name = data['full_name']
         if 'phone' in data: user.phone = data['phone']
-        db.session.commit()
-        return jsonify({"msg": "Cập nhật hồ sơ thành công"}), 200
         
+        if guide:
+            if 'status' in data:
+                # Flask-SQLAlchemy sẽ tự hiểu nếu bạn gán chuỗi 'BUSY' vào trường Enum
+                guide.status = data['status']
+            # Lưu ngôn ngữ từ mảng ['Tiếng Việt', 'Tiếng Anh'] thành chuỗi "Tiếng Việt, Tiếng Anh"
+            if 'languages' in data:
+                guide.languages = ", ".join(data['languages']) if isinstance(data['languages'], list) else data['languages']
+            if 'years_of_experience' in data:
+                guide.years_of_experience = data['years_of_experience']
+
+        try:
+            db.session.commit()
+            return jsonify({"msg": "Cập nhật hồ sơ thành công"}), 200
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({"error": "Lỗi database"}), 500
+
+# 7. Kết thúc tour
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
+@jwt_required()
 def finish_tour(tour_id):
-    user_id = CURRENT_GUIDE_ID
-    
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+
+    if not guide:
+        return jsonify({"msg": "Lỗi phân quyền"}), 403
+
     assignment = TourGuideAssignment.query.filter_by(
         tour_id=tour_id, 
-        guide_id=user_id,
+        guide_id=guide.id,
         status='accepted'
     ).first()
     
     if not assignment:
-        return jsonify({"msg": "Bạn chưa nhận tour này hoặc tour không tồn tại"}), 404
+        return jsonify({"msg": "Bạn chưa nhận tour này"}), 404
 
     tour = Tour.query.get(tour_id)
-    if not tour:
-        return jsonify({"msg": "Tour không tồn tại"}), 404
-
     try:
-        # Cập nhật trạng thái phân công và trạng thái Tour gốc
         assignment.status = 'completed'
-        tour.status = 'completed'
-        
+        if tour:
+            tour.status = 'completed'
         db.session.commit()
         return jsonify({"msg": "Chúc mừng! Bạn đã hoàn thành tour.", "status": "completed"}), 200
-        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

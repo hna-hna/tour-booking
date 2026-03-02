@@ -39,9 +39,16 @@ export default function GuideTourDetailPage() {
     loadCustomers(tourId);
   }, [tourId]);
 
+  const getAuthHeader = () => {
+  const token = localStorage.getItem("token");
+  return { Authorization: `Bearer ${token}` };
+};
+
   const loadCustomers = (id: string | string[]) => {
     setLoadingCust(true);
-    axios.get(`http://localhost:5000/api/guide/tours/${id}/customers`)
+    axios.get(`http://localhost:5000/api/guide/tours/${id}/customers`, {
+    headers: getAuthHeader()
+  } )
       .then((res) => {
         setCustomers(Array.isArray(res.data) ? res.data : []);
       })

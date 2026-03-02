@@ -3,18 +3,16 @@ import React, { useEffect, useState, useRef, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
+import Link from "next/link"; // Đảm bảo có import này để không lỗi thẻ Link
 
-// Interface tin nhắn
 interface Message {
   id?: number;
-  sender: "me" | "partner" | "ai";
-  text: string;
-  time?: string;
+  sender_id: number | "AI"; 
+  content: string;
   tours?: any[];
+  timestamp?: string;
 }
 
-// Interface đối tác chat (HDV)
 interface ChatPartner {
   id: number;
   name: string;
@@ -25,8 +23,6 @@ interface ChatPartner {
 export default function CustomerChatPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // State quản lý
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<"AI" | number>("AI");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -35,138 +31,96 @@ export default function CustomerChatPage() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Hàm khởi tạo AI Chat
   const initAIChat = useCallback((name: string) => {
-    setMessages([
-      {
-        sender: "ai",
-        text: `Xin chào ${name}!\nTôi là trợ lý AI của Tour Booking.\nDựa trên hồ sơ của bạn, tôi có thể tư vấn các tour phù hợp hoặc giải đáp thắc mắc về đơn hàng.`,
-      },
-    ]);
+    setMessages([{ sender_id: "AI", content: `Xin chào ${name}!\nTôi là trợ lý AI.` }]);
   }, []);
 
-  // 1. Khởi tạo: Profile, Socket, Partners
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
     const userName = localStorage.getItem("user_name");
-
-    if (!token || !userId) {
-      router.push("/login");
-      return;
-    }
+    if (!token || !userId) { router.push("/login"); return; }
 
     const uid = parseInt(userId);
     setCurrentUser({ id: uid, name: userName });
 
-    // Kết nối Socket
     const newSocket = io("http://localhost:5000");
-    newSocket.emit("join", { room: `user_${uid}` });
+    newSocket.on("connect", () => {
+      newSocket.emit("join", { room: `user_${uid}` });
+    });
     setSocket(newSocket);
 
-    // Lấy danh sách HDV
-    const fetchPartners = async () => {
-      try {
-        // const res = await axios.get("http://localhost:5000/api/chat/partners", { headers: { Authorization: `Bearer ${token}` } });
-        // setPartners(res.data);
-        
-        // Giả lập dữ liệu cho demo
-        setPartners([{ id: 101, name: "Nguyễn Văn A", role: "Hướng dẫn viên" }]);
-      } catch (err) {
-        console.error("Lỗi load partners", err);
-      }
-    };
+    axios.get("http://localhost:5000/api/chat/partners", { 
+      headers: { Authorization: `Bearer ${token}` } 
+    }).then(res => setPartners(res.data)).catch(console.error);
 
-    fetchPartners();
+    const pId = searchParams.get("partnerId");
+    if (pId) setActiveTab(parseInt(pId));
+    else initAIChat(userName || "Bạn");
 
-    // Kiểm tra URL params
-    const partnerIdParam = searchParams.get("partnerId");
-    const partnerNameParam = searchParams.get("name");
-
-    if (partnerIdParam) {
-      const pId = parseInt(partnerIdParam);
-      setActiveTab(pId);
-      if (partnerNameParam) {
-        setPartners((prev) => 
-          prev.find(p => p.id === pId) ? prev : [...prev, { id: pId, name: partnerNameParam, role: "Hướng dẫn viên" }]
-        );
-      }
-    } else {
-      initAIChat(userName || "Bạn");
-    }
-
-    return () => {
-      newSocket.disconnect();
-    };
+    return () => { newSocket.disconnect(); };
   }, [router, searchParams, initAIChat]);
 
-  // 2. Lắng nghe tin nhắn Realtime
   useEffect(() => {
     if (!socket) return;
 
     socket.on("receive_message", (data: any) => {
-      if (activeTab === data.sender_id) {
-        setMessages((prev) => [...prev, { sender: "partner", text: data.content }]);
-      } else {
-        console.log(`Tin nhắn mới từ ${data.sender_id}`);
+      if (Number(data.sender_id) === Number(activeTab) || Number(data.sender_id) === Number(currentUser?.id)) {
+        setMessages(prev => {
+          const isExist = prev.find(m => m.id === data.id);
+          if (isExist) return prev;
+          return [...prev, data];
+        });
       }
     });
 
-    return () => {
-      socket.off("receive_message");
-    };
-  }, [socket, activeTab]);
+    return () => { socket.off("receive_message"); };
+  }, [socket, activeTab, currentUser]);
 
-  // 3. Tự động cuộn xuống
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 4. Xử lý khi chuyển Tab (Load lịch sử)
   useEffect(() => {
     if (activeTab === "AI") {
       if (currentUser) initAIChat(currentUser.name);
     } else {
-      setMessages([]); // Clear để load mới
-      // Gọi API load history ở đây
-      setTimeout(() => {
-        setMessages([
-          { sender: "me", text: "Xin chào HDV" },
-          { sender: "partner", text: "Chào bạn, tôi có thể giúp gì cho chuyến đi của bạn?" },
-        ]);
-      }, 300);
+      const loadHistory = async () => {
+        const token = localStorage.getItem("token");
+        try {
+          const res = await axios.get(`http://localhost:5000/api/chat/messages/${activeTab}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setMessages(res.data);
+        } catch (err) { console.error(err); }
+      };
+      loadHistory();
     }
   }, [activeTab, currentUser, initAIChat]);
 
-  // 5. Gửi tin nhắn
   const handleSend = async () => {
     if (!inputMsg.trim() || !currentUser) return;
-
     const msgContent = inputMsg;
+    const token = localStorage.getItem("token");
     setInputMsg("");
-    setMessages((prev) => [...prev, { sender: "me", text: msgContent }]);
+
+    // Optimistic Update
+    const myMsg: Message = { sender_id: currentUser.id, content: msgContent };
+    setMessages(prev => [...prev, myMsg]);
 
     if (activeTab === "AI") {
       try {
-        const res = await axios.post("http://localhost:5000/api/chat/ai", {
-          message: msgContent,
-          user_id: currentUser.id,
-        });
-        setMessages((prev) => [
-          ...prev,
-          { sender: "ai", text: res.data.reply, tours: res.data.suggested_tours },
-        ]);
-      } catch (e) {
-        setMessages((prev) => [...prev, { sender: "ai", text: "Xin lỗi, tôi đang gặp sự cố kết nối." }]);
+        const res = await axios.post("http://localhost:5000/api/chat/ai", { message: msgContent, user_id: currentUser.id });
+        setMessages(prev => [...prev, { sender_id: "AI", content: res.data.reply, tours: res.data.suggested_tours }]);
+      } catch {
+        setMessages(prev => [...prev, { sender_id: "AI", content: "Lỗi kết nối AI" }]);
       }
     } else {
-      if (socket) {
-        socket.emit("send_message", {
-          sender_id: currentUser.id,
-          receiver_id: activeTab,
-          content: msgContent,
-        });
-      }
+      try {
+        await axios.post("http://localhost:5000/api/chat/send", {
+          receiver_id: activeTab, content: msgContent
+        }, { headers: { Authorization: `Bearer ${token}` } });
+      } catch (err) { console.error(err); }
     }
   };
 
@@ -223,43 +177,49 @@ export default function CustomerChatPage() {
           </div>
 
           <div className="flex-1 p-6 overflow-y-auto bg-[#f0f2f5] space-y-4">
-            {messages.map((msg, idx) => (
-              <div key={idx} className={`flex flex-col ${msg.sender === "me" ? "items-end" : "items-start"}`}>
-                <div className={`flex ${msg.sender === "me" ? "justify-end" : "justify-start"} w-full`}>
-                  {msg.sender !== "me" && (
-                    <div className={`w-8 h-8 rounded-full mr-2 flex items-center justify-center text-[10px] text-white ${msg.sender === "ai" ? "bg-emerald-500" : "bg-blue-500"}`}>
-                      {msg.sender === "ai" ? "AI" : "HDV"}
+            {messages.map((msg, idx) => {
+              // LOGIC QUAN TRỌNG: Xác định ai gửi để áp CSS
+              const isMe = msg.sender_id === currentUser?.id;
+              const isAI = msg.sender_id === "AI";
+
+              return (
+                <div key={idx} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                  <div className={`flex ${isMe ? "justify-end" : "justify-start"} w-full`}>
+                    {!isMe && (
+                      <div className={`w-8 h-8 rounded-full mr-2 flex items-center justify-center text-[10px] text-white ${isAI ? "bg-emerald-500" : "bg-blue-500"}`}>
+                        {isAI ? "AI" : "HDV"}
+                      </div>
+                    )}
+                    <div className={`max-w-[75%] p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
+                      isMe ? "bg-blue-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
+                    }`}>
+                      {msg.content} {/* Đổi từ msg.text thành msg.content */}
+                    </div>
+                  </div>
+
+                  {msg.tours && msg.tours.length > 0 && (
+                    <div className="mt-2 ml-10 flex gap-3 overflow-x-auto max-w-full pb-2">
+                      {msg.tours.map((tour: any) => (
+                        <div key={tour.id} className="min-w-[200px] bg-white rounded-xl border border-emerald-200 shadow-md overflow-hidden flex flex-col">
+                          <img 
+                            src={tour.image ? `http://localhost:5000/static/uploads/${tour.image}` : "https://via.placeholder.com/200x100"} 
+                            alt={tour.name} 
+                            className="h-24 w-full object-cover"
+                          />
+                          <div className="p-3 flex flex-col flex-1">
+                            <h4 className="font-bold text-gray-800 text-xs line-clamp-2 mb-1">{tour.name}</h4>
+                            <p className="text-red-600 font-bold text-sm mb-2">{tour.price?.toLocaleString()} đ</p>
+                            <Link href={`/tours/${tour.id}`} className="mt-auto block w-full text-center bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-emerald-700 transition">
+                              Xem & Đặt ngay
+                            </Link>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
-                  <div className={`max-w-[75%] p-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap shadow-sm ${
-                    msg.sender === "me" ? "bg-blue-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"
-                  }`}>
-                    {msg.text}
-                  </div>
                 </div>
-
-                {msg.tours && msg.tours.length > 0 && (
-                  <div className="mt-2 ml-10 flex gap-3 overflow-x-auto max-w-full pb-2">
-                    {msg.tours.map((tour: any) => (
-                      <div key={tour.id} className="min-w-[200px] bg-white rounded-xl border border-emerald-200 shadow-md overflow-hidden flex flex-col">
-                        <img 
-                          src={tour.image ? `http://localhost:5000/static/uploads/${tour.image}` : "https://via.placeholder.com/200x100"} 
-                          alt={tour.name} 
-                          className="h-24 w-full object-cover"
-                        />
-                        <div className="p-3 flex flex-col flex-1">
-                          <h4 className="font-bold text-gray-800 text-xs line-clamp-2 mb-1">{tour.name}</h4>
-                          <p className="text-red-600 font-bold text-sm mb-2">{tour.price?.toLocaleString()} đ</p>
-                          <Link href={`/tours/${tour.id}`} className="mt-auto block w-full text-center bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-emerald-700 transition">
-                            Xem & Đặt ngay
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
             <div ref={scrollRef} />
           </div>
 

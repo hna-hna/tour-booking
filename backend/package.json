@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.95.3",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.1"
+  }
+}

@@ -96,14 +96,28 @@ function CheckoutContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-[0.2em]">
-                    Số lượng khách *
+                  <label className="flex justify-between items-center text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-[0.2em]">
+                    <span>Số lượng khách *</span>
+                    {tour && (
+                      <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded normal-case tracking-normal">
+                        Còn {tour.quantity} chỗ
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
                     min="1"
+                    max={tour ? tour.quantity : 99}
                     value={guestCount}
-                    onChange={(e) => setGuestCount(Math.max(1, parseInt(e.target.value) || 0))}
+                    onChange={(e) => {
+                      let val = parseInt(e.target.value) || 0;
+                      if (val < 1) val = 1;
+                      if (tour && val > tour.quantity) {
+                        val = tour.quantity;
+                        alert(`Rất tiếc, tour này hiện chỉ còn nhận tối đa ${tour.quantity} vé!`);
+                      }
+                      setGuestCount(val);
+                    }}
                     className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 text-xl shadow-inner"
                   />
                 </div>

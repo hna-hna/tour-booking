@@ -168,11 +168,78 @@ def create_guide():
         print("🔥 CREATE GUIDE ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
         
-# 5. BÁO CÁO DOANH THU (Commission 15%)
+# 5. LẤY DANH SÁCH HDV CHỜ DUYỆT (PENDING GUIDES)
+@supplier_bp.route('/pending-guides', methods=['GET'])
+@jwt_required()
+def get_pending_guides():
+    # Lấy những User có role là GUIDE và chưa có hồ sơ TourGuide hoặc có hồ sơ nhưng supplier_id IS NULL
+    guides_query = db.session.query(User).outerjoin(TourGuide, User.id == TourGuide.user_id)\
+        .filter(User.role == UserRole.GUIDE)\
+        .filter(and_(TourGuide.supplier_id == None)).all()
+        
+    result = []
+    for user in guides_query:
+        # Nếu đã có record nhưng thiếu liên kết (hoặc chưa có)
+        tg = TourGuide.query.filter_by(user_id=user.id).first()
+        status = tg.status.value if tg and hasattr(tg.status, 'value') else "Chưa có hồ sơ"
+        
+        result.append({
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone or "Chưa cập nhật",
+            "status": status,
+            "created_at": user.created_at.isoformat() if user.created_at else None
+        })
+        
+    return jsonify(result), 200
+
+# 6. DUYỆT HƯỚNG DẪN VIÊN
+@supplier_bp.route('/approve-guide/<int:guide_user_id>', methods=['POST'])
+@jwt_required()
+def approve_guide(guide_user_id):
+    sid = int(get_jwt_identity())
+    
+    # Kiem tra user co ton tai và phai la GUIDE
+    user = User.query.get(guide_user_id)
+    if not user or user.role != UserRole.GUIDE:
+        return jsonify({"msg": "Không tìm thấy hướng dẫn viên hợp lệ"}), 404
+        
+    # Kiem tra xem HDV da co ho so chưa
+    guide = TourGuide.query.filter_by(user_id=guide_user_id).first()
+    
+    try:
+        if guide:
+            # Nếu có rồi thì nhưng chưa có chủ -> cập nhật chủ
+            if guide.supplier_id:
+                return jsonify({"msg": "Hướng dẫn viên này đã được duyệt bởi người khác!"}), 400
+            
+            guide.supplier_id = sid
+            guide.status = 'AVAILABLE' # Hoặc trạng thái enum hợp lệ
+        else:
+            # Nếu chưa có profile trong bảng tour_guides thì tạo mới
+            guide = TourGuide(
+                user_id=user.id,
+                supplier_id=sid,
+                full_name=user.full_name,
+                phone=user.phone,
+                email=user.email,
+                status='AVAILABLE'
+            )
+            db.session.add(guide)
+            
+        db.session.commit()
+        return jsonify({"msg": "Đã duyệt hướng dẫn viên thành công!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# 7. BÁO CÁO DOANH THU VÀ HOA HỒNG
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()
 def get_revenue_summary():
     sid = get_jwt_identity()
+    user = User.query.get(sid)
     
     stats = db.session.query(
         func.count(Order.id).label('total_orders'),
@@ -186,10 +253,12 @@ def get_revenue_summary():
     total_revenue = stats.total_revenue or 0
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
+    available_balance = getattr(user, 'balance', 0.0) if user else 0.0
 
     return jsonify({
         'total_revenue': total_revenue,       
         'admin_commission': admin_commission, 
         'supplier_revenue': supplier_revenue, 
+        'available_balance': available_balance,
         'total_orders': stats.total_orders or 0
     }), 200

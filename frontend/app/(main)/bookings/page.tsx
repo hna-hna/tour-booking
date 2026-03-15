@@ -110,23 +110,25 @@ export default function BookingsPage() {
                                     </div>
 
                                     {/* Nút thao tác */}
-                                    {["pending", "paid", "Đã thanh toán"].includes(booking.status) && (() => {
-                                        const isWithin24h = new Date().getTime() - new Date(booking.booking_date).getTime() <= 24 * 3600 * 1000;
-                                        return isWithin24h ? (
-                                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
+                                    <div className="flex justify-end items-center gap-3 mt-4 pt-4 border-t border-gray-50">
+                                        <a href={`/bookings/${booking.id}`} className="text-emerald-600 hover:text-emerald-700 font-bold text-sm px-5 py-2 hover:bg-emerald-50 rounded-lg transition border border-transparent hover:border-emerald-100">
+                                            Chi tiết đơn
+                                        </a>
+
+                                        {["pending", "paid", "Đã thanh toán"].includes(booking.status) && (() => {
+                                            const isWithin24h = new Date().getTime() - new Date(booking.booking_date).getTime() <= 24 * 3600 * 1000;
+                                            return isWithin24h ? (
                                                 <button
                                                     onClick={() => handleCancel(booking.id)}
-                                                    className="text-red-500 hover:text-red-700 font-bold text-sm px-4 py-2 hover:bg-red-50 rounded transition"
+                                                    className="text-white bg-rose-500 hover:bg-rose-600 font-bold text-sm px-5 py-2 rounded-lg transition shadow-sm hover:shadow"
                                                 >
                                                     Hủy đơn & Hoàn tiền
                                                 </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
-                                                <span className="text-gray-400 text-sm italic">Quá hạn hủy miễn phí (24h)</span>
-                                            </div>
-                                        );
-                                    })()}
+                                            ) : (
+                                                <span className="text-gray-400 text-sm italic px-2">Quá hạn hủy (24h)</span>
+                                            );
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                         ))}

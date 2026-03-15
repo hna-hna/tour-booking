@@ -39,6 +39,49 @@ def get_my_orders():
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
 
 
+@order_bp.route('/<int:order_id>', methods=['GET'])
+@jwt_required()
+def get_order_details(order_id):
+    try:
+        current_user_id = get_jwt_identity()
+        from app.models.order import Payment
+        
+        # Lấy Order, Tour và Payment tương ứng
+        result = db.session.query(Order, Tour, Payment)\
+            .join(Tour, Order.tour_id == Tour.id)\
+            .outerjoin(Payment, Order.id == Payment.order_id)\
+            .filter(Order.id == order_id, Order.user_id == current_user_id)\
+            .first()
+            
+        if not result:
+            return jsonify({"error": "Không tìm thấy đơn hàng hoặc bạn không có quyền xem."}), 404
+            
+        order, tour, payment = result
+        
+        return jsonify({
+            "id": order.id,
+            "status": order.status,
+            "total_price": order.total_price,
+            "guest_count": order.guest_count,
+            "booking_date": order.booking_date.isoformat() if order.booking_date else None,
+            "tour": {
+                "id": tour.id,
+                "name": tour.name,
+                "image": tour.image,
+                "itinerary": tour.itinerary,
+                "price_per_person": tour.price
+            },
+            "payment": {
+                "method": payment.payment_method if payment else "Chưa thanh toán",
+                "transaction_id": payment.transaction_id if payment else None,
+                "payment_date": payment.payment_date.isoformat() if payment and payment.payment_date else None,
+            }
+        }), 200
+        
+    except Exception as e:
+        print("Lỗi lấy chi tiết đơn hàng:", str(e))
+        return jsonify({"error": f"Lỗi máy chủ: {str(e)}"}), 500
+
 @order_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_order():

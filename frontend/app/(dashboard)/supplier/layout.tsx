@@ -13,11 +13,11 @@ export default function SupplierLayout({
 
   // Danh sách menu của Supplier
   const menuItems = [
-    
+    { name: "Hồ sơ cá nhân", href: "/supplier/profile" },
     { name: "Quản lý Tour", href: "/supplier/upload-manage-tour" },
     { name: "Quản lý Hướng dẫn viên", href: "/supplier/tour_guide_management" },
+    { name: "Duyệt HDV", href: "/supplier/approve-guide" },
     { name: "Doanh thu", href: "/supplier/revenue" },
-    
   ];
 
   return (

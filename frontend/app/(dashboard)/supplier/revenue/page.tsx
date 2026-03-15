@@ -6,6 +6,7 @@ interface RevenueSummary {
   total_revenue: number;
   admin_commission: number;
   supplier_revenue: number;
+  available_balance: number;
   escrow_amount: number;
   paid_out_amount: number;
   pending_payout: number;
@@ -152,32 +153,32 @@ export default function SupplierRevenueDashboard() {
 
               <div className="mt-6 pt-6 border-t grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500">Đã rút</p>
-                  <p className="text-lg font-black">
-                    {formatMoney(summary.paid_out_amount)}
+                  <p className="text-sm text-gray-500">Đã nhận (Tạm tính)</p>
+                  <p className="text-lg font-black text-gray-400">
+                    {formatMoney(summary.supplier_revenue - summary.available_balance)}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Chờ thanh toán</p>
-                  <div className="text-lg font-black text-orange-600">
-                    {formatMoney(summary.pending_payout)}
+                  <p className="text-sm text-gray-500">Số dư ví (Khả dụng)</p>
+                  <div className="text-2xl font-black text-emerald-600">
+                    {formatMoney(summary.available_balance)}
                     <div className="mt-8">
   {summary && (
     <>
       <button 
-        disabled={summary.pending_payout <= 0}
-        onClick={() => alert("Yêu cầu rút tiền đã được gửi tới Admin!")}
+        disabled={summary.available_balance <= 0}
+        onClick={() => alert("Chức năng đang phát triển. Yêu cầu rút tiền chưa được gửi!")}
         className={`w-full py-4 rounded-2xl font-black uppercase tracking-widest transition-all ${
-          summary.pending_payout > 0 
+          summary.available_balance > 0 
             ? "bg-black text-white hover:bg-gray-800 shadow-xl active:scale-95" 
             : "bg-gray-200 text-gray-400 cursor-not-allowed"
         }`}
       >
-        {summary.pending_payout > 0 ? "Yêu cầu rút tiền ngay" : "Chưa đủ số dư để rút"}
+        {summary.available_balance > 0 ? "Yêu cầu rút tiền ngay" : "Chưa đủ số dư để rút"}
       </button>
       
       <p className="text-[10px] text-gray-400 text-center mt-3 uppercase font-bold">
-        Tiền sẽ được chuyển vào tài khoản ngân hàng đã đăng ký trong 24h
+        Tiền từ các Tour ĐÃ HOÀN THÀNH sẽ cộng vào đây
       </p>
     </>
   )}

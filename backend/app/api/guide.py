@@ -180,7 +180,7 @@ def guide_profile():
             db.session.rollback()
             return jsonify({"error": "Lỗi database"}), 500
 
-# 7. Kết thúc tour
+# 7. Kết thúc tour & CHIA HOA HỒNG
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_tour(tour_id):
@@ -204,8 +204,26 @@ def finish_tour(tour_id):
         assignment.status = 'completed'
         if tour:
             tour.status = 'completed'
+            
+            # --- CHIA HOA HỒNG TỰ ĐỘNG ---
+            # 1. Tính tổng doanh thu từ các đơn hàng 'paid' của tour này
+            orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
+            total_revenue = sum(o.total_price for o in orders)
+            
+            # 2. Tìm Supplier của Tour
+            if tour.supplier_id:
+                supplier = User.query.get(tour.supplier_id)
+                if supplier:
+                    # NCC nhận 85%, Admin giữ 15%
+                    supplier_revenue = total_revenue * 0.85
+                    
+                    # 3. Cộng tiền vào ví Nhà cung cấp
+                    supplier.balance = getattr(supplier, 'balance', 0.0) + supplier_revenue
+                    
+                    print(f"💰 TỰ ĐỘNG CHIA HOA HỒNG: Tour {tour.id} hoàn thành. Tổng {total_revenue}đ. Đã cộng {supplier_revenue}đ vào ví NCC (ID: {supplier.id}).")
+
         db.session.commit()
-        return jsonify({"msg": "Chúc mừng! Bạn đã hoàn thành tour.", "status": "completed"}), 200
+        return jsonify({"msg": "Chúc mừng! Bạn đã hoàn thành tour và doanh thu đã được chuyển cho Nhà cung cấp.", "status": "completed"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

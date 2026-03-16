@@ -1,33 +1,29 @@
-# backend/app/api/tour.py (hoặc tên file chứa tour_bp của bạn)
 from flask import Blueprint, jsonify
 from app.models.tour import Tour
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-# --- THÊM IMPORT AI MODEL ---
-from app.ai_engine.recommender import TourRecommender
+# --- TÍCH HỢP AI ENGINE ---
+try:
+    from app.ai_engine.recommender import TourRecommender
+    recommender = TourRecommender()
+except ImportError:
+    recommender = None
+    print("Cảnh báo: Không tìm thấy TourRecommender. AI gợi ý sẽ bị tắt.")
 
 tour_bp = Blueprint("tour", __name__, url_prefix="/api/tours")
 
-# Khởi tạo bộ máy AI
-recommender = TourRecommender()
-
 # ==========================================
-# HÀM HỖ TRỢ: Chuyển list ID thành list Tour data
+# HÀM HỖ TRỢ: Định dạng dữ liệu Tour
 # ==========================================
 def format_tours_from_ids(tour_ids):
-    print(f"--- DEBUG AI ---")
-    print(f"1. Danh sách ID từ AI: {tour_ids}")
-    
     if not tour_ids:
         return []
     
-    # Lấy tất cả tour có ID trong list mà ĐÃ DUYỆT
+    # Chỉ lấy các tour đã được Admin phê duyệt (Status = approved)
     tours = Tour.query.filter(Tour.id.in_(tour_ids), Tour.status == 'approved').all()
-    print(f"2. Số tour tìm thấy trong DB (đã duyệt): {len(tours)}")
     
+    # Nếu AI gợi ý các tour chưa được duyệt, lấy 3 tour bất kỳ đã duyệt làm dự phòng
     if len(tours) == 0:
-        # Nếu không có tour nào đã duyệt trong list AI, lấy đại 3 tour đã duyệt bất kỳ để test
-        print("3. CẢNH BÁO: AI gợi ý tour chưa duyệt. Đang lấy tour dự phòng...")
         tours = Tour.query.filter_by(status='approved').limit(3).all()
 
     return [
@@ -36,15 +32,17 @@ def format_tours_from_ids(tour_ids):
             "name": t.name,
             "price": t.price,
             "image": t.image,
-            "start_date": t.start_date.isoformat() if t.start_date else None
+            "start_date": t.start_date.isoformat() if t.start_date and hasattr(t.start_date, 'isoformat') else t.start_date
         }
         for t in tours
-    ]# ==========================================
-# 1. API: CHO KHÁCH VÃNG LAI (Tour Phổ Biến)
+    ]
+
+# ==========================================
+# 1. API: TOUR PHỔ BIẾN (Dành cho khách vãng lai)
 # ==========================================
 @tour_bp.route("/popular", methods=["GET"])
 def get_popular_tours():
-    # Lấy 6 tour mới nhất đã duyệt
+    # Lấy 6 tour mới nhất đã được phê duyệt
     tours = Tour.query.filter_by(status='approved').order_by(Tour.created_at.desc()).limit(6).all()
     
     result = [{
@@ -52,34 +50,34 @@ def get_popular_tours():
         "name": t.name,
         "price": t.price,
         "image": t.image,
-        "start_date": t.start_date.isoformat() if t.start_date else None
+        "start_date": t.start_date.isoformat() if t.start_date and hasattr(t.start_date, 'isoformat') else t.start_date
     } for t in tours]
     
-    print(f"API Popular trả về: {len(result)} tour")
     return jsonify(result), 200
 
 # ==========================================
-# 2. API: CHO KHÁCH ĐÃ LOGIN (Tour AI Gợi Ý)
+# 2. API: TOUR GỢI Ý (Dành cho thành viên - Sử dụng AI)
 # ==========================================
 @tour_bp.route("/recommend", methods=["GET"])
 @jwt_required()
 def get_recommended_tours():
     user_id = int(get_jwt_identity())
     
-    # 1. Gọi AI lấy gợi ý
-    tour_ids = recommender.recommend(user_id=user_id, top_n=6)
+    # Gọi AI lấy gợi ý dựa trên sở thích và lịch sử xem tour của user
+    tour_ids = []
+    if recommender:
+        tour_ids = recommender.recommend(user_id=user_id, top_n=6)
     
-    # 2. KIỂM TRA: Nếu AI trả về rỗng, lấy 6 tour mới nhất đã duyệt làm dự phòng
+    # Cơ chế Fallback: Nếu AI chưa có dữ liệu (User mới), trả về tour phổ biến
     if not tour_ids:
-        print("CẢNH BÁO: AI trả về rỗng, đang dùng dữ liệu dự phòng (Popular)")
         fallback_tours = Tour.query.filter_by(status='approved').limit(6).all()
         tour_ids = [t.id for t in fallback_tours]
     
-    # 3. Trả về dữ liệu
     result = format_tours_from_ids(tour_ids)
     return jsonify(result), 200
+
 # ==========================================
-# 3. API: Lấy danh sách tất cả tour (Public)
+# 3. API: DANH SÁCH TẤT CẢ TOUR (Public)
 # ==========================================
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
@@ -92,18 +90,17 @@ def get_public_tours():
             "price": t.price,
             "description": t.description or "",
             "image": t.image,
-            "start_date": t.start_date.isoformat() if t.start_date else None,
-            "end_date": t.end_date.isoformat() if t.end_date else None
+            "start_date": t.start_date.isoformat() if t.start_date and hasattr(t.start_date, 'isoformat') else t.start_date,
+            "end_date": t.end_date.isoformat() if t.end_date and hasattr(t.end_date, 'isoformat') else t.end_date
         }
         for t in tours
     ]), 200
 
 # ==========================================
-# 4. API: Lấy chi tiết 1 Tour (Public)
+# 4. API: CHI TIẾT TOUR (Public)
 # ==========================================
 @tour_bp.route('/<int:tour_id>', methods=['GET'])
 def get_tour_detail(tour_id):
-    # Lấy tour theo ID, nếu không thấy sẽ trả về lỗi 404
     tour = Tour.query.get_or_404(tour_id)
     
     return jsonify({
@@ -112,9 +109,8 @@ def get_tour_detail(tour_id):
         "description": tour.description or "",
         "price": tour.price,
         "image": tour.image,
-        # ĐÃ SỬA: Dùng 'tour.start_date' thay vì 't.start_date'
-        "start_date": tour.start_date.isoformat() if tour.start_date else None,
-        "end_date": tour.end_date.isoformat() if tour.end_date else None,
+        "start_date": tour.start_date.isoformat() if tour.start_date and hasattr(tour.start_date, 'isoformat') else tour.start_date,
+        "end_date": tour.end_date.isoformat() if tour.end_date and hasattr(tour.end_date, 'isoformat') else tour.end_date,
         "status": tour.status,
         "itinerary": tour.itinerary or "", 
         "quantity": getattr(tour, 'quantity', 0),

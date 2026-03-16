@@ -17,7 +17,6 @@ function CheckoutContent() {
 
   useEffect(() => {
     if (tourId) {
-      // Đảm bảo Backend Flask đang chạy tại port 5000
       axios.get(`http://localhost:5000/api/tours/${tourId}`)
         .then(res => setTour(res.data))
         .catch(err => console.error("Lỗi lấy thông tin tour:", err));
@@ -30,7 +29,7 @@ function CheckoutContent() {
   const unitPrice = useMemo(() => {
     if (!selectedDate) return TOUR_BASE_PRICE;
     const day = new Date(selectedDate).getDay();
-    // 0 là Chủ Nhật, 6 là Thứ Bảy
+    // 0 là Chủ Nhật, 6 là Thứ Bảy -> Phụ thu cuối tuần
     return (day === 0 || day === 6) ? TOUR_BASE_PRICE + WEEKEND_SURCHARGE : TOUR_BASE_PRICE;
   }, [selectedDate, TOUR_BASE_PRICE]);
 
@@ -42,7 +41,6 @@ function CheckoutContent() {
       return;
     }
     setLoading(true);
-
 
     const targetUrl = `/payments?id=${tourId}&amount=${totalAmount}&guests=${guestCount}&date=${selectedDate}`;
 
@@ -58,8 +56,6 @@ function CheckoutContent() {
           <h1 className="text-3xl font-black text-gray-900 italic uppercase tracking-tighter">
             Xác nhận đặt Tour
           </h1>
-          <h1 className="text-3xl font-black text-gray-900 italic uppercase tracking-tighter">Xác nhận đặt Tour</h1>
-          {/* ĐOẠN HIỂN THỊ TÊN TOUR  */}
           {tour ? (
             <div className="flex items-center gap-2 mt-2">
               <span className="bg-emerald-500 text-white text-[10px] px-2 py-0.5 rounded font-bold uppercase">
@@ -96,14 +92,28 @@ function CheckoutContent() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-[0.2em]">
-                    Số lượng khách *
+                  <label className="flex justify-between items-center text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-[0.2em]">
+                    <span>Số lượng khách *</span>
+                    {tour && (
+                      <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded normal-case tracking-normal">
+                        Còn {tour.quantity} chỗ
+                      </span>
+                    )}
                   </label>
                   <input
                     type="number"
                     min="1"
+                    max={tour ? tour.quantity : 99}
                     value={guestCount}
-                    onChange={(e) => setGuestCount(Math.max(1, parseInt(e.target.value) || 0))}
+                    onChange={(e) => {
+                      let val = parseInt(e.target.value) || 0;
+                      if (val < 1) val = 1;
+                      if (tour && val > tour.quantity) {
+                        val = tour.quantity;
+                        alert(`Rất tiếc, tour này hiện chỉ còn nhận tối đa ${tour.quantity} vé!`);
+                      }
+                      setGuestCount(val);
+                    }}
                     className="w-full p-4 bg-gray-50 border-2 border-transparent focus:border-emerald-500 focus:bg-white rounded-2xl outline-none font-bold text-gray-800 text-xl shadow-inner"
                   />
                 </div>
@@ -193,11 +203,6 @@ function CheckoutContent() {
                 </div>
               )}
             </div>
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
-              <p className="text-[11px] text-blue-700 text-center leading-relaxed font-medium">
-                Hệ thống thanh toán bảo mật. <br /> Thông tin luôn được mã hóa tuyệt đối.
-              </p>
-            </div>
           </div>
         </div>
       </div>
@@ -205,7 +210,6 @@ function CheckoutContent() {
   );
 }
 
-// Hàm export chính của trang
 export default function CheckoutPage() {
   return (
     <Suspense fallback={<div className="p-20 text-center font-bold text-gray-500 italic">Đang tải trang thanh toán...</div>}>

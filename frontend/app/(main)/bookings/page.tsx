@@ -1,4 +1,3 @@
-// app/(main)/bookings/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -17,9 +16,7 @@ export default function BookingsPage() {
             }
 
             const res = await axios.get("http://localhost:5000/api/orders/my-orders", {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+                headers: { Authorization: `Bearer ${token}` }
             });
             setBookings(res.data);
         } catch (error: any) {
@@ -44,12 +41,10 @@ export default function BookingsPage() {
         try {
             const token = localStorage.getItem("token");
             await axios.put(`http://localhost:5000/api/orders/${orderId}/cancel`, {}, {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
+                headers: { Authorization: `Bearer ${token}` }
             });
             alert("Hủy đơn hàng thành công!");
-            fetchBookings(); // Tải lại danh sách
+            fetchBookings(); 
         } catch (error) {
             console.error("Lỗi khi hủy đơn:", error);
             alert("Không thể hủy đơn hàng lúc này.");
@@ -73,21 +68,21 @@ export default function BookingsPage() {
     return (
         <div className="min-h-screen bg-gray-50 py-12 px-4">
             <div className="max-w-4xl mx-auto">
-                <h1 className="text-3xl font-black text-gray-900 mb-8 uppercase tracking-tighter">Lịch sử đặt Tour</h1>
+                <h1 className="text-3xl font-black text-gray-900 mb-8 uppercase tracking-tighter italic">Lịch sử đặt Tour</h1>
 
                 {bookings.length === 0 ? (
                     <div className="bg-white p-12 text-center rounded-xl shadow-sm border border-gray-100">
                         <p className="text-gray-500 mb-4">Bạn chưa đặt tour nào cả.</p>
-                        <a href="/tours" className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-emerald-700 transition">
+                        <a href="/tours" className="inline-block bg-emerald-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-emerald-700 transition shadow-lg shadow-emerald-200">
                             Khám phá Tour ngay
                         </a>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         {bookings.map((booking) => (
-                            <div key={booking.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 items-center">
+                            <div key={booking.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col md:flex-row gap-6 items-center hover:border-emerald-200 transition">
                                 {/* Ảnh Tour */}
-                                <div className="w-full md:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden shrink-0">
+                                <div className="w-full md:w-48 h-32 bg-gray-200 rounded-lg overflow-hidden shrink-0 shadow-inner">
                                     {booking.tour_image ? (
                                         <img src={booking.tour_image} alt={booking.tour_name} className="w-full h-full object-cover" />
                                     ) : (
@@ -98,7 +93,7 @@ export default function BookingsPage() {
                                 {/* Thông tin */}
                                 <div className="flex-1 w-full">
                                     <div className="flex justify-between items-start mb-2">
-                                        <h3 className="text-lg font-bold text-gray-900">{booking.tour_name || `Lỗi tên tour #${booking.tour_id}`}</h3>
+                                        <h3 className="text-lg font-bold text-gray-900">{booking.tour_name || `Tour #${booking.tour_id}`}</h3>
                                         {getStatusText(booking.status)}
                                     </div>
 
@@ -109,24 +104,26 @@ export default function BookingsPage() {
                                         <p><strong>Tổng tiền:</strong> <span className="font-bold text-emerald-600">{booking.total_price.toLocaleString()}đ</span></p>
                                     </div>
 
-                                    {/* Nút thao tác */}
-                                    {["pending", "paid", "Đã thanh toán"].includes(booking.status) && (() => {
-                                        const isWithin24h = new Date().getTime() - new Date(booking.booking_date).getTime() <= 24 * 3600 * 1000;
-                                        return isWithin24h ? (
-                                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
+                                    {/* Nút thao tác (Gộp từ nhánh Na) */}
+                                    <div className="flex justify-end items-center gap-3 mt-4 pt-4 border-t border-gray-50">
+                                        <a href={`/bookings/${booking.id}`} className="text-emerald-600 hover:text-emerald-700 font-bold text-sm px-5 py-2 hover:bg-emerald-50 rounded-lg transition border border-transparent hover:border-emerald-100">
+                                            Chi tiết đơn
+                                        </a>
+
+                                        {["pending", "paid"].includes(booking.status) && (() => {
+                                            const isWithin24h = new Date().getTime() - new Date(booking.booking_date).getTime() <= 24 * 3600 * 1000;
+                                            return isWithin24h ? (
                                                 <button
                                                     onClick={() => handleCancel(booking.id)}
-                                                    className="text-red-500 hover:text-red-700 font-bold text-sm px-4 py-2 hover:bg-red-50 rounded transition"
+                                                    className="text-white bg-rose-500 hover:bg-rose-600 font-bold text-sm px-5 py-2 rounded-lg transition shadow-sm hover:shadow-md"
                                                 >
                                                     Hủy đơn & Hoàn tiền
                                                 </button>
-                                            </div>
-                                        ) : (
-                                            <div className="flex justify-end mt-4 pt-4 border-t border-gray-50">
-                                                <span className="text-gray-400 text-sm italic">Quá hạn hủy miễn phí (24h)</span>
-                                            </div>
-                                        );
-                                    })()}
+                                            ) : (
+                                                <span className="text-gray-400 text-sm italic px-2">Hết hạn hủy (24h)</span>
+                                            );
+                                        })()}
+                                    </div>
                                 </div>
                             </div>
                         ))}

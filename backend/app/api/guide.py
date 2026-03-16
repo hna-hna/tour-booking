@@ -22,7 +22,6 @@ def get_assigned_tours():
     if not guide:
         return jsonify({"msg": "Không tìm thấy profile hướng dẫn viên"}), 404
 
-    # Dùng guide.id để lọc trong bảng Assignment
     assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='accepted').all()
     results = []
     for assign in assignments:
@@ -112,7 +111,7 @@ def respond_to_request(request_id):
     db.session.commit()
     return jsonify({"msg": msg}), 200
 
-# 5. Lấy danh sách khách hàng
+# 5. Lấy danh sách khách hàng của tour
 @guide_bp.route('/tours/<int:tour_id>/customers', methods=['GET'])
 @jwt_required()
 def get_tour_customers(tour_id):
@@ -144,8 +143,6 @@ def guide_profile():
 
     if request.method == 'GET':
         raw_status = getattr(guide, 'status', 'AVAILABLE')
-        
-        # Kiểm tra nếu nó là Enum thì lấy .value, nếu là string sẵn rồi thì thôi
         status_value = raw_status.value if hasattr(raw_status, 'value') else str(raw_status)
 
         return jsonify({
@@ -155,7 +152,7 @@ def guide_profile():
             "phone": getattr(user, 'phone', ''),
             "status": status_value,
             "years_of_experience": getattr(guide, 'years_of_experience', 0),
-            "languages": getattr(guide, 'languages', '') # Trả về chuỗi "Tiếng Việt, Tiếng Anh"
+            "languages": getattr(guide, 'languages', '')
         }), 200
     
     if request.method == 'PUT':
@@ -165,9 +162,7 @@ def guide_profile():
         
         if guide:
             if 'status' in data:
-                # Flask-SQLAlchemy sẽ tự hiểu nếu bạn gán chuỗi 'BUSY' vào trường Enum
                 guide.status = data['status']
-            # Lưu ngôn ngữ từ mảng ['Tiếng Việt', 'Tiếng Anh'] thành chuỗi "Tiếng Việt, Tiếng Anh"
             if 'languages' in data:
                 guide.languages = ", ".join(data['languages']) if isinstance(data['languages'], list) else data['languages']
             if 'years_of_experience' in data:
@@ -180,7 +175,7 @@ def guide_profile():
             db.session.rollback()
             return jsonify({"error": "Lỗi database"}), 500
 
-# 7. Kết thúc tour
+# 7. Kết thúc tour & CHIA HOA HỒNG (Dùng logic của Na)
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_tour(tour_id):
@@ -197,15 +192,30 @@ def finish_tour(tour_id):
     ).first()
     
     if not assignment:
-        return jsonify({"msg": "Bạn chưa nhận tour này"}), 404
+        return jsonify({"msg": "Bạn chưa nhận tour này hoặc tour đã kết thúc"}), 404
 
     tour = Tour.query.get(tour_id)
     try:
         assignment.status = 'completed'
         if tour:
             tour.status = 'completed'
+            
+            # --- CHIA HOA HỒNG TỰ ĐỘNG ---
+            orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
+            total_revenue = sum(o.total_price for o in orders)
+            
+            if tour.supplier_id:
+                supplier = User.query.get(tour.supplier_id)
+                if supplier:
+                    # NCC nhận 85%, Admin giữ 15% (theo logic Dashboard Admin)
+                    supplier_revenue = total_revenue * 0.85
+                    supplier.balance = getattr(supplier, 'balance', 0.0) + supplier_revenue
+                    
         db.session.commit()
-        return jsonify({"msg": "Chúc mừng! Bạn đã hoàn thành tour.", "status": "completed"}), 200
+        return jsonify({
+            "msg": "Chúc mừng! Bạn đã hoàn thành tour và doanh thu đã được chuyển cho Nhà cung cấp.", 
+            "status": "completed"
+        }), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

@@ -9,7 +9,7 @@ with app.app_context():
     admin = User.query.filter_by(email=admin_email).first()
 
     if admin:
-        new_password = "admin@123"  # Mật khẩu mới bạn muốn đặt
+        new_password = "admin123"  # Mật khẩu mới bạn muốn đặt
         admin.set_password(new_password)
         db.session.commit()
         print(f"✅ Đã đổi mật khẩu cho Admin ({admin_email}) thành: {new_password}")

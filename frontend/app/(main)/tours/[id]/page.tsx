@@ -63,7 +63,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             {tour.name}
           </h1>
           
-          {/* Hình ảnh Tour - Tối ưu hóa xử lý ảnh lỗi */}
+          {/* Hình ảnh Tour */}
           <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-xl bg-gray-100 mb-8">
             <img 
               src={tour.image || tour.image_url || "/placeholder-tour.jpg"} 
@@ -91,7 +91,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               </p>
             </section>
 
-            {(tour.itinerary) && (
+            {tour.itinerary && (
               <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                 <h3 className="text-2xl font-bold text-gray-800 mb-4">Lịch trình dự kiến</h3>
                 <div className="prose prose-emerald max-w-none text-gray-600 whitespace-pre-line">
@@ -116,10 +116,16 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             
             <div className="space-y-4 mb-8 border-t border-b border-gray-50 py-4">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              {/* Phần hiển thị số lượng chỗ còn lại từ nhánh origin/nnna */}
+              <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100">
+                <span className="text-xl">🎟️</span> 
+                Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
+              </div>
+              
+              <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
                 <span className="text-emerald-500">✓</span> Xác nhận tức thì
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
+              <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
                 <span className="text-emerald-500">✓</span> Bảo hiểm du lịch trọn gói
               </div>
             </div>

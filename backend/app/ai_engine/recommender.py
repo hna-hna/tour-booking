@@ -1,4 +1,5 @@
 #back/app/ai_engine/recommender.py
+
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -14,7 +15,7 @@ class TourRecommender:
         self.tour_ids = []
 
     # ================================
-    # 🔥 POPULAR TOUR (CHỈ TOUR SẮP ĐI)
+    # POPULAR TOUR (CHỈ TOUR SẮP ĐI)
     # ================================
     def get_popular_tours(self, limit=6):
         """

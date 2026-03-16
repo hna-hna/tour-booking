@@ -16,13 +16,13 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 @admin_bp.route('/tours/pending', methods=['GET'])
 # @jwt_required()
 # @role_required(['admin'])  decorator check quyền
-
 def get_pending_tours():
-    # Lấy tất cả tour có status là pending
+    # Sửa lỗi: Tách dòng rõ ràng
     tours = Tour.query.filter_by(status='pending').all()
     
     result = []
     for t in tours:
+        desc = getattr(t, 'description', '') or ''
         result.append({
             "id": t.id,
             "name": t.name,
@@ -30,21 +30,21 @@ def get_pending_tours():
             "quantity": t.quantity,
             "start_date": t.start_date.isoformat() if t.start_date else None,
             "end_date": t.end_date.isoformat() if t.end_date else None,
-            "supplier_name": t.supplier.full_name if t.supplier else "Không rõ"
+            "supplier_name": t.supplier.full_name if t.supplier else "Không rõ", # Đã thêm dấu phẩy
+            "description": desc,
+            "supplier_id": t.supplier_id,
+            "created_at": t.created_at.strftime('%Y-%m-%d %H:%M:%S') if t.created_at else None,
+            "status": t.status
         })
     return jsonify(result), 200
-
 #API Duyệt hoặc Từ chối Tour
 @admin_bp.route('/tours/<int:tour_id>/moderate', methods=['PUT'])
 # @jwt_required()
 def moderate_tour(tour_id):
-    # Body nhận vào: { "action": "approve" } hoặc { "action": "reject" }
     data = request.get_json()
-    action = data.get('action') # 'approve' hoặc 'reject'
+    action = data.get('action') 
     
-    tour = Tour.query.get(tour_id)
-    if not tour:
-        return jsonify({"msg": "Tour không tồn tại"}), 404
+    tour = Tour.query.get_or_404(tour_id) # Dùng get_or_404 cho an toàn
         
     if action == 'approve':
         tour.status = 'approved'
@@ -58,7 +58,6 @@ def moderate_tour(tour_id):
     db.session.commit()
     return jsonify({"msg": msg, "status": tour.status}), 200
 
-
 # QUẢN LÝ USER
 
 #lấy danh sách toàn bộ Users
@@ -70,7 +69,7 @@ def get_all_users():
             'id': u.id,
             'full_name': u.full_name,
             'email': u.email,
-            'role': u.role.value, # Lấy giá trị string từ Enum
+            'role': u.role.value if hasattr(u.role, 'value') else u.role, 
             'is_active': u.is_active,
             'created_at': u.created_at.strftime('%Y-%m-%d %H:%M:%S') if u.created_at else None
         } for u in users

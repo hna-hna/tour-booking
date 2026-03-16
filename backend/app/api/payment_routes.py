@@ -136,7 +136,7 @@ def create_payment_vnpay():
         guests = data.get('guests')
         date_str = data.get('date')
         booking_date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
-        order_desc = f"Thanh toan don hang {datetime.now().timestamp()}"
+        order_desc = f"Thanh_toan_don_hang {datetime.now().timestamp()}"
 
         # A. Lưu đơn hàng vào DB trước (Status: Pending)
         new_order = Order(
@@ -178,6 +178,8 @@ def create_payment_vnpay():
         
         # IP khách hàng (Lấy tạm localhost nếu chạy local)
         ipaddr = request.remote_addr
+        if not ipaddr or ipaddr == '::1' or ipaddr == '127.0.0.1':
+            ipaddr = '127.0.0.1'
         vnp.requestData['vnp_IpAddr'] = ipaddr
         
         vnp.requestData['vnp_CreateDate'] = datetime.now().strftime('%Y%m%d%H%M%S')

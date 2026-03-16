@@ -15,6 +15,7 @@ app = create_app()
 CORS(app, 
      resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}},
      supports_credentials=True)
+# Cấu hình CORS đã được setup trong create_app rồi nên không cần khai báo lại ở đây
 
 # 2. ĐĂNG KÝ BLUEPRINT VÀO APP
 # Dòng này sẽ kích hoạt các endpoint liên quan đến thanh toán (ví dụ: /api/create-payment-intent)

@@ -22,3 +22,4 @@ class Tour(db.Model):
     supplier = db.relationship('User', backref='tours_created')
 
 
+

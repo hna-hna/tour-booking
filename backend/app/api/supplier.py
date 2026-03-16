@@ -1,4 +1,3 @@
-# backend/app/api/supplier.py
 from flask import Blueprint, request, jsonify, current_app
 from app.extensions import db
 from app.models.tour import Tour
@@ -12,7 +11,8 @@ import os
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
-# 1. LẤY DANH SÁCH TOUR CỦA TÔI
+# --- QUẢN LÝ TOUR ---
+
 @supplier_bp.route('/tours', methods=['GET'])
 @jwt_required()
 def get_my_tours():
@@ -24,7 +24,6 @@ def get_my_tours():
         guide_name = "Chưa phân công"
         guide_id = None
         
-        # Lấy assignment đầu diện để hiển thị tên HDV
         if t.guide_assignments: 
             assignment = t.guide_assignments[0] 
             guide = TourGuide.query.get(assignment.guide_id)
@@ -44,19 +43,14 @@ def get_my_tours():
             "itinerary": t.itinerary,
             "description": t.description
         })
-
     return jsonify(result), 200
 
-# 2. CREATE: Tạo Tour mới
 @supplier_bp.route('/tours', methods=['POST'])
 @jwt_required()
 def create_tour():
     sid = get_jwt_identity()
     data = request.get_json()
     try:
-        image_url = data.get('image')
-        guide_id = data.get('guide_id')
-
         new_tour = Tour(
             name=data.get('name'),
             description=data.get('description'),
@@ -65,49 +59,24 @@ def create_tour():
             quantity=data.get('quantity', 20),
             supplier_id=sid,
             status='pending',
-            image=image_url  
+            image=data.get('image')
         )
-        
         db.session.add(new_tour)
-        db.session.flush()  # Lấy ID tour để tạo assignment
+        db.session.flush()
         
-        # Phân công HDV (Nếu có)
+        guide_id = data.get('guide_id')
         if guide_id:
-            assignment = TourGuideAssignment(
-                tour_id=new_tour.id,
-                guide_id=guide_id
-            )
+            assignment = TourGuideAssignment(tour_id=new_tour.id, guide_id=guide_id)
             db.session.add(assignment)
             
         db.session.commit()
         return jsonify({"message": "Tạo tour thành công, đang chờ duyệt"}), 201
-        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# 3. CẬP NHẬT TOUR
-@supplier_bp.route('/tours/<int:tour_id>', methods=['PUT'])
-@jwt_required()
-def update_my_tour(tour_id):
-    sid = get_jwt_identity()
-    tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first_or_404()
-    
-    if tour.status not in ['pending', 'rejected']:
-        return jsonify({"msg": "Không thể sửa tour đã được duyệt"}), 403
-    
-    data = request.get_json() or {}
-    tour.name = data.get('name', tour.name)
-    tour.price = data.get('price', tour.price)
-    tour.itinerary = data.get('itinerary', tour.itinerary)
-    tour.description = data.get('description', tour.description)
-    tour.quantity = data.get('quantity', tour.quantity)  
-    tour.image = data.get('image', tour.image)
-    
-    db.session.commit()
-    return jsonify({"msg": "Cập nhật thành công"}), 200
+# --- QUẢN LÝ HƯỚNG DẪN VIÊN ---
 
-# 4. QUẢN LÝ HƯỚNG DẪN VIÊN
 @supplier_bp.route('/guides', methods=['GET'])
 @jwt_required()
 def get_my_guides():
@@ -115,64 +84,61 @@ def get_my_guides():
     guides = TourGuide.query.filter_by(supplier_id=sid).all()
     return jsonify([g.to_dict() for g in guides]), 200
 
-@supplier_bp.route('/guides', methods=['POST'])
+# Lấy danh sách HDV tự do (chưa có chủ quản) - Gộp từ nhánh Na
+@supplier_bp.route('/pending-guides', methods=['GET'])
 @jwt_required()
-def create_guide():
+def get_pending_guides():
+    guides_query = db.session.query(User).outerjoin(TourGuide, User.id == TourGuide.user_id)\
+        .filter(User.role == UserRole.GUIDE)\
+        .filter(TourGuide.supplier_id == None).all()
+        
+    result = []
+    for user in guides_query:
+        tg = TourGuide.query.filter_by(user_id=user.id).first()
+        status = tg.status.value if tg and hasattr(tg.status, 'value') else "Chưa có hồ sơ"
+        
+        result.append({
+            "user_id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": user.phone or "Chưa cập nhật",
+            "status": status
+        })
+    return jsonify(result), 200
+
+# Duyệt HDV vào hệ thống của nhà cung cấp - Gộp từ nhánh Na
+@supplier_bp.route('/approve-guide/<int:guide_user_id>', methods=['POST'])
+@jwt_required()
+def approve_guide(guide_user_id):
     sid = int(get_jwt_identity())
-    data = request.get_json()
-
+    user = User.query.get(guide_user_id)
+    if not user or user.role != UserRole.GUIDE:
+        return jsonify({"msg": "Không tìm thấy hướng dẫn viên hợp lệ"}), 404
+        
+    guide = TourGuide.query.filter_by(user_id=guide_user_id).first()
     try:
-        # Validate
-        if not data.get("email") or not data.get("full_name"):
-            return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
-
-        existing_user = User.query.filter_by(email=data.get("email")).first()
-        if existing_user:
-            return jsonify({"msg": "Email đã tồn tại"}), 400
-
-        # 1️⃣ Tạo User
-        new_user = User(
-            email=data.get("email"),
-            password_hash=generate_password_hash("123456"),
-            full_name=data.get("full_name"),
-            role=UserRole.GUIDE,
-            is_active=True
-        )
-        db.session.add(new_user)
-        db.session.flush()
-
-        # 2️⃣ Tạo TourGuide profile
-        guide = TourGuide(
-            user_id=new_user.id,
-            supplier_id=sid,
-            full_name=data.get('full_name'),
-            phone=data.get('phone'),
-            email=data.get('email'),
-            license_number=data.get('license_number'),
-            years_of_experience=data.get('years_of_experience', 0),
-            languages=data.get('languages'),
-            specialties=data.get('specialties'),
-            status=data.get("status", "AVAILABLE").upper()
-        )
-
-        db.session.add(guide)
+        if guide:
+            if guide.supplier_id:
+                return jsonify({"msg": "Hướng dẫn viên này đã thuộc nhà cung cấp khác!"}), 400
+            guide.supplier_id = sid
+            guide.status = 'AVAILABLE'
+        else:
+            guide = TourGuide(user_id=user.id, supplier_id=sid, full_name=user.full_name, status='AVAILABLE')
+            db.session.add(guide)
+            
         db.session.commit()
-
-        return jsonify({
-            "message": "Thêm HDV thành công",
-            "guide": guide.to_dict()
-        }), 201
-
+        return jsonify({"msg": "Đã duyệt hướng dẫn viên thành công!"}), 200
     except Exception as e:
         db.session.rollback()
-        print("🔥 CREATE GUIDE ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
-        
-# 5. BÁO CÁO DOANH THU (Commission 15%)
+
+# --- BÁO CÁO DOANH THU ---
+
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()
 def get_revenue_summary():
     sid = get_jwt_identity()
+    user = User.query.get(sid)
     
     stats = db.session.query(
         func.count(Order.id).label('total_orders'),
@@ -186,10 +152,13 @@ def get_revenue_summary():
     total_revenue = stats.total_revenue or 0
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
+    # Lấy số dư thực tế từ bảng User (Gộp từ nhánh Na)
+    available_balance = getattr(user, 'balance', 0.0) if user else 0.0
 
     return jsonify({
         'total_revenue': total_revenue,       
         'admin_commission': admin_commission, 
         'supplier_revenue': supplier_revenue, 
+        'available_balance': available_balance,
         'total_orders': stats.total_orders or 0
     }), 200

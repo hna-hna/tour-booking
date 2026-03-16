@@ -13,7 +13,8 @@ class Order(db.Model):
     note = db.Column(db.Text, nullable=True) # Ghi chú của HDV về khách
     booking_date = db.Column(db.DateTime, default=datetime.utcnow)
 
-# 3. Bảng Thanh toán
+   
+# 3. Bảng PAYMENTS (Thanh toán)
 class Payment(db.Model):
     __tablename__ = 'payments'
     id = db.Column(db.Integer, primary_key=True)
@@ -23,3 +24,6 @@ class Payment(db.Model):
     transaction_id = db.Column(db.String(100))
     status = db.Column(db.String(20)) # success, failed
     payment_date = db.Column(db.DateTime, default=datetime.utcnow)
+
+
+    order = db.relationship('Order', backref='payments')

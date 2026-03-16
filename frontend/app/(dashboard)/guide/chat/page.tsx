@@ -15,10 +15,14 @@ function GuideChatContent() {
   const socketRef = useRef<Socket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  // 1. Khởi tạo User và Socket
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
-    if (!token || !userId) { router.push("/login"); return; }
+    if (!token || !userId) { 
+      router.push("/login"); 
+      return; 
+    }
 
     const uid = parseInt(userId);
     setCurrentUser({ id: uid });
@@ -30,25 +34,33 @@ function GuideChatContent() {
       });
     }
 
+    // Lấy danh sách khách hàng đang chat
     axios.get("http://localhost:5000/api/chat/partners", { 
       headers: { Authorization: `Bearer ${token}` } 
     }).then(res => {
-        // CAN THIỆP: Lọc bỏ chính mình khỏi danh sách bên trái
+        // Lọc bỏ chính mình và cập nhật danh sách
         const filtered = res.data.filter((p: any) => Number(p.id) !== uid);
         setPartners(filtered);
+        
+        // Ưu tiên mở partnerId từ URL, nếu không thì mở người đầu tiên
         const pId = searchParams.get("partnerId");
         if (pId) setActiveTab(parseInt(pId));
         else if (filtered.length > 0) setActiveTab(filtered[0].id);
     }).catch(console.error);
 
-    return () => { socketRef.current?.disconnect(); socketRef.current = null; };
+    return () => { 
+      socketRef.current?.disconnect(); 
+      socketRef.current = null; 
+    };
   }, [router, searchParams]);
 
+  // 2. Lắng nghe tin nhắn mới thời gian thực
   useEffect(() => {
     if (!socketRef.current || !activeTab) return;
+
     const handleReceive = (data: any) => {
       const myId = Number(localStorage.getItem("user_id"));
-      if (Number(data.sender_id) === myId) return; // Chặn tự nhắn
+      if (Number(data.sender_id) === myId) return; 
 
       if (Number(data.sender_id) === Number(activeTab)) {
         setMessages(prev => {
@@ -57,10 +69,12 @@ function GuideChatContent() {
         });
       }
     };
+
     socketRef.current.on("receive_message", handleReceive);
     return () => { socketRef.current?.off("receive_message", handleReceive); };
   }, [activeTab]);
 
+  // 3. Tải lịch sử tin nhắn khi đổi người chat
   useEffect(() => {
     if (!activeTab) return;
     axios.get(`http://localhost:5000/api/chat/messages/${activeTab}`, {
@@ -68,64 +82,131 @@ function GuideChatContent() {
     }).then(res => setMessages(res.data));
   }, [activeTab]);
 
-  useEffect(() => { scrollRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Tự động cuộn xuống cuối
+  useEffect(() => { 
+    scrollRef.current?.scrollIntoView({ behavior: "smooth" }); 
+  }, [messages]);
 
+  // 4. Xử lý gửi tin nhắn
   const handleSend = async () => {
     if (!inputMsg.trim() || !activeTab || !currentUser) return;
     const content = inputMsg;
     setInputMsg("");
+
+    // Cập nhật UI ngay lập tức (Optimistic UI)
     setMessages(prev => [...prev, { sender_id: currentUser.id, content }]);
 
-    await axios.post("http://localhost:5000/api/chat/send", { receiver_id: activeTab, content }, 
-    { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } });
+    try {
+      await axios.post("http://localhost:5000/api/chat/send", 
+        { receiver_id: activeTab, content }, 
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+    } catch (err) {
+      console.error("Lỗi gửi tin nhắn:", err);
+    }
   };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 h-[calc(100vh-80px)]">
-      <div className="flex h-full bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-        {/* SIDEBAR */}
-        <div className="w-1/4 bg-gray-50 border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200 font-bold text-gray-700">Hộp thoại hỗ trợ</div>
+    <div className="max-w-6xl mx-auto p-6 h-[calc(100vh-100px)]">
+      <div className="flex h-full bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
+        
+        {/* SIDEBAR: Danh sách khách hàng */}
+        <div className="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-100 flex flex-col">
+          <div className="p-6 border-b border-gray-200 bg-white">
+            <h2 className="font-black text-gray-800 tracking-tight text-lg">Tin nhắn hỗ trợ</h2>
+          </div>
           <div className="flex-1 overflow-y-auto">
             {partners.map(p => (
-              <div key={p.id} onClick={() => setActiveTab(p.id)} className={`p-4 cursor-pointer flex items-center gap-3 transition ${activeTab === p.id ? "bg-white border-l-4 border-blue-500 shadow-sm" : "hover:bg-gray-100"}`}>
-                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold">{p.name[0].toUpperCase()}</div>
-                <div className="overflow-hidden flex-1"><p className="font-bold text-gray-800 truncate">{p.name}</p><p className="text-[11px] text-gray-500 truncate italic">Khách hàng</p></div>
+              <div 
+                key={p.id} 
+                onClick={() => setActiveTab(p.id)} 
+                className={`p-4 cursor-pointer flex items-center gap-4 transition-all duration-300 ${
+                  activeTab === p.id 
+                  ? "bg-white border-r-4 border-blue-600 shadow-inner" 
+                  : "hover:bg-gray-100"
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shadow-md ${activeTab === p.id ? "bg-blue-600" : "bg-blue-400"}`}>
+                  {p.name[0].toUpperCase()}
+                </div>
+                <div className="overflow-hidden flex-1">
+                  <p className={`font-bold truncate ${activeTab === p.id ? "text-blue-600" : "text-gray-700"}`}>{p.name}</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter italic">Khách hàng</p>
+                </div>
               </div>
             ))}
           </div>
         </div>
-        {/* CHAT AREA */}
-        <div className="flex-1 flex flex-col bg-[#f0f2f5]">
-          <div className="p-4 border-b border-gray-200 bg-white flex items-center gap-3 shadow-sm z-10">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold shadow-sm bg-blue-500">
-              {partners.find(p => p.id === activeTab)?.name[0] || "?"}
-            </div>
-            <div>
-              <h2 className="font-bold text-lg text-gray-800">{partners.find(p => p.id === activeTab)?.name}</h2>
-              <p className="text-xs flex items-center gap-1 font-medium text-blue-600"><span className="w-2 h-2 bg-current rounded-full animate-pulse"></span>Đang hỗ trợ khách hàng</p>
-            </div>
-          </div>
-          <div className="flex-1 p-6 overflow-y-auto space-y-4">
-            {messages.map((msg, idx) => {
-              const isMe = Number(msg.sender_id) === Number(currentUser?.id);
-              return (
-                <div key={idx} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                  <div className={`flex ${isMe ? "justify-end" : "justify-start"} w-full`}>
-                    {!isMe && <div className="w-8 h-8 rounded-full mr-2 flex items-center justify-center text-[10px] text-white shadow-sm bg-gray-500">KH</div>}
-                    <div className={`max-w-[75%] p-3 rounded-2xl text-[14px] leading-relaxed shadow-sm ${isMe ? "bg-blue-600 text-white rounded-br-none" : "bg-white border border-gray-200 text-gray-800 rounded-bl-none"}`}>{msg.content}</div>
-                  </div>
+
+        {/* CHAT AREA: Nội dung trò chuyện */}
+        <div className="flex-1 flex flex-col bg-[#f8f9fb]">
+          {activeTab ? (
+            <>
+              {/* Header Chat */}
+              <div className="p-5 border-b border-gray-100 bg-white flex items-center gap-4 shadow-sm z-10">
+                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-black">
+                  {partners.find(p => p.id === activeTab)?.name[0] || "?"}
                 </div>
-              );
-            })}
-            <div ref={scrollRef} />
-          </div>
-          <div className="p-4 bg-white border-t border-gray-200">
-            <form onSubmit={e => { e.preventDefault(); handleSend(); }} className="flex gap-2">
-              <input type="text" className="flex-1 p-3 bg-gray-100 rounded-2xl outline-none focus:ring-2 ring-blue-500" value={inputMsg} onChange={e => setInputMsg(e.target.value)} placeholder="Nhập câu trả lời..." />
-              <button type="submit" className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold">Gửi</button>
-            </form>
-          </div>
+                <div>
+                  <h2 className="font-black text-gray-800 tracking-tight">
+                    {partners.find(p => p.id === activeTab)?.name}
+                  </h2>
+                  <p className="text-[10px] flex items-center gap-1.5 font-black text-emerald-500 uppercase tracking-widest">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
+                    Đang trực tuyến
+                  </p>
+                </div>
+              </div>
+
+              {/* Danh sách tin nhắn */}
+              <div className="flex-1 p-6 overflow-y-auto space-y-6">
+                {messages.map((msg, idx) => {
+                  const isMe = Number(msg.sender_id) === Number(currentUser?.id);
+                  return (
+                    <div key={idx} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                      <div className={`flex items-end gap-2 max-w-[80%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                        <div className={`p-4 rounded-[1.5rem] text-sm leading-relaxed shadow-sm font-medium ${
+                          isMe 
+                          ? "bg-blue-600 text-white rounded-br-none" 
+                          : "bg-white border border-gray-100 text-gray-800 rounded-bl-none"
+                        }`}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div ref={scrollRef} />
+              </div>
+
+              {/* Ô nhập liệu */}
+              <div className="p-6 bg-white border-t border-gray-100">
+                <form 
+                  onSubmit={e => { e.preventDefault(); handleSend(); }} 
+                  className="flex gap-3 bg-gray-50 p-2 rounded-[2rem] border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 ring-blue-50 transition-all"
+                >
+                  <input 
+                    type="text" 
+                    className="flex-1 px-4 py-2 bg-transparent outline-none text-sm font-medium" 
+                    value={inputMsg} 
+                    onChange={e => setInputMsg(e.target.value)} 
+                    placeholder="Nhập nội dung phản hồi..." 
+                  />
+                  <button 
+                    type="submit" 
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-full font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-200"
+                  >
+                    Gửi
+                  </button>
+                </form>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-4">
+               <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-3xl">💬</div>
+               <p className="font-bold tracking-tight">Chọn một cuộc hội thoại để bắt đầu hỗ trợ</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -133,5 +214,13 @@ function GuideChatContent() {
 }
 
 export default function GuideChatPage() {
-  return <Suspense fallback={<div className="p-10 text-center">Đang tải...</div>}><GuideChatContent /></Suspense>;
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <GuideChatContent />
+    </Suspense>
+  );
 }

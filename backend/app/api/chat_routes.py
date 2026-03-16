@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db, socketio
 from app.models.user import User
-from app.models.chat import Message
+from app.models.chat import Message, AIChatHistory
 from app.models.tour import Tour
 from app.models.log import SearchLog
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -106,11 +106,21 @@ def chat_with_ai():
     data = request.get_json()
     user_message = data.get('message')
     user_id = data.get('user_id')
+    session_id = data.get('session_id') # Phải lấy cái này để lọc lịch sử
 
     if not user_message:
         return jsonify({"reply": "Bạn chưa nhập tin nhắn."}), 400
 
     try:
+        user_history = AIChatHistory(
+            user_id=user_id,
+            session_id=session_id,
+            role='user',
+            content=user_message
+        )
+        db.session.add(user_history)
+        db.session.commit()
+
         # --- B1: LƯU LOG ---
         if user_id:
             db.session.add(SearchLog(
@@ -192,6 +202,16 @@ def chat_with_ai():
                     "image": t.image
                 })
 
+        ai_history = AIChatHistory(
+            user_id=user_id,
+            session_id=session_id,
+            role='assistant',
+            content=reply_text, # reply_text lấy từ kết quả Ollama
+            tours=suggested_tours_data
+        )
+        db.session.add(ai_history)
+        db.session.commit()
+
         return jsonify({
             "reply": reply_text,
             "suggested_tours": suggested_tours_data
@@ -270,3 +290,20 @@ def send_message():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+    # API Lấy lịch sử AI theo Session
+@chat_bp.route('/ai/history', methods=['GET'])
+def get_ai_history():
+    session_id = request.args.get('session_id')
+    if not session_id:
+        return jsonify([]), 200
+    
+    # Truy vấn bằng SQLAlchemy để khớp với lúc lưu
+    history = AIChatHistory.query.filter_by(session_id=session_id)\
+        .order_by(AIChatHistory.created_at.asc()).all()
+    
+    return jsonify([{
+        "sender_id": "AI" if m.role == 'assistant' else m.user_id,
+        "content": m.content,
+        "tours": m.tours
+    } for m in history]), 200

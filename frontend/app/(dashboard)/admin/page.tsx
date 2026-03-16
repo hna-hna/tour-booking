@@ -172,7 +172,7 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-xl">
-                    🛡️
+                    
                   </div>
                   <div>
                     <p className="font-bold text-gray-800">Quản lý Users</p>

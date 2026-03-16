@@ -18,7 +18,6 @@ export default function AdminLayout({
     { name: "Quản lý Users", href: "/admin/users"},
     { name: "Duyệt Tour", href: "/admin/approve-tours"},
     { name: "Đơn hàng", href: "/admin/orders"},
-    { name: "Thống kê", href: "/admin/reports" },
   ];
 
   return (

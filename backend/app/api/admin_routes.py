@@ -16,23 +16,21 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 @admin_bp.route('/tours/pending', methods=['GET'])
 # @jwt_required()
 # @role_required(['admin'])  decorator check quyền
+
 def get_pending_tours():
-    # Lấy các tour có trạng thái = 'pending'
+    # Lấy tất cả tour có status là pending
     tours = Tour.query.filter_by(status='pending').all()
     
     result = []
     for t in tours:
-        # Xử lý an toàn nếu description bị None
-        desc = getattr(t, 'description', '') or ''
-        
         result.append({
             "id": t.id,
             "name": t.name,
             "price": t.price,
-            "description": desc,
-            "supplier_id": t.supplier_id,
-            "created_at": t.created_at.strftime('%Y-%m-%d %H:%M:%S') if t.created_at else None,
-            "status": t.status
+            "quantity": t.quantity,
+            "start_date": t.start_date.isoformat() if t.start_date else None,
+            "end_date": t.end_date.isoformat() if t.end_date else None,
+            "supplier_name": t.supplier.full_name if t.supplier else "Không rõ"
         })
     return jsonify(result), 200
 

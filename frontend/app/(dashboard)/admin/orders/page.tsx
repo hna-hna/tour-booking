@@ -54,7 +54,7 @@ export default function AdminOrdersPage() {
     <div className="max-w-7xl mx-auto px-6 py-8">
       <div className="flex justify-between items-end mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-800">Doanh thu & Đơn hàng</h1>
+          <h1 className="text-3xl font-bold text-gray-800"> Thống kê Đơn hàng</h1>
           <p className="text-gray-500 mt-2">Quản lý các giao dịch booking trong hệ thống</p>
         </div>
         <button className="bg-white border border-gray-200 text-gray-600 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-50 flex items-center gap-2 text-sm font-medium">

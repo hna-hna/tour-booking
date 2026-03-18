@@ -1,4 +1,3 @@
-/* app/(dashboard)/admin/approve-tours/page.tsx */
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
@@ -7,10 +6,10 @@ interface Tour {
   id: number;
   name: string;
   price: number;
-  quantity: number; // Số lượng chỗ từ HEAD
+  quantity: number; 
   supplier_id: number;
   supplier_name?: string;
-  start_date: string; // Ngày đi từ HEAD
+  start_date: string;
   end_date: string;
   created_at: string;
 }
@@ -19,7 +18,6 @@ export default function ApproveToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Gọi API lấy danh sách các tour đang chờ duyệt (Pending)
   const fetchPendingTours = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/tours/pending");
@@ -35,16 +33,12 @@ export default function ApproveToursPage() {
     fetchPendingTours();
   }, []);
 
-  // Xử lý Duyệt hoặc Từ chối tour
   const handleStatusChange = async (id: number, status: "approved" | "rejected") => {
     if (!confirm(`Bạn chắc chắn muốn ${status === "approved" ? "DUYỆT" : "TỪ CHỐI"} tour này?`)) return;
-
     try {
       await axios.put(`http://localhost:5000/api/admin/tours/${id}/moderate`, {
         action: status === "approved" ? "approve" : "reject",
       });
-      
-      // Cập nhật State tại chỗ để giao diện mượt hơn (không cần gọi lại API)
       setTours(tours.filter((t) => t.id !== id));
       alert("Xử lý thành công!");
     } catch (error) {
@@ -53,99 +47,82 @@ export default function ApproveToursPage() {
   };
 
   if (loading) return (
-    <div className="p-10 text-center text-emerald-600 font-bold animate-pulse">
-      Đang tải danh sách kiểm duyệt...
+    <div className="flex h-screen items-center justify-center">
+      <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
     </div>
   );
 
   return (
-    <div className="p-6 text-gray-800">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+    <div className="max-w-7xl mx-auto p-6 space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
-          <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Kiểm duyệt Tour</h1>
-          <p className="text-gray-500 mt-1">Quản lý và phê duyệt các tour mới từ nhà cung cấp</p>
+          <h1 className="text-4xl font-black text-gray-900 tracking-tight">Kiểm duyệt Tour</h1>
+          <p className="text-gray-500 font-bold italic mt-1">Phê duyệt nội dung từ nhà cung cấp</p>
         </div>
         
-        {/* Widget Ước tính doanh thu từ HEAD */}
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 px-6 py-4 rounded-2xl shadow-sm">
-          <p className="text-xs font-bold uppercase tracking-wider opacity-70 mb-1">Tổng giá trị chờ duyệt</p>
-          <p className="text-2xl font-black">
-            {tours.reduce((sum, t) => sum + (t.price * t.quantity), 0).toLocaleString()} đ
-          </p>
+        <div className="bg-white p-6 rounded-3xl shadow-xl border border-gray-100 flex items-center gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Tổng giá trị chờ</p>
+            <p className="text-2xl font-black text-gray-800">
+              {tours.reduce((sum, t) => sum + (t.price * t.quantity), 0).toLocaleString()} <span className="text-sm">đ</span>
+            </p>
+          </div>
         </div>
       </div>
 
       {tours.length === 0 ? (
-        <div className="bg-white p-20 text-center rounded-[2rem] shadow-sm border border-dashed border-gray-300">
-           <div className="text-5xl mb-4 text-gray-300">📄</div>
-           <p className="text-gray-500 font-medium italic">Hiện không có tour nào đang chờ xử lý.</p>
+        <div className="bg-white p-20 text-center rounded-[3rem] shadow-2xl border border-gray-100">
+           <p className="text-gray-400 font-black tracking-tight text-xl"> Không có tour nào cần duyệt!</p>
         </div>
       ) : (
-        <div className="bg-white shadow-2xl rounded-[1.5rem] overflow-hidden border border-gray-100">
+        <div className="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-50">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Thông tin Tour</th>
-                  <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Lịch trình</th>
-                  <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Giá & SL</th>
-                  <th className="px-6 py-4 text-left text-xs font-black text-gray-500 uppercase tracking-widest">Nhà cung cấp</th>
-                  <th className="px-6 py-4 text-left text-xs font-black text-blue-600 uppercase tracking-widest">Doanh thu dự kiến</th>
-                  <th className="px-6 py-4 text-center text-xs font-black text-gray-500 uppercase tracking-widest">Thao tác</th>
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50/50 border-b border-gray-100">
+                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Thông tin Tour</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Giá & SL</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nhà cung cấp</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-blue-600 uppercase tracking-widest text-center">Thao tác</th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-50">
-                {tours.map((tour) => {
-                  const totalRevenue = tour.price * tour.quantity;
-                  return (
-                    <tr key={tour.id} className="hover:bg-emerald-50/30 transition-colors">
-                      <td className="px-6 py-5">
-                        <div className="text-sm font-bold text-gray-900 line-clamp-1">{tour.name}</div>
-                        <div className="text-[10px] font-mono text-gray-400 mt-1">ID: #{tour.id}</div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-xs text-gray-600 space-y-1">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-emerald-500">🛫</span> {new Date(tour.start_date).toLocaleDateString('vi-VN')}
-                          </div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-rose-400">🛬</span> {new Date(tour.end_date).toLocaleDateString('vi-VN')}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-sm font-bold text-gray-700">{tour.price.toLocaleString()} đ</div>
-                        <div className="text-xs text-gray-400 italic">SL: {tour.quantity} chỗ</div>
-                      </td>
-                      <td className="px-6 py-5 text-sm text-gray-600">
-                        <span className="bg-gray-100 px-2 py-1 rounded-md font-medium text-gray-700">
-                          {tour.supplier_name || `ID: ${tour.supplier_id}`}
-                        </span>
-                      </td>
-                      <td className="px-6 py-5">
-                        <div className="text-sm font-black text-blue-600">
-                          {totalRevenue.toLocaleString()} đ
-                        </div>
-                      </td>
-                      <td className="px-6 py-5 text-center">
-                        <div className="flex justify-center gap-2">
-                          <button 
-                            onClick={() => handleStatusChange(tour.id, "approved")}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-emerald-100 active:scale-95"
-                          >
-                            Duyệt
-                          </button>
-                          <button 
-                            onClick={() => handleStatusChange(tour.id, "rejected")}
-                            className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-4 py-2 rounded-xl text-xs font-bold transition-all active:scale-95"
-                          >
-                            Từ chối
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+              <tbody className="divide-y divide-gray-50">
+                {tours.map((tour) => (
+                  <tr key={tour.id} className="hover:bg-blue-50/20 transition-all group">
+                    <td className="px-8 py-6">
+                      <div className="text-sm font-black text-gray-800 group-hover:text-blue-600 transition-colors">{tour.name}</div>
+                      <div className="flex gap-4 mt-1 text-[10px] font-bold text-gray-400 uppercase">
+                        <span> {new Date(tour.start_date).toLocaleDateString('vi-VN')}</span>
+                        <span>ID: #{tour.id}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="text-sm font-black text-gray-800">{tour.price.toLocaleString()} đ</div>
+                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Tồn kho: {tour.quantity}</p>
+                    </td>
+                    <td className="px-8 py-6">
+                      <span className="bg-gray-100 px-3 py-1 rounded-full text-[10px] font-black text-gray-600 uppercase tracking-tighter">
+                        {tour.supplier_name || `Supplier ${tour.supplier_id}`}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6">
+                      <div className="flex justify-center gap-3">
+                        <button 
+                          onClick={() => handleStatusChange(tour.id, "approved")}
+                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95"
+                        >
+                          Duyệt
+                        </button>
+                        <button 
+                          onClick={() => handleStatusChange(tour.id, "rejected")}
+                          className="bg-white border border-gray-200 text-rose-500 hover:bg-rose-50 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                        >
+                          Từ chối
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

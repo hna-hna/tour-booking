@@ -6,7 +6,6 @@ from flask import request
 @socketio.on('connect')
 def handle_connect():
     print(f"Client connected: {request.sid}")
-    # Sau này bạn sẽ thêm logic xác thực user ở đây (VD: lấy user_id từ token)
 
 # Hàm xử lý khi client ngắt kết nối
 @socketio.on('disconnect')

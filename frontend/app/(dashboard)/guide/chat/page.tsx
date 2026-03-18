@@ -1,8 +1,9 @@
+//frontend/app/(dashboard)/guide/chat/pages.tsx
 "use client";
 import React, { useEffect, useState, useRef, Suspense } from "react";
-import { io, Socket } from "socket.io-client";
 import axios from "axios";
 import { useRouter, useSearchParams } from "next/navigation";
+import { socket } from "@/lib/socket";
 
 function GuideChatContent() {
   const router = useRouter();
@@ -12,13 +13,13 @@ function GuideChatContent() {
   const [messages, setMessages] = useState<any[]>([]);
   const [inputMsg, setInputMsg] = useState("");
   const [partners, setPartners] = useState<any[]>([]);
-  const socketRef = useRef<Socket | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 1. Khởi tạo User và Socket
+  // khởi tạo User, join room và Lắng nghe tin nhắn realtime
   useEffect(() => {
     const token = localStorage.getItem("token");
     const userId = localStorage.getItem("user_id");
+    
     if (!token || !userId) { 
       router.push("/login"); 
       return; 
@@ -27,74 +28,88 @@ function GuideChatContent() {
     const uid = parseInt(userId);
     setCurrentUser({ id: uid });
 
-    if (!socketRef.current) {
-      socketRef.current = io("http://localhost:5000");
-      socketRef.current.on("connect", () => {
-        socketRef.current?.emit("join", { room: `user_${uid}` });
-      });
-    }
-
-    // Lấy danh sách khách hàng đang chat
-    axios.get("http://localhost:5000/api/chat/partners", { 
-      headers: { Authorization: `Bearer ${token}` } 
-    }).then(res => {
-        // Lọc bỏ chính mình và cập nhật danh sách
-        const filtered = res.data.filter((p: any) => Number(p.id) !== uid);
-        setPartners(filtered);
-        
-        // Ưu tiên mở partnerId từ URL, nếu không thì mở người đầu tiên
-        const pId = searchParams.get("partnerId");
-        if (pId) setActiveTab(parseInt(pId));
-        else if (filtered.length > 0) setActiveTab(filtered[0].id);
-    }).catch(console.error);
-
-    return () => { 
-      socketRef.current?.disconnect(); 
-      socketRef.current = null; 
-    };
-  }, [router, searchParams]);
-
-  // 2. Lắng nghe tin nhắn mới thời gian thực
-  useEffect(() => {
-    if (!socketRef.current || !activeTab) return;
-
-    const handleReceive = (data: any) => {
-      const myId = Number(localStorage.getItem("user_id"));
-      if (Number(data.sender_id) === myId) return; 
-
-      if (Number(data.sender_id) === Number(activeTab)) {
-        setMessages(prev => {
-          if (data.id && prev.some(m => m.id === data.id)) return prev;
-          return [...prev, data];
+    // Hàm Join Room
+    const joinChatRoom = () => {
+      const roomName = `user_${uid}`;
+      if (socket.connected) {
+        console.log("[GUIDE] Socket connected, joining:", roomName);
+        socket.emit("join", { room: roomName });
+      } else {
+        socket.once("connect", () => {
+          console.log(" [GUIDE] Connected now, joining:", roomName);
+          socket.emit("join", { room: roomName });
         });
+        socket.connect();
       }
     };
 
-    socketRef.current.on("receive_message", handleReceive);
-    return () => { socketRef.current?.off("receive_message", handleReceive); };
-  }, [activeTab]);
+    joinChatRoom();
 
-  // 3. Tải lịch sử tin nhắn khi đổi người chat
+    // lấy danh sách khách
+    axios.get("http://localhost:5000/api/chat/partners", { 
+      headers: { Authorization: `Bearer ${token}` } 
+    }).then(res => {
+        const filtered = res.data.filter((p: any) => Number(p.id) !== uid);
+        setPartners(filtered);
+        
+        const pId = searchParams.get("partnerId");
+        if (pId) {
+          setActiveTab(parseInt(pId));
+        } else if (filtered.length > 0 && !activeTab) {
+          setActiveTab(filtered[0].id);
+        }
+    }).catch(console.error);
+
+    const handleReceiveMessage = (data: any) => {
+      console.log(" Nhận tin nhắn mới:", data);
+      
+      setMessages((prev) => {
+        if (data.id && prev.some((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
+    };
+
+    socket.on("receive_message", handleReceiveMessage);
+
+    return () => { 
+      socket.off("receive_message", handleReceiveMessage);
+      socket.off("connect");
+    };
+  }, [router, searchParams]);
+
+  // tải lịch sử tin nhắn 
   useEffect(() => {
     if (!activeTab) return;
+    
+    const token = localStorage.getItem("token");
     axios.get(`http://localhost:5000/api/chat/messages/${activeTab}`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-    }).then(res => setMessages(res.data));
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    .then(res => {
+      setMessages(res.data);
+    })
+    .catch(err => console.error("Lỗi tải tin nhắn:", err));
   }, [activeTab]);
 
-  // Tự động cuộn xuống cuối
+  // tự động cuộn xuống tin nhắn mới nhất
   useEffect(() => { 
     scrollRef.current?.scrollIntoView({ behavior: "smooth" }); 
   }, [messages]);
 
-  // 4. Xử lý gửi tin nhắn
+  // xử lý gửi tin nhắn
   const handleSend = async () => {
     if (!inputMsg.trim() || !activeTab || !currentUser) return;
+    
     const content = inputMsg;
     setInputMsg("");
 
-    // Cập nhật UI ngay lập tức (Optimistic UI)
-    setMessages(prev => [...prev, { sender_id: currentUser.id, content }]);
+    // hiển thị tin nhắn ngay lập tức 
+    const tempMsg = { 
+      sender_id: currentUser.id, 
+      content, 
+      created_at: new Date().toISOString() 
+    };
+    setMessages(prev => [...prev, tempMsg]);
 
     try {
       await axios.post("http://localhost:5000/api/chat/send", 
@@ -110,7 +125,6 @@ function GuideChatContent() {
     <div className="max-w-6xl mx-auto p-6 h-[calc(100vh-100px)]">
       <div className="flex h-full bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
         
-        {/* SIDEBAR: Danh sách khách hàng */}
         <div className="w-1/3 md:w-1/4 bg-gray-50 border-r border-gray-100 flex flex-col">
           <div className="p-6 border-b border-gray-200 bg-white">
             <h2 className="font-black text-gray-800 tracking-tight text-lg">Tin nhắn hỗ trợ</h2>
@@ -127,38 +141,37 @@ function GuideChatContent() {
                 }`}
               >
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-black shadow-md ${activeTab === p.id ? "bg-blue-600" : "bg-blue-400"}`}>
-                  {p.name[0].toUpperCase()}
+                  {p.name ? p.name[0].toUpperCase() : "?"}
                 </div>
                 <div className="overflow-hidden flex-1">
                   <p className={`font-bold truncate ${activeTab === p.id ? "text-blue-600" : "text-gray-700"}`}>{p.name}</p>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter italic">Khách hàng</p>
+                  <p className="text-[10px] text-gray-400 font-bold  tracking-tighter italic">Khách hàng</p>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* CHAT AREA: Nội dung trò chuyện */}
+        {/*nội dung chat */}
         <div className="flex-1 flex flex-col bg-[#f8f9fb]">
           {activeTab ? (
             <>
-              {/* Header Chat */}
               <div className="p-5 border-b border-gray-100 bg-white flex items-center gap-4 shadow-sm z-10">
                 <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 font-black">
-                  {partners.find(p => p.id === activeTab)?.name[0] || "?"}
+                  {partners.find(p => p.id === activeTab)?.name?.[0] || "?"}
                 </div>
                 <div>
                   <h2 className="font-black text-gray-800 tracking-tight">
                     {partners.find(p => p.id === activeTab)?.name}
                   </h2>
-                  <p className="text-[10px] flex items-center gap-1.5 font-black text-emerald-500 uppercase tracking-widest">
-                    <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                    Đang trực tuyến
+                  <p className="text-[5px] flex items-center gap-0.5 font-black  uppercase tracking-widest">
+                    <span className=" rounded-full "></span>
+                  Đang trực tuyến
                   </p>
                 </div>
               </div>
 
-              {/* Danh sách tin nhắn */}
+              {/* danh sách tin nhắn */}
               <div className="flex-1 p-6 overflow-y-auto space-y-6">
                 {messages.map((msg, idx) => {
                   const isMe = Number(msg.sender_id) === Number(currentUser?.id);
@@ -179,7 +192,7 @@ function GuideChatContent() {
                 <div ref={scrollRef} />
               </div>
 
-              {/* Ô nhập liệu */}
+              {/* ô nhập tin nhắn */}
               <div className="p-6 bg-white border-t border-gray-100">
                 <form 
                   onSubmit={e => { e.preventDefault(); handleSend(); }} 
@@ -192,10 +205,7 @@ function GuideChatContent() {
                     onChange={e => setInputMsg(e.target.value)} 
                     placeholder="Nhập nội dung phản hồi..." 
                   />
-                  <button 
-                    type="submit" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-full font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-blue-200"
-                  >
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-2 rounded-full font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-blue-200">
                     Gửi
                   </button>
                 </form>

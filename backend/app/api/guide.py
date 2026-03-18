@@ -3,12 +3,12 @@ from app.extensions import db
 from app.models.tour import Tour
 from app.models.tour_guide import TourGuide, TourGuideAssignment
 from app.models.user import User
+from app.models import  User, Tour, TourGuideAssignment, TourGuide
 from app.models.order import Order
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
 guide_bp = Blueprint('guide', __name__)
 
-# --- HÀM TRỢ GIÚP LẤY GUIDE ---
 def get_current_guide(user_id):
     return TourGuide.query.filter_by(user_id=user_id).first()
 
@@ -17,24 +17,29 @@ def get_current_guide(user_id):
 @jwt_required()
 def get_assigned_tours():
     user_id = get_jwt_identity()
-    guide = get_current_guide(user_id)
-
-    if not guide:
+    
+    # Tìm hồ sơ HDV bằng TourGuide
+    guide_profile = TourGuide.query.filter_by(user_id=user_id).first()
+    if not guide_profile:
         return jsonify({"msg": "Không tìm thấy profile hướng dẫn viên"}), 404
 
-    assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='accepted').all()
+    # Lấy tour dựa trên guide_profile.id
+    data = db.session.query(TourGuideAssignment, Tour).join(
+        Tour, TourGuideAssignment.tour_id == Tour.id
+    ).filter(
+        TourGuideAssignment.guide_id == guide_profile.id,
+        TourGuideAssignment.status == 'accepted',
+        Tour.status != 'completed'
+    ).all()
+
     results = []
-    for assign in assignments:
-        tour = Tour.query.get(assign.tour_id)
-        if tour:
-            results.append({
-                "id": tour.id,
-                "name": tour.name,
-                "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None, 
-                "end_date": tour.end_date.strftime('%Y-%m-%d') if tour.end_date else None,
-                "image": getattr(tour, 'image', None),
-                "status": "accepted"
-            })
+    for assign, tour in data:
+        results.append({
+            "id": tour.id,
+            "name": tour.name,
+            "start_date": tour.start_date.isoformat() if tour.start_date else None,
+            "status": tour.status
+        })
     return jsonify(results), 200
 
 # 2. Lấy danh sách LỊCH SỬ tour
@@ -42,25 +47,32 @@ def get_assigned_tours():
 @jwt_required()
 def get_tour_history():
     user_id = get_jwt_identity()
-    guide = get_current_guide(user_id)
+    
+    guide_profile = TourGuide.query.filter_by(user_id=user_id).first()
+    if not guide_profile:
+        return jsonify({"msg": "Không tìm thấy profile hướng dẫn viên"}), 404
 
-    if not guide:
-        return jsonify([]), 200
+    data = db.session.query(TourGuideAssignment, Tour).join(
+        Tour, TourGuideAssignment.tour_id == Tour.id
+    ).filter(
+        TourGuideAssignment.guide_id == guide_profile.id,
+        TourGuideAssignment.status == 'accepted',
+        Tour.status == 'completed'
+    ).all()
 
-    assignments = TourGuideAssignment.query.filter_by(guide_id=guide.id, status='completed').all()
+    # Tự tạo danh sách kết quả thay vì dùng to_dict()
     results = []
-    for assign in assignments:
-        tour = Tour.query.get(assign.tour_id)
-        if tour:
-            results.append({
-                "id": assign.id,
-                "tour_id": tour.id,
-                "tour_name": tour.name,
-                "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None,
-                "assigned_date": assign.assigned_date,
-                "status": assign.status,
-                "location": "Việt Nam"
-            })
+    for assign, tour in data:
+        results.append({
+            "id": assign.id,
+            "tour_id": tour.id,
+            "tour_name": tour.name, # Frontend đang dùng item.tour_name
+            "start_date": tour.start_date.isoformat() if tour.start_date else None,
+            "assigned_date": assign.assigned_date.isoformat() if assign.assigned_date else None,
+            "status": tour.status,
+            "location": getattr(tour, 'location', 'Việt Nam')
+        })
+    
     return jsonify(results), 200
 
 # 3. Lấy danh sách YÊU CẦU dẫn tour
@@ -69,6 +81,9 @@ def get_tour_history():
 def get_tour_requests():
     user_id = get_jwt_identity()
     guide = get_current_guide(user_id)
+    if user.role != 'guide':
+        return jsonify({"msg": "Bạn không có quyền truy cập vào đây!"}), 403
+    print(f"DEBUG: User đang đăng nhập là {user_id}, Tìm thấy Guide ID: {guide.id if guide else 'None'}")
 
     if not guide:
         return jsonify([]), 200
@@ -175,7 +190,7 @@ def guide_profile():
             db.session.rollback()
             return jsonify({"error": "Lỗi database"}), 500
 
-# 7. Kết thúc tour & CHIA HOA HỒNG (Dùng logic của Na)
+# 7. Kết thúc tour & CHIA HOA HỒNG
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_tour(tour_id):
@@ -200,7 +215,6 @@ def finish_tour(tour_id):
         if tour:
             tour.status = 'completed'
             
-            # --- CHIA HOA HỒNG TỰ ĐỘNG ---
             orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
             total_revenue = sum(o.total_price for o in orders)
             

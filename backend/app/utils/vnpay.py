@@ -15,7 +15,6 @@ class vnpay:
         query_params = []
         for key, val in inputData:
             if val is not None and str(val) != "":
-                # Dùng quote chuẩn để đồng bộ 100%
                 encoded_val = urllib.parse.quote(str(val))
                 query_params.append(f"{key}={encoded_val}")
 
@@ -39,7 +38,7 @@ class vnpay:
         
         inputData = sorted(data.items())
         
-        # BẮT BUỘC: Khi kiểm tra mã trả về, phải dùng cùng chuẩn mã hóa với lúc gửi đi
+        # Khi kiểm tra mã trả về, phải dùng cùng chuẩn mã hóa với lúc gửi đi
         query_params = []
         for key, val in inputData:
             if val is not None and str(val) != "":

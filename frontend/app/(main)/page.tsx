@@ -78,11 +78,11 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-              {userType === "user" ? "Gợi ý dành riêng cho bạn ✨" : "Tour được yêu thích nhất 🔥"}
+              {userType === "user" ? "Gợi ý sản phẩm nổi bật" : "Tour được yêu thích nhất 🔥"}
             </h2>
             <p className="text-gray-500 mt-2">
               {userType === "user" 
-                ? "Dựa trên sở thích và lịch sử tìm kiếm của bạn." 
+                ? "Dựa trên sở thích về lịch sử và tìm kiếm." 
                 : "Những tour được đặt nhiều nhất tuần qua."}
             </p>
           </div>
@@ -133,7 +133,7 @@ export default function HomePage() {
                   </h3>
                   
                   <div className="flex items-center text-gray-500 text-sm mb-6">
-                    <span className="mr-2">📅</span>
+                    <span className="mr-2"></span>
                     Khởi hành: {tour.start_date ? new Date(tour.start_date).toLocaleDateString('vi-VN') : 'Liên hệ'}
                   </div>
 

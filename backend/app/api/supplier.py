@@ -1,3 +1,4 @@
+# backend/app/api/supplier.py
 from flask import Blueprint, request, jsonify, current_app
 from app.extensions import db
 from app.models.tour import Tour
@@ -7,12 +8,12 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func, and_
 from app.models.user import User, UserRole
 from werkzeug.security import generate_password_hash
+from datetime import datetime
 import os
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
-# --- QUẢN LÝ TOUR ---
-
+# 1. LẤY DANH SÁCH TOUR CỦA TÔI
 @supplier_bp.route('/tours', methods=['GET'])
 @jwt_required()
 def get_my_tours():
@@ -35,22 +36,33 @@ def get_my_tours():
             "id": t.id,
             "name": t.name,
             "price": t.price,
-            "quantity": t.quantity,  
+            "quantity": t.quantity,
             "status": t.status,
             "image": t.image,
             "guide_name": guide_name,
             "guide_id": guide_id,
             "itinerary": t.itinerary,
-            "description": t.description
+            "description": t.description,
+            "start_date": t.start_date.strftime('%Y-%m-%d') if t.start_date else None,
+            "end_date": t.end_date.strftime('%Y-%m-%d') if t.end_date else None
         })
+
     return jsonify(result), 200
 
+
+# 2. CREATE TOUR
 @supplier_bp.route('/tours', methods=['POST'])
 @jwt_required()
 def create_tour():
     sid = get_jwt_identity()
     data = request.get_json()
     try:
+        image_url = data.get('image')
+        guide_id = data.get('guide_id')
+
+        start_date = data.get("start_date")
+        end_date = data.get("end_date")
+
         new_tour = Tour(
             name=data.get('name'),
             description=data.get('description'),
@@ -59,24 +71,60 @@ def create_tour():
             quantity=data.get('quantity', 20),
             supplier_id=sid,
             status='pending',
-            image=data.get('image')
+            image=image_url,
+            start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
+            end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
         )
+        
         db.session.add(new_tour)
         db.session.flush()
         
-        guide_id = data.get('guide_id')
         if guide_id:
-            assignment = TourGuideAssignment(tour_id=new_tour.id, guide_id=guide_id)
+            assignment = TourGuideAssignment(
+                tour_id=new_tour.id,
+                guide_id=guide_id,
+                status='pending'
+            )
             db.session.add(assignment)
             
         db.session.commit()
         return jsonify({"message": "Tạo tour thành công, đang chờ duyệt"}), 201
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# --- QUẢN LÝ HƯỚNG DẪN VIÊN ---
 
+# 3. UPDATE TOUR
+@supplier_bp.route('/tours/<int:tour_id>', methods=['PUT'])
+@jwt_required()
+def update_my_tour(tour_id):
+    sid = get_jwt_identity()
+    tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first_or_404()
+    
+    if tour.status not in ['pending', 'rejected']:
+        return jsonify({"msg": "Không thể sửa tour đã được duyệt"}), 403
+    
+    data = request.get_json() or {}
+
+    tour.name = data.get('name', tour.name)
+    tour.price = data.get('price', tour.price)
+    tour.itinerary = data.get('itinerary', tour.itinerary)
+    tour.description = data.get('description', tour.description)
+    tour.quantity = data.get('quantity', tour.quantity)
+    tour.image = data.get('image', tour.image)
+
+    if data.get("start_date"):
+        tour.start_date = datetime.strptime(data["start_date"], "%Y-%m-%d")
+
+    if data.get("end_date"):
+        tour.end_date = datetime.strptime(data["end_date"], "%Y-%m-%d")
+    
+    db.session.commit()
+    return jsonify({"msg": "Cập nhật thành công"}), 200
+
+
+# 4. DANH SÁCH GUIDE
 @supplier_bp.route('/guides', methods=['GET'])
 @jwt_required()
 def get_my_guides():
@@ -84,61 +132,97 @@ def get_my_guides():
     guides = TourGuide.query.filter_by(supplier_id=sid).all()
     return jsonify([g.to_dict() for g in guides]), 200
 
-# Lấy danh sách HDV tự do (chưa có chủ quản) - Gộp từ nhánh Na
-@supplier_bp.route('/pending-guides', methods=['GET'])
-@jwt_required()
-def get_pending_guides():
-    guides_query = db.session.query(User).outerjoin(TourGuide, User.id == TourGuide.user_id)\
-        .filter(User.role == UserRole.GUIDE)\
-        .filter(TourGuide.supplier_id == None).all()
-        
-    result = []
-    for user in guides_query:
-        tg = TourGuide.query.filter_by(user_id=user.id).first()
-        status = tg.status.value if tg and hasattr(tg.status, 'value') else "Chưa có hồ sơ"
-        
-        result.append({
-            "user_id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone": user.phone or "Chưa cập nhật",
-            "status": status
-        })
-    return jsonify(result), 200
 
-# Duyệt HDV vào hệ thống của nhà cung cấp - Gộp từ nhánh Na
-@supplier_bp.route('/approve-guide/<int:guide_user_id>', methods=['POST'])
+# 5. TẠO GUIDE
+@supplier_bp.route('/guides', methods=['POST'])
 @jwt_required()
-def approve_guide(guide_user_id):
+def create_guide():
     sid = int(get_jwt_identity())
-    user = User.query.get(guide_user_id)
-    if not user or user.role != UserRole.GUIDE:
-        return jsonify({"msg": "Không tìm thấy hướng dẫn viên hợp lệ"}), 404
-        
-    guide = TourGuide.query.filter_by(user_id=guide_user_id).first()
+    data = request.get_json()
+
     try:
-        if guide:
-            if guide.supplier_id:
-                return jsonify({"msg": "Hướng dẫn viên này đã thuộc nhà cung cấp khác!"}), 400
-            guide.supplier_id = sid
-            guide.status = 'AVAILABLE'
-        else:
-            guide = TourGuide(user_id=user.id, supplier_id=sid, full_name=user.full_name, status='AVAILABLE')
-            db.session.add(guide)
-            
+
+        if not data.get("email") or not data.get("full_name"):
+            return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
+
+        existing_user = User.query.filter_by(email=data.get("email")).first()
+        if existing_user:
+            return jsonify({"msg": "Email đã tồn tại"}), 400
+
+        new_user = User(
+            email=data.get("email"),
+            password_hash=generate_password_hash("123456"),
+            full_name=data.get("full_name"),
+            role=UserRole.GUIDE,
+            is_active=True
+        )
+        db.session.add(new_user)
+        db.session.flush()
+
+        guide = TourGuide(
+            user_id=new_user.id,
+            supplier_id=sid,
+            full_name=data.get('full_name'),
+            phone=data.get('phone'),
+            email=data.get('email'),
+            license_number=data.get('license_number'),
+            years_of_experience=data.get('years_of_experience', 0),
+            languages=data.get('languages'),
+            specialties=data.get('specialties'),
+            status=data.get("status", "AVAILABLE").upper()
+        )
+
+        db.session.add(guide)
         db.session.commit()
-        return jsonify({"msg": "Đã duyệt hướng dẫn viên thành công!"}), 200
+
+        return jsonify({
+            "message": "Thêm HDV thành công",
+            "guide": guide.to_dict()
+        }), 201
+
     except Exception as e:
         db.session.rollback()
+        print("CREATE GUIDE ERROR:", str(e))
         return jsonify({"error": str(e)}), 500
 
-# --- BÁO CÁO DOANH THU ---
 
+# 6. PHÂN CÔNG GUIDE CHO TOUR
+@supplier_bp.route('/tours/<int:tour_id>/assign-guide', methods=['POST'])
+@jwt_required()
+def assign_guide(tour_id):
+
+    sid = get_jwt_identity()
+    data = request.get_json()
+    guide_id = data.get("guide_id")
+
+    tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first()
+
+    if not tour:
+        return jsonify({"msg": "Không tìm thấy tour"}), 404
+
+    guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
+
+    if not guide:
+        return jsonify({"msg": "Guide không hợp lệ"}), 404
+
+    assignment = TourGuideAssignment(
+        tour_id=tour_id,
+        guide_id=guide_id,
+        status='pending'
+    )
+
+    db.session.add(assignment)
+    db.session.commit()
+
+    return jsonify({"msg": "Đã gửi yêu cầu dẫn tour cho HDV"}), 201
+
+
+# 7. BÁO CÁO DOANH THU
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()
 def get_revenue_summary():
+
     sid = get_jwt_identity()
-    user = User.query.get(sid)
     
     stats = db.session.query(
         func.count(Order.id).label('total_orders'),
@@ -149,16 +233,69 @@ def get_revenue_summary():
      .filter(Payment.status == 'success')\
      .first()
 
+    total_orders = stats.total_orders or 0
     total_revenue = stats.total_revenue or 0
+    
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
-    # Lấy số dư thực tế từ bảng User (Gộp từ nhánh Na)
-    available_balance = getattr(user, 'balance', 0.0) if user else 0.0
+
+    escrow_stats = db.session.query(func.sum(Payment.amount))\
+        .join(Order, Payment.order_id == Order.id)\
+        .join(Tour, Order.tour_id == Tour.id)\
+        .filter(Tour.supplier_id == sid)\
+        .filter(Payment.status == 'pending')\
+        .scalar()
+        
+    escrow_amount = escrow_stats or 0
+
+    pending_orders_count = db.session.query(func.count(Order.id))\
+        .join(Tour, Order.tour_id == Tour.id)\
+        .filter(Tour.supplier_id == sid)\
+        .filter(Order.status == 'pending')\
+        .scalar()
 
     return jsonify({
-        'total_revenue': total_revenue,       
-        'admin_commission': admin_commission, 
-        'supplier_revenue': supplier_revenue, 
-        'available_balance': available_balance,
-        'total_orders': stats.total_orders or 0
+        'total_revenue': total_revenue,
+        'admin_commission': admin_commission,
+        'supplier_revenue': supplier_revenue,
+        'escrow_amount': escrow_amount,
+        'paid_out_amount': 0,
+        'pending_payout': supplier_revenue,
+        'total_orders': total_orders,
+        'pending_orders': pending_orders_count or 0
     }), 200
+
+
+# 8. DOANH THU THEO TOUR
+@supplier_bp.route('/revenue/by-tour', methods=['GET'])
+@jwt_required()
+def get_revenue_by_tour():
+
+    sid = get_jwt_identity()
+    
+    results = db.session.query(
+        Tour.id,
+        Tour.name,
+        func.count(Order.id).label('total_bookings'),
+        func.sum(Payment.amount).label('total_revenue')
+    ).join(Order, Tour.id == Order.tour_id)\
+     .join(Payment, Order.id == Payment.order_id)\
+     .filter(Tour.supplier_id == sid)\
+     .filter(Payment.status == 'success')\
+     .group_by(Tour.id, Tour.name)\
+     .all()
+    
+    data = []
+    for r in results:
+        rev = r.total_revenue or 0
+        data.append({
+            'tour_id': r.id,
+            'tour_name': r.name,
+            'total_revenue': rev,
+            'admin_commission': rev * 0.15,
+            'supplier_revenue': rev * 0.85,
+            'total_bookings': r.total_bookings
+        })
+    
+    return jsonify(data), 200
+    

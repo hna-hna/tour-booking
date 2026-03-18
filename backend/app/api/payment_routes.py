@@ -14,7 +14,7 @@ import urllib.parse
 payment_bp = Blueprint('payment', __name__)
 
 # Cấu hình Secret Key
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = 'stripe.api_key = os.getenv("STRIPE_SECRET_KEY")'
 # 1. API TẠO PAYMENT INTENT + LƯU ĐƠN HÀNG + LƯU GIAO DỊCH
 @payment_bp.route('/create-payment-intent', methods=['POST'])
 @jwt_required()
@@ -87,7 +87,6 @@ def confirm_order():
     try:
         data = request.json
         payment_intent_id = data.get('payment_intent_id')
-
         # 1. Tìm bản ghi Payment dựa trên mã giao dịch Stripe
         payment = Payment.query.filter_by(transaction_id=payment_intent_id).first()
 
@@ -114,8 +113,8 @@ def confirm_order():
     except Exception as e:
         return jsonify(error=str(e)), 500
     # CẤU HÌNH VNPAY (Thay bằng mã thật của bạn)
-VNP_TMN_CODE = "G1Z7RSKY"
-VNP_HASH_SECRET = "D2MH27P6OT4M4F6AJQQ4E06Y7GJ0H6U2"
+VNP_TMN_CODE = "UTD4XGMJ"
+VNP_HASH_SECRET = "95R9Y4MFJ1FJPK3AQPDCQAAWPQRTQFHF"
 VNP_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
 
 # URL trả về (Frontend)
@@ -136,7 +135,7 @@ def create_payment_vnpay():
         guests = data.get('guests')
         date_str = data.get('date')
         booking_date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
-        order_desc = f"Thanh_toan_don_hang {datetime.now().timestamp()}"
+        order_desc = f"Thanh toan don hang {datetime.now().timestamp()}"
 
         # A. Lưu đơn hàng vào DB trước (Status: Pending)
         new_order = Order(
@@ -178,8 +177,6 @@ def create_payment_vnpay():
         
         # IP khách hàng (Lấy tạm localhost nếu chạy local)
         ipaddr = request.remote_addr
-        if not ipaddr or ipaddr == '::1' or ipaddr == '127.0.0.1':
-            ipaddr = '127.0.0.1'
         vnp.requestData['vnp_IpAddr'] = ipaddr
         
         vnp.requestData['vnp_CreateDate'] = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -236,7 +233,7 @@ def vnpay_return_verify():
                     return jsonify({"RspCode": "01", "Message": "Payment Failed"})
             else:
                 return jsonify({"RspCode": "02", "Message": "Order Not Found"})
-        else:
+        else: 
             return jsonify({"RspCode": "97", "Message": "Invalid Signature"})
     else:
         return jsonify({"RspCode": "99", "Message": "Invalid Request"})

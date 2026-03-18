@@ -83,7 +83,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
           <div className="space-y-8">
             <section>
               <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-lg">📍</span>
+                <span className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-lg"></span>
                 Mô tả chi tiết
               </h3>
               <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">
@@ -116,17 +116,16 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             
             <div className="space-y-4 mb-8 border-t border-b border-gray-50 py-4">
-              {/* Phần hiển thị số lượng chỗ còn lại từ nhánh origin/nnna */}
               <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100">
-                <span className="text-xl">🎟️</span> 
+                <span className="text-xl"></span> 
                 Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
               </div>
               
               <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
-                <span className="text-emerald-500">✓</span> Xác nhận tức thì
+                <span className="text-emerald-500"></span> Xác nhận tức thì
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
-                <span className="text-emerald-500">✓</span> Bảo hiểm du lịch trọn gói
+                <span className="text-emerald-500"></span> Bảo hiểm du lịch trọn gói
               </div>
             </div>
 
@@ -135,7 +134,7 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               className="group flex w-full justify-center items-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
             >
               ĐẶT TOUR NGAY
-              <span className="group-hover:translate-x-1 transition-transform">→</span>
+              <span className="group-hover:translate-x-1 transition-transform"></span>
             </a>
             
             <p className="text-xs text-center text-gray-400 mt-6 leading-relaxed">

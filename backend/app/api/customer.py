@@ -11,7 +11,6 @@ customer_bp = Blueprint('customer_bp', __name__, url_prefix='/api')
 recommender = TourRecommender()
 
 
-# ================= SEARCH =================
 @customer_bp.route('/tours/search', methods=['GET'])
 def search_tours():
     query_string = request.args.get('q', '').strip()

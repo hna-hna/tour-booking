@@ -1,8 +1,10 @@
+#backend/app/api/chat_router.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db, socketio
 from app.models.user import User
 from app.models.chat import Message, AIChatHistory
 from app.models.tour import Tour
+from flask_socketio import emit
 from app.models.log import SearchLog
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_
@@ -14,7 +16,6 @@ import json
 
 chat_bp = Blueprint('chat', __name__)
 
-# --- UTILS ---
 def detect_intent(message):
     msg = message.lower()
     intent = {
@@ -33,7 +34,7 @@ def filter_tours(intent, budget):
     if intent["sea"]:
         query = query.filter(Tour.description.ilike("%biển%"))
     if intent["mountain"]:
-        query = query.filter(or_(Tour.location.ilike("%núi%"), Tour.description.ilike("%núi%")))
+        query = query.filter(Tour.description.ilike("%núi%"))
     if budget:
         query = query.filter(Tour.price <= budget)
     return query.all()
@@ -119,9 +120,16 @@ def chat_with_ai():
         filtered_tours = filter_tours(intent, budget)
         final_tours = ensure_minimum_tours(filtered_tours, min_count=3)
 
-        tour_context = "".join([f"- ID {t.id}: {t.name} ({t.price} VNĐ)\n" for t in final_tours])
+        tour_context = "".join([f"- {t.id}: {t.name} ({t.price} VNĐ)\n" for t in final_tours])
 
-        system_prompt = f"Bạn là AI tư vấn du lịch. Danh sách tour: \n{tour_context}\nTrả về JSON {{'reply': '...', 'tour_ids': []}}"
+        system_prompt = (
+            "Bạn là trợ lý ảo tư vấn du lịch chuyên nghiệp. "
+            "NHIỆM VỤ: Trả lời khách hàng bằng TIẾNG VIỆT chân thực, thân thiện. "
+            "Dựa vào danh sách tour sau đây để tư vấn:\n"
+            f"{tour_context}\n"
+            "YÊU CẦU ĐỊNH DẠNG: Chỉ trả về JSON duy nhất theo mẫu: "
+            "{\"reply\": \"nội dung tư vấn bằng tiếng Việt\", \"tour_ids\": [danh sách ID kiểu số nguyên]}"
+        )
 
         payload = {
             "model": MODEL_NAME,
@@ -136,8 +144,20 @@ def chat_with_ai():
 
         try:
             parsed_json = json.loads(ai_response_content)
-            reply_text = parsed_json.get('reply', '')
-            suggested_ids = parsed_json.get('tour_ids', [])
+            reply_text = parsed_json.get('reply', 'Xin lỗi, tôi không tìm thấy thông tin phù hợp.')
+            raw_ids = parsed_json.get('tour_ids', [])
+            suggested_ids =  []
+            for item in raw_ids:
+                try:
+                    if isinstance(item, str):
+                        # Chỉ lấy các chữ số trong chuỗi
+                        clean_num = "".join(filter(str.isdigit, item))
+                        if clean_num:
+                            suggested_ids.append(int(clean_num))
+                    else:
+                        suggested_ids.append(int(item))
+                except:
+                    continue
         except:
             reply_text = ai_response_content
             suggested_ids = []
@@ -202,24 +222,41 @@ def get_full_chat_history(partner_id):
 @chat_bp.route('/send', methods=['POST'])
 @jwt_required()
 def send_message():
-    current_user_id = int(get_jwt_identity())
     data = request.get_json()
+    sender_id = int(get_jwt_identity()) # Đảm bảo là kiểu số
     receiver_id = int(data.get('receiver_id'))
     content = data.get('content')
 
-    if not content or receiver_id == current_user_id:
-        return jsonify({"error": "Nội dung không hợp lệ"}), 400
+    if not content:
+        return jsonify({'error': 'Content is empty'}), 400
 
-    new_msg = Message(sender_id=current_user_id, receiver_id=receiver_id, content=content)
-    db.session.add(new_msg)
-    db.session.commit()
+    try:
+        # 1. Lưu vào Database
+        new_message = Message(sender_id=sender_id, receiver_id=receiver_id, content=content)
+        db.session.add(new_message)
+        db.session.commit()
 
-    socket_data = {
-        'id': new_msg.id,
-        'sender_id': current_user_id,
-        'receiver_id': receiver_id,
-        'content': content,
-        'timestamp': datetime.utcnow().isoformat()
-    }
-    socketio.emit('receive_message', socket_data, room=f"user_{receiver_id}")
-    return jsonify({"msg": "Đã gửi", "data": socket_data}), 201
+        # 2. Chuẩn bị dữ liệu gửi đi
+        msg_data = {
+            'id': new_message.id,
+            'sender_id': sender_id,
+            'receiver_id': receiver_id,
+            'content': content,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # 3. PHÁT TÍN HIỆU REALTIME (Đây là phần quan trọng nhất)
+        # Gửi cho người nhận
+        socketio.emit('receive_message', msg_data, room=f"user_{receiver_id}")
+        
+        # Gửi cho chính người gửi (để đồng bộ nếu mở nhiều tab)
+        socketio.emit('receive_message', msg_data, room=f"user_{sender_id}")
+
+        print(f" [SOCKET] Đã phát tin nhắn tới user_{receiver_id} và user_{sender_id}")
+
+        return jsonify({'status': 'success', 'data': msg_data}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        print(f" Lỗi Backend: {str(e)}")
+        return jsonify({'error': str(e)}), 500

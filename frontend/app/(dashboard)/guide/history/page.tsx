@@ -1,3 +1,4 @@
+//frontend/app/(dashboard)/guide/history/pages.tsx
 "use client";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
@@ -10,7 +11,6 @@ export default function GuideTourHistoryPage() {
   useEffect(() => {
     const fetchHistory = async () => {
       try {
-        // 1. Lấy token từ localStorage
         const token = localStorage.getItem("token");
 
         if (!token) {
@@ -19,10 +19,9 @@ export default function GuideTourHistoryPage() {
           return;
         }
 
-        // 2. Gọi API với đầy đủ Header và địa chỉ 127.0.0.1
         const res = await axios.get("http://127.0.0.1:5000/api/guide/tours/history", {
           headers: {
-            Authorization: `Bearer ${token}`, // Gửi "thẻ bài" JWT ở đây
+            Authorization: `Bearer ${token}`, 
           },
         });
 
@@ -48,7 +47,6 @@ export default function GuideTourHistoryPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6">
-      {/* ... Phần giao diện giữ nguyên như bạn đã viết ... */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Lịch sử Tour</h1>
@@ -72,11 +70,11 @@ export default function GuideTourHistoryPage() {
               <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
                   <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    ID Assignment: #{item.id}
+                    ID tour: #{item.id}
                   </div>
                   <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${
                     item.status === 'completed' || item.status === 'finished' 
-                      ? 'bg-green-100 text-green-700' 
+                      ? ' text-green-700' 
                       : 'bg-blue-100 text-blue-700'
                   }`}>
                     {item.status === 'completed' ? 'Hoàn thành' : 'Đã kết thúc'}

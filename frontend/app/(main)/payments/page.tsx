@@ -151,7 +151,7 @@ function PaymentContent() {
               onClick={() => setMethod("vnpay")}
               className={`p-5 rounded-2xl border-2 cursor-pointer flex items-center gap-4 transition-all ${method === "vnpay" ? "border-emerald-500 bg-emerald-50" : "border-gray-100"}`}
             >
-              <div className="text-2xl">🏧</div>
+              <div className="text-2xl"></div>
               <div className="flex-1">
                 <p className="font-bold">VNPay / ATM Nội địa</p>
                 <p className="text-xs text-gray-400">Thanh toán qua ngân hàng Việt Nam</p>
@@ -164,7 +164,7 @@ function PaymentContent() {
               onClick={() => setMethod("stripe")}
               className={`p-5 rounded-2xl border-2 cursor-pointer flex items-center gap-4 transition-all ${method === "stripe" ? "border-emerald-500 bg-emerald-50" : "border-gray-100"}`}
             >
-              <div className="text-2xl">💳</div>
+              <div className="text-2xl"></div>
               <div className="flex-1">
                 <p className="font-bold">Thẻ Quốc Tế (Visa/Mastercard)</p>
                 <p className="text-xs text-gray-400">Cổng thanh toán toàn cầu Stripe</p>

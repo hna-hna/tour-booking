@@ -1,8 +1,7 @@
 from flask import Blueprint, jsonify
 from app.models.tour import Tour
 from flask_jwt_extended import jwt_required, get_jwt_identity
-
-# --- TÍCH HỢP AI ENGINE ---
+from app.extensions import db 
 try:
     from app.ai_engine.recommender import TourRecommender
     recommender = TourRecommender()
@@ -12,9 +11,6 @@ except ImportError:
 
 tour_bp = Blueprint("tour", __name__, url_prefix="/api/tours")
 
-# ==========================================
-# HÀM HỖ TRỢ: Định dạng dữ liệu Tour
-# ==========================================
 def format_tours_from_ids(tour_ids):
     if not tour_ids:
         return []
@@ -37,9 +33,7 @@ def format_tours_from_ids(tour_ids):
         for t in tours
     ]
 
-# ==========================================
-# 1. API: TOUR PHỔ BIẾN (Dành cho khách vãng lai)
-# ==========================================
+# 1. API: TOUR PHỔ BIẾN 
 @tour_bp.route("/popular", methods=["GET"])
 def get_popular_tours():
     # Lấy 6 tour mới nhất đã được phê duyệt
@@ -55,9 +49,7 @@ def get_popular_tours():
     
     return jsonify(result), 200
 
-# ==========================================
-# 2. API: TOUR GỢI Ý (Dành cho thành viên - Sử dụng AI)
-# ==========================================
+# 2. API: TOUR GỢI Ý 
 @tour_bp.route("/recommend", methods=["GET"])
 @jwt_required()
 def get_recommended_tours():
@@ -76,9 +68,7 @@ def get_recommended_tours():
     result = format_tours_from_ids(tour_ids)
     return jsonify(result), 200
 
-# ==========================================
 # 3. API: DANH SÁCH TẤT CẢ TOUR (Public)
-# ==========================================
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
 def get_public_tours():
@@ -96,9 +86,7 @@ def get_public_tours():
         for t in tours
     ]), 200
 
-# ==========================================
 # 4. API: CHI TIẾT TOUR (Public)
-# ==========================================
 @tour_bp.route('/<int:tour_id>', methods=['GET'])
 def get_tour_detail(tour_id):
     tour = Tour.query.get_or_404(tour_id)
@@ -116,3 +104,21 @@ def get_tour_detail(tour_id):
         "quantity": getattr(tour, 'quantity', 0),
         "supplier_id": getattr(tour, 'supplier_id', None)
     }), 200
+
+
+@tour_bp.route('/<int:tour_id>/finish', methods=['PUT'])
+@jwt_required()
+def finish_tour(tour_id):
+    tour = Tour.query.get_or_404(tour_id)
+    
+    # Kiểm tra xem tour có đang ở trạng thái được phép hoàn thành không (ví dụ: approved)
+    if tour.status == 'completed':
+        return jsonify({"message": "Tour này đã hoàn thành trước đó."}), 400
+
+    try:
+        tour.status = 'completed'
+        db.session.commit()
+        return jsonify({"message": "Cập nhật trạng thái Tour thành công!"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"message": "Lỗi hệ thống", "error": str(e)}), 500

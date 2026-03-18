@@ -1,4 +1,4 @@
-
+"""
 Revision ID: f1d03efe1097
 Revises: 88b3d025813b
 Create Date: 2026-03-01 19:30:04.260866
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'f1d03efe1097'
-down_revision = '88b3d025813b'
+down_revision = '8f30ef933a54'
 branch_labels = None
 depends_on = None
 

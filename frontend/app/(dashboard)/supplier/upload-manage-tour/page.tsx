@@ -1,34 +1,32 @@
 "use client";
 import React, { useEffect, useState } from "react";
-// Đảm bảo đường dẫn này đúng với nơi bạn tạo file ở Việc 1
 import { supabase } from "../../../../lib/supabaseClient";
 
 export default function UploadManageTourPage() {
   const [tours, setTours] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false); // Thêm trạng thái upload
+  const [uploading, setUploading] = useState(false);
   const [guides, setGuides] = useState<any[]>([]);
 
-  // State quản lý Form
   const [formData, setFormData] = useState({
     id: null,
     name: "",
-    image_file: null as File | null, // Lưu file gốc để upload
-    image_url: "", // Lưu link ảnh cũ (nếu có)
+    image_file: null as File | null,
+    image_url: "",
     price: "",
     quantity: "",
     guide_id: "",
     itinerary: "",
-    description: ""
+    description: "",
+    start_date: "",
+    end_date: ""
   });
 
   // 1. Lấy danh sách tour
   const fetchTours = async () => {
     try {
       setLoading(true);
-      // Thêm ?nocache để tránh việc trình duyệt lưu cache cũ
-      // Dùng 127.0.0.1 để tránh lỗi trên Windows
       const res = await fetch(`http://127.0.0.1:5000/api/supplier/tours?nocache=${Date.now()}`, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
@@ -49,40 +47,37 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // Thêm hàm tải danh sách HDV
+  // 2. Lấy danh sách HDV
   const fetchGuides = async () => {
     try {
-        console.log("Đang tải danh sách HDV...");
-        const res = await fetch("http://127.0.0.1:5000/api/supplier/guides", {
-            headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-        });
-        const data = await res.json();
-        console.log("Dữ liệu HDV nhận được:", data);
-        
-        // Xử lý nếu data trả về dạng { guides: [...] } hoặc trực tiếp [...]
-        const list = Array.isArray(data) ? data : (data.guides || []);
-        setGuides(list);
+      const res = await fetch("http://127.0.0.1:5000/api/supplier/guides", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : (data.guides || []);
+      setGuides(list);
     } catch (e) {
-        console.error("Lỗi tải HDV:", e);
+      console.error("Lỗi tải HDV:", e);
     }
   };
 
-  useEffect(() => { 
-      fetchTours();
-      fetchGuides(); 
+  useEffect(() => {
+    fetchTours();
+    fetchGuides();
   }, []);
 
-  // 2. Mở modal (Reset form hoặc điền dữ liệu cũ)
+  // 3. Mở modal
   const handleOpenModal = (tour: any = null) => {
     if (tour) {
       setFormData({
         ...tour,
-        image_file: null, // Reset file mới
-        image_url: tour.image || "", // Lưu link ảnh hiện tại
+        image_file: null,
+        image_url: tour.image || "",
         price: tour.price ? tour.price.toString() : "",
         quantity: tour.quantity ? tour.quantity.toString() : "",
-        // Đảm bảo guide_id là chuỗi để bind vào select, hoặc rỗng
-        guide_id: tour.guide_id ? tour.guide_id.toString() : "" 
+        guide_id: tour.guide_id ? tour.guide_id.toString() : "",
+        start_date: tour.start_date ? tour.start_date.substring(0, 10) : "",
+        end_date: tour.end_date ? tour.end_date.substring(0, 10) : ""
       });
     } else {
       setFormData({
@@ -94,30 +89,29 @@ export default function UploadManageTourPage() {
         quantity: "",
         guide_id: "",
         itinerary: "",
-        description: ""
+        description: "",
+        start_date: "",
+        end_date: ""
       });
     }
     setIsModalOpen(true);
   };
 
-  // 3. HÀM UPLOAD ẢNH LÊN SUPABASE (MỚI)
+  // 4. Upload ảnh lên Supabase
   const uploadImageToSupabase = async (file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
 
-      // Upload vào bucket tên 'tours' (Bạn phải tạo bucket này trên Supabase rồi nhé)
       const { error: uploadError } = await supabase.storage
         .from('tours')
-        .upload(filePath, file);
+        .upload(fileName, file);
 
       if (uploadError) throw uploadError;
 
-      // Lấy link ảnh public
       const { data } = supabase.storage
         .from('tours')
-        .getPublicUrl(filePath);
+        .getPublicUrl(fileName);
 
       return data.publicUrl;
     } catch (error) {
@@ -127,25 +121,22 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 4. HÀM SUBMIT (Đã sửa sang JSON + Upload ảnh)
+  // 5. Submit form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUploading(true); // Bật loading
+    setUploading(true);
 
-    // BƯỚC 1: Xử lý ảnh
-    let finalImageUrl = formData.image_url; // Mặc định dùng ảnh cũ
+    let finalImageUrl = formData.image_url;
 
-    // Nếu người dùng chọn ảnh mới -> Upload lên Supabase
     if (formData.image_file) {
       const newUrl = await uploadImageToSupabase(formData.image_file);
       if (!newUrl) {
         setUploading(false);
-        return; // Dừng nếu upload lỗi
+        return;
       }
       finalImageUrl = newUrl;
     }
 
-    // BƯỚC 2: Chuẩn bị dữ liệu JSON
     const payload = {
       name: formData.name,
       price: Number(formData.price),
@@ -153,7 +144,9 @@ export default function UploadManageTourPage() {
       itinerary: formData.itinerary || "",
       description: formData.description || "",
       guide_id: formData.guide_id ? Number(formData.guide_id) : null,
-      image: finalImageUrl // Gửi link ảnh (string)
+      image: finalImageUrl,
+      start_date: formData.start_date,
+      end_date: formData.end_date
     };
 
     const isUpdate = !!formData.id;
@@ -165,10 +158,10 @@ export default function UploadManageTourPage() {
       const res = await fetch(url, {
         method: isUpdate ? "PUT" : "POST",
         headers: {
-          "Content-Type": "application/json", // QUAN TRỌNG: Backend cần cái này
+          "Content-Type": "application/json",
           "Authorization": `Bearer ${localStorage.getItem("token")}`
         },
-        body: JSON.stringify(payload), // Gửi JSON
+        body: JSON.stringify(payload),
       });
 
       if (res.ok) {
@@ -187,7 +180,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 5. Xử lý Xóa
+  // 6. Xóa tour
   const handleDelete = async (id: number) => {
     if (!confirm("Bạn có chắc chắn muốn xóa tour này?")) return;
     try {
@@ -233,21 +226,22 @@ export default function UploadManageTourPage() {
               key={t.id || Math.random()}
               className="group bg-gray-50 hover:bg-white border hover:border-emerald-200 p-6 rounded-3xl transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
             >
-              {/* HIỂN THỊ ẢNH THU NHỎ (THUMBNAIL) */}
+              {/* Thumbnail */}
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
-                 {t.image ? (
-                    <img src={t.image} alt={t.name} className="w-full h-full object-cover" />
-                 ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No Image</div>
-                 )}
+                {t.image ? (
+                  <img src={t.image} alt={t.name} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">No Image</div>
+                )}
               </div>
 
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${t.status === 'approved' ? 'bg-green-100 text-green-600' :
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${
+                    t.status === 'approved' ? 'bg-green-100 text-green-600' :
                     t.status === 'rejected' ? 'bg-red-100 text-red-600' :
-                      'bg-orange-100 text-orange-600'
-                    }`}>
+                    'bg-orange-100 text-orange-600'
+                  }`}>
                     {t.status ? t.status.toUpperCase() : "CHỜ DUYỆT"}
                   </span>
                   <span className="text-xs font-bold text-gray-500 uppercase">ID: #{t.id}</span>
@@ -262,6 +256,14 @@ export default function UploadManageTourPage() {
                   <p className="text-sm text-gray-500 font-medium">
                     HDV: <span className="text-gray-800">{t.guide_name || "Chưa phân công"}</span>
                   </p>
+                  {t.start_date && (
+                    <p className="text-sm text-gray-500 font-medium">
+                      🗓 <span className="text-gray-800">
+                        {new Date(t.start_date).toLocaleDateString("vi-VN")}
+                        {t.end_date && ` → ${new Date(t.end_date).toLocaleDateString("vi-VN")}`}
+                      </span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -276,11 +278,15 @@ export default function UploadManageTourPage() {
                     </button>
                   </>
                 ) : (
-                   <div className="text-gray-400 italic text-[11px]">Đã duyệt</div>
+                  <div className="text-gray-400 italic text-[11px]">Đã duyệt</div>
                 )}
               </div>
             </div>
           ))}
+
+          {tours.length === 0 && !loading && (
+            <div className="text-center py-20 text-gray-400 italic">Chưa có tour nào</div>
+          )}
         </div>
       )}
 
@@ -296,74 +302,131 @@ export default function UploadManageTourPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* Tên tour */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Tên Tour</label>
-                <input required className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
-                  value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                <input
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                />
               </div>
 
+              {/* Hình ảnh */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Hình ảnh</label>
-                <input type="file" accept="image/*" className="w-full bg-gray-50 p-4 rounded-2xl"
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full bg-gray-50 p-4 rounded-2xl"
                   onChange={e => {
                     if (e.target.files?.[0]) setFormData({ ...formData, image_file: e.target.files[0] });
-                  }} />
-                {/* Preview ảnh cũ nếu có */}
+                  }}
+                />
                 {formData.image_url && !formData.image_file && (
-                    <p className="text-xs text-green-600 mt-2">✓ Đang dùng ảnh cũ</p>
+                  <p className="text-xs text-green-600 mt-2">✓ Đang dùng ảnh cũ</p>
                 )}
               </div>
 
+              {/* Giá */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Giá (VNĐ)</label>
-                <input type="number" required className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
-                  value={formData.price} onChange={e => setFormData({ ...formData, price: e.target.value })} />
+                <input
+                  type="number"
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.price}
+                  onChange={e => setFormData({ ...formData, price: e.target.value })}
+                />
               </div>
 
+              {/* Số lượng */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Số lượng khách</label>
-                <input type="number" required className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
-                  value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
+                <input
+                  type="number"
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.quantity}
+                  onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+                />
               </div>
 
-            <div className="md:col-span-2">
+              {/* Ngày bắt đầu */}
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày bắt đầu</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.start_date}
+                  onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                />
+              </div>
+
+              {/* Ngày kết thúc */}
+              <div>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày kết thúc</label>
+                <input
+                  type="date"
+                  required
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-bold outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.end_date}
+                  onChange={e => setFormData({ ...formData, end_date: e.target.value })}
+                />
+              </div>
+
+              {/* HDV */}
+              <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
-                    Chọn Hướng Dẫn Viên (Đang sẵn sàng)
+                  Chọn Hướng Dẫn Viên (Đang sẵn sàng)
                 </label>
                 <select
-                    className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-emerald-500 font-bold text-gray-700"
-                    value={formData.guide_id || ""}
-                    onChange={e => setFormData({ ...formData, guide_id: e.target.value })}
+                  className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-emerald-500 font-bold text-gray-700"
+                  value={formData.guide_id || ""}
+                  onChange={e => setFormData({ ...formData, guide_id: e.target.value })}
                 >
-                    <option value="">-- Chưa phân công --</option>
-                    {guides
-                        .filter(g => 
-                            // Chuyển status về chữ thường để so sánh (không phân biệt hoa thường)
-                            (g.status && g.status.toLowerCase() === 'available') 
-                            || g.id === Number(formData.guide_id)
-                        ) 
-                        .map(g => (
-                            <option key={g.id} value={g.id}>
-                                {g.full_name}  
-                            </option>
-                        ))}
+                  <option value="">-- Chưa phân công --</option>
+                  {guides
+                    .filter(g =>
+                      (g.status && g.status.toLowerCase() === 'available')
+                      || g.id === Number(formData.guide_id)
+                    )
+                    .map(g => (
+                      <option key={g.id} value={g.id}>{g.full_name}</option>
+                    ))}
                 </select>
-            </div>
+              </div>
 
+              {/* Lịch trình */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Lịch trình & Mô tả</label>
-                <textarea rows={4} className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm outline-none focus:ring-2 ring-emerald-500"
-                  value={formData.itinerary} onChange={e => setFormData({ ...formData, itinerary: e.target.value })} />
+                <textarea
+                  rows={4}
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.itinerary}
+                  onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
+                />
               </div>
+
             </div>
 
             <div className="flex justify-end gap-4 mt-10">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-gray-400 font-bold uppercase text-xs">Đóng</button>
-              <button type="button" onClick={handleSubmit} disabled={uploading}
-                className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400">
+              <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-gray-400 font-bold uppercase text-xs">
+                Đóng
+              </button>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={uploading}
+                className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400"
+              >
                 {uploading ? "Đang xử lý..." : (formData.id ? "Lưu thay đổi" : "Gửi tour")}
               </button>
             </div>
+
           </div>
         </div>
       )}

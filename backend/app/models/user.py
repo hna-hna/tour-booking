@@ -24,10 +24,6 @@ class User(db.Model):
     address = db.Column(db.String(255), nullable=True)   
     avatar = db.Column(db.String(500), nullable=True)    
 # Hàm mã hóa mật khẩu
-
-    balance = db.Column(db.Float, default=0.0) # Ví điện tử lưu trữ hoa hồng
-
-   
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 

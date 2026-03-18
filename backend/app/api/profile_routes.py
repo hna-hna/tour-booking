@@ -16,10 +16,12 @@ def get_my_profile():
     if not user:
         return jsonify({"error": "Không tìm thấy người dùng"}), 404
     
+    # Tối ưu: Dùng "or" để xử lý trường hợp Database lưu Null -> Trả về chuỗi rỗng "" cho Frontend dễ hiển thị
     return jsonify({
         "id": user.id,
         "email": user.email,
         "full_name": user.full_name,
+        # Lấy value của Enum an toàn
         "role": user.role.value if hasattr(user.role, 'value') else str(user.role),
         "phone": user.phone or "",      
         "address": user.address or "",
@@ -38,13 +40,16 @@ def update_my_profile():
         
     data = request.get_json()
     
+    # --- CÁC ĐIỂM SỬA ĐỔI ---
     
+    # 1. Validate Tên: Không cho phép đổi tên thành rỗng
     if 'full_name' in data:
         new_name = data['full_name'].strip()
         if not new_name:
             return jsonify({"error": "Họ tên không được để trống"}), 400
         user.full_name = new_name
 
+    # 2. Cập nhật các trường khác (Cho phép rỗng)
     if 'phone' in data:
         user.phone = data['phone']
         
@@ -68,5 +73,6 @@ def update_my_profile():
         }), 200
     except Exception as e:
         db.session.rollback()
+        # Log lỗi ra terminal để dễ debug
         print(f"Lỗi Database: {e}")
         return jsonify({"error": "Lỗi hệ thống, không thể lưu dữ liệu"}), 500

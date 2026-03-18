@@ -3,53 +3,61 @@ import hmac
 import urllib.parse
 
 class vnpay:
-    requestData = {}
-    responseData = {}
+    def __init__(self):
+        self.requestData = {}
+        self.responseData = {}
 
     def get_payment_url(self, vnp_Url, secret_key):
-        # 1. Sắp xếp tham số a-z
         inputData = sorted(self.requestData.items())
+        queryString = ''
+        seq = 0
         
-        # 2. Xây dựng chuỗi query dùng chuẩn quote (không phải quote_plus)
-        # VNPay 2.1.0 ưu tiên chuẩn mã hóa %20 cho dấu cách
-        query_params = []
         for key, val in inputData:
-            if val is not None and str(val) != "":
-                encoded_val = urllib.parse.quote(str(val))
-                query_params.append(f"{key}={encoded_val}")
+            if str(val).strip() == '':
+                continue
+            
+            # QUAN TRỌNG: VNPAY 2.1.0 yêu cầu Hash trên chuỗi ĐÃ ENCODE
+            encoded_val = urllib.parse.quote_plus(str(val))
+            
+            if seq == 1:
+                queryString += "&" + str(key) + '=' + encoded_val
+            else:
+                seq = 1
+                queryString = str(key) + '=' + encoded_val
 
-        queryString = "&".join(query_params)
+        # Hash trực tiếp queryString, không dùng hashData thô nữa
+        hashValue = self.__hmacsha512(secret_key, queryString)
 
-        # 3. Tạo chữ ký SHA512
-        hashValue = hmac.new(
-            secret_key.encode('utf-8'),
-            queryString.encode('utf-8'),
-            hashlib.sha512
-        ).hexdigest()
-        
+        print("\n" + "="*40)
+        print("1. SECRET KEY ĐANG DÙNG:", secret_key)
+        print("2. CHUỖI DỮ LIỆU ĐỂ BĂM (QueryString):")
+        print(queryString)
+        print("3. CHỮ KÝ TỰ TÍNH (HashValue):", hashValue)
+        print("="*40 + "\n")
+
         return vnp_Url + "?" + queryString + '&vnp_SecureHash=' + hashValue
 
     def validate_response(self, secret_key):
-        vnp_SecureHash = self.responseData.get('vnp_SecureHash')
+        vnp_SecureHash = self.responseData.get('vnp_SecureHash', '')
         
-        # Lấy các tham số bắt đầu bằng vnp_ và không phải hash
-        data = {k: v for k, v in self.responseData.items() 
-                if k.startswith('vnp_') and k != 'vnp_SecureHash' and k != 'vnp_SecureHashType'}
+        validData = {k: v for k, v in self.responseData.items()
+                     if k not in ['vnp_SecureHash', 'vnp_SecureHashType']}
+
+        inputData = sorted(validData.items())
+        queryString = ''
+        seq = 0
         
-        inputData = sorted(data.items())
-        
-        # Khi kiểm tra mã trả về, phải dùng cùng chuẩn mã hóa với lúc gửi đi
-        query_params = []
         for key, val in inputData:
-            if val is not None and str(val) != "":
-                encoded_val = urllib.parse.quote(str(val))
-                query_params.append(f"{key}={encoded_val}")
+            if str(key).startswith('vnp_') and str(val).strip() != '':
+                encoded_val = urllib.parse.quote_plus(str(val))
+                if seq == 1:
+                    queryString += "&" + str(key) + '=' + encoded_val
+                else:
+                    seq = 1
+                    queryString = str(key) + '=' + encoded_val
         
-        queryString = "&".join(query_params)
-        
-        # Dùng hàm nội bộ để băm lại
-        checkValue = self.__hmacsha512(secret_key, queryString)
-        return vnp_SecureHash == checkValue
+        hashValue = self.__hmacsha512(secret_key, queryString)
+        return vnp_SecureHash.lower() == hashValue.lower()
 
     def __hmacsha512(self, key, data):
         byteKey = key.encode('utf-8')

@@ -13,20 +13,21 @@ import os
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
+
 # 1. LẤY DANH SÁCH TOUR CỦA TÔI
 @supplier_bp.route('/tours', methods=['GET'])
 @jwt_required()
 def get_my_tours():
     sid = get_jwt_identity()
     tours = Tour.query.filter_by(supplier_id=sid).all()
-    
+
     result = []
     for t in tours:
         guide_name = "Chưa phân công"
         guide_id = None
-        
-        if t.guide_assignments: 
-            assignment = t.guide_assignments[0] 
+
+        if t.guide_assignments:
+            assignment = t.guide_assignments[0]
             guide = TourGuide.query.get(assignment.guide_id)
             if guide:
                 guide_name = guide.full_name
@@ -59,7 +60,6 @@ def create_tour():
     try:
         image_url = data.get('image')
         guide_id = data.get('guide_id')
-
         start_date = data.get("start_date")
         end_date = data.get("end_date")
 
@@ -75,21 +75,27 @@ def create_tour():
             start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
             end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
         )
-        
+
         db.session.add(new_tour)
-        db.session.flush()
-        
+        db.session.flush()  # Lấy new_tour.id trước khi commit
+
+        # Tạo assignment ngay khi tạo tour nếu có chọn guide
+        # assignment.status = 'pending' nhưng tour.status vẫn là 'pending'
+        # → guide thấy request nhưng can_respond = False → chưa hiện nút
+        # Khi admin approve tour → tour.status = 'approved' → can_respond = True → hiện nút
         if guide_id:
-            assignment = TourGuideAssignment(
-                tour_id=new_tour.id,
-                guide_id=guide_id,
-                status='pending'
-            )
-            db.session.add(assignment)
-            
+            guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
+            if guide:
+                assignment = TourGuideAssignment(
+                    tour_id=new_tour.id,
+                    guide_id=guide_id,
+                    status='pending'
+                )
+                db.session.add(assignment)
+
         db.session.commit()
         return jsonify({"message": "Tạo tour thành công, đang chờ duyệt"}), 201
-        
+
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -101,10 +107,10 @@ def create_tour():
 def update_my_tour(tour_id):
     sid = get_jwt_identity()
     tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first_or_404()
-    
+
     if tour.status not in ['pending', 'rejected']:
         return jsonify({"msg": "Không thể sửa tour đã được duyệt"}), 403
-    
+
     data = request.get_json() or {}
 
     tour.name = data.get('name', tour.name)
@@ -116,10 +122,9 @@ def update_my_tour(tour_id):
 
     if data.get("start_date"):
         tour.start_date = datetime.strptime(data["start_date"], "%Y-%m-%d")
-
     if data.get("end_date"):
         tour.end_date = datetime.strptime(data["end_date"], "%Y-%m-%d")
-    
+
     db.session.commit()
     return jsonify({"msg": "Cập nhật thành công"}), 200
 
@@ -141,7 +146,6 @@ def create_guide():
     data = request.get_json()
 
     try:
-
         if not data.get("email") or not data.get("full_name"):
             return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
 
@@ -186,31 +190,39 @@ def create_guide():
         return jsonify({"error": str(e)}), 500
 
 
-# 6. PHÂN CÔNG GUIDE CHO TOUR
+# 6. PHÂN CÔNG GUIDE CHO TOUR (assign thêm sau khi tour đã approved)
 @supplier_bp.route('/tours/<int:tour_id>/assign-guide', methods=['POST'])
 @jwt_required()
 def assign_guide(tour_id):
-
     sid = get_jwt_identity()
     data = request.get_json()
     guide_id = data.get("guide_id")
 
     tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first()
-
     if not tour:
         return jsonify({"msg": "Không tìm thấy tour"}), 404
 
-    guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
+    # Chỉ assign thêm khi tour đã được admin duyệt
+    if tour.status != 'approved':
+        return jsonify({"msg": "Chỉ có thể phân công thêm HDV sau khi tour được admin duyệt"}), 403
 
+    guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
     if not guide:
         return jsonify({"msg": "Guide không hợp lệ"}), 404
+
+    # Tránh assign trùng
+    existing = TourGuideAssignment.query.filter_by(
+        tour_id=tour_id,
+        guide_id=guide_id
+    ).first()
+    if existing:
+        return jsonify({"msg": "HDV này đã được phân công cho tour rồi"}), 400
 
     assignment = TourGuideAssignment(
         tour_id=tour_id,
         guide_id=guide_id,
         status='pending'
     )
-
     db.session.add(assignment)
     db.session.commit()
 
@@ -221,9 +233,8 @@ def assign_guide(tour_id):
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()
 def get_revenue_summary():
-
     sid = get_jwt_identity()
-    
+
     stats = db.session.query(
         func.count(Order.id).label('total_orders'),
         func.sum(Payment.amount).label('total_revenue')
@@ -235,7 +246,7 @@ def get_revenue_summary():
 
     total_orders = stats.total_orders or 0
     total_revenue = stats.total_revenue or 0
-    
+
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
 
@@ -245,7 +256,7 @@ def get_revenue_summary():
         .filter(Tour.supplier_id == sid)\
         .filter(Payment.status == 'pending')\
         .scalar()
-        
+
     escrow_amount = escrow_stats or 0
 
     pending_orders_count = db.session.query(func.count(Order.id))\
@@ -270,9 +281,8 @@ def get_revenue_summary():
 @supplier_bp.route('/revenue/by-tour', methods=['GET'])
 @jwt_required()
 def get_revenue_by_tour():
-
     sid = get_jwt_identity()
-    
+
     results = db.session.query(
         Tour.id,
         Tour.name,
@@ -284,7 +294,7 @@ def get_revenue_by_tour():
      .filter(Payment.status == 'success')\
      .group_by(Tour.id, Tour.name)\
      .all()
-    
+
     data = []
     for r in results:
         rev = r.total_revenue or 0
@@ -296,6 +306,5 @@ def get_revenue_by_tour():
             'supplier_revenue': rev * 0.85,
             'total_bookings': r.total_bookings
         })
-    
+
     return jsonify(data), 200
-    

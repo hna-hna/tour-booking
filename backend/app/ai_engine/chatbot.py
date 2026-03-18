@@ -1,4 +1,3 @@
-#back/app/ai_engine/chatbot
 import openai
 import os
 

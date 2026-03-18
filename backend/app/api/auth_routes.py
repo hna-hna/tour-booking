@@ -11,7 +11,7 @@ auth_bp = Blueprint('auth', __name__)
 def register():
     data = request.get_json()
     
-    # Kiểm tra dữ liệu đầu vào
+    # Kiểm tra dữ liệu
     if not data or not data.get('email') or not data.get('password'):
         return jsonify({"msg": "Vui lòng nhập email và mật khẩu!"}), 400
     
@@ -36,9 +36,10 @@ def register():
     
     try:
         db.session.add(new_user)
-        db.session.flush()  # Lấy new_user.id trước khi commit để dùng cho TourGuide
+        db.session.flush()  
+        # flush để lấy new_user.id trước khi commit
 
-        # Nếu là GUIDE → tự động tạo profile trong bảng tour_guides
+        # Nếu là GUIDE → tạo profile trong tour_guides
         if role_enum == UserRole.GUIDE:
             guide_profile = TourGuide(
                 user_id=new_user.id,
@@ -61,6 +62,8 @@ def register():
         return jsonify({"msg": f"Lỗi server: {str(e)}"}), 500
 
 # 2. API ĐĂNG NHẬP (Login)
+# backend/app/api/auth_routes.py
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     try:
@@ -74,9 +77,13 @@ def login():
         # Tìm user trong database
         user = User.query.filter_by(email=email).first()
 
-        # Kiểm tra sự tồn tại và mật khẩu
-        if user and user.check_password(password):
-            # Tạo Token JWT, lưu ID và Role vào additional_claims
+        # BƯỚC QUAN TRỌNG: Kiểm tra xem user có tồn tại hay không trước khi check pass
+        if user is None:
+            return jsonify({"msg": "Email không tồn tại!"}), 401
+
+        # Kiểm tra mật khẩu (Sử dụng cách so sánh trực tiếp của bạn)
+        if user.check_password(password):
+            # Tạo Token
             token = create_access_token(
                 identity=str(user.id), 
                 additional_claims={"role": user.role.value}
@@ -85,6 +92,7 @@ def login():
             return jsonify({
                 "msg": "Đăng nhập thành công",
                 "access_token": token,
+                "user_id": user.id,
                 "user_info": {
                     "id": user.id,
                     "name": user.full_name,
@@ -92,7 +100,7 @@ def login():
                 }
             }), 200
         else:
-            return jsonify({"msg": "Email hoặc mật khẩu không chính xác!"}), 401
+            return jsonify({"msg": "Mật khẩu không chính xác!"}), 401
 
     except Exception as e:
         print(f"Lỗi hệ thống: {str(e)}")

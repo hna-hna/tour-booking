@@ -1,5 +1,4 @@
 Flask
-pandas
 Flask-SQLAlchemy
 psycopg2-binary
 Flask-Migrate
@@ -8,4 +7,3 @@ python-dotenv
 Werkzeug
 flask_socketio
 flask_cors
-scikit-learn

@@ -20,7 +20,7 @@ class AIChatHistory(db.Model):
     id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     
     # user_id liên kết với bảng users (kiểu dữ liệu phải khớp với User.id, thường là UUID hoặc Integer)
-    user_id = db.Column(db.ForeignKey('users.id', ondelete='CASCADE'), nullable=True)
+    user_id = db.Column(db.String(255), nullable=True)
     
     # Mã phiên để lọc lịch sử theo lần đăng nhập
     session_id = db.Column(db.Text, nullable=False)

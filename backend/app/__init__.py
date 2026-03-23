@@ -6,6 +6,11 @@ from flask_migrate import Migrate
 from config import Config
 from flask_cors import CORS
 from datetime import timedelta
+from supabase import create_client, Client
+
+SUPABASE_URL = "https://ailvrqwpsjumhsszbnlw.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpbHZycXdwc2p1bWhzc3pibmx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyODAyMDQsImV4cCI6MjA4Mzg1NjIwNH0.9kUNT1lgKH_rGWIdMD_ZLlyP6TR5YEkIRn1bmXcDqvA"
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def create_app():
     app = Flask(__name__ , static_folder='static', static_url_path='/static')
@@ -62,7 +67,6 @@ def create_app():
     app.register_blueprint(order_bp, url_prefix='/api/orders')
 
     # 4. Socket Events
-    from app import websockets
 
     # Test route
     @app.route('/')

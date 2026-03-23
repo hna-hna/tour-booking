@@ -24,10 +24,12 @@ export default function LoginPage() {
       const data = await res.json();
 
       if (res.ok && data.access_token && data.user_info) {
+        localStorage.clear();
         // 1. Lưu thông tin vào LocalStorage
         localStorage.setItem("token", data.access_token);
         localStorage.setItem("user_id", data.user_id || data.user_info.id); 
         localStorage.setItem("role", data.user_info.role);
+        localStorage.setItem("user", JSON.stringify(data.user_info));
         
         alert("Đăng nhập thành công!");
         

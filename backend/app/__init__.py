@@ -25,11 +25,7 @@ def create_app():
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"],
             "supports_credentials": True
-        },
-        r"/*": {
-            "origins": ["http://localhost:3000", "http://127.0.0.1:3000"],
-            "supports_credentials": True
-        }
+     }
     })
 
     # 2. Init Extensions
@@ -69,10 +65,7 @@ def create_app():
 
     from .api.order_routes import order_bp
     app.register_blueprint(order_bp, url_prefix='/api/orders')
-    
-   
 
-    
     # 4. Socket Events
 
     # Test route

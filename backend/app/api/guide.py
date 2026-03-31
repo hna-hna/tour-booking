@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 from app.models.tour import Tour
 from app.models.tour_guide import TourGuide, TourGuideAssignment
@@ -76,7 +76,7 @@ def get_tour_requests():
         return jsonify([]), 200
 
     assignments = TourGuideAssignment.query.filter_by(
-        guide_id=guide.id,
+        guide_id=guide.id, 
         status='pending'
     ).all()
 
@@ -91,11 +91,8 @@ def get_tour_requests():
                 "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None,
                 "price": getattr(tour, 'price', 0),
                 "assigned_date": assign.assigned_date,
-                # Trạng thái tour để frontend hiển thị/ẩn nút
                 "tour_status": tour.status,
-                # Flag rõ ràng: chỉ cho phép respond khi tour đã được admin duyệt
-                "can_respond": tour.status == 'approved'
-            })
+                "can_respond": tour.status in ['waiting_guide', 'pending_guide'] and assign.status == 'pending'            })
     return jsonify(results), 200
 
 
@@ -116,35 +113,58 @@ def respond_to_request(request_id):
     if not assign:
         return jsonify({"msg": "Không tìm thấy yêu cầu"}), 404
 
-    # Kiểm tra assignment thuộc về guide hiện tại
     if assign.guide_id != guide.id:
         return jsonify({"msg": "Bạn không có quyền phản hồi yêu cầu này"}), 403
 
-    # Chỉ respond khi assignment đang ở trạng thái pending
     if assign.status != 'pending':
         return jsonify({"msg": "Yêu cầu này đã được xử lý rồi"}), 400
 
-    # Chỉ cho phép respond khi tour đã được admin duyệt
     tour = Tour.query.get(assign.tour_id)
     if not tour:
         return jsonify({"msg": "Không tìm thấy tour"}), 404
 
-    if tour.status != 'approved':
-        return jsonify({
-            "msg": "Tour chưa được admin duyệt, chưa thể phản hồi yêu cầu này"
-        }), 403
+    # ❗ CHỈ cho phản hồi khi đang waiting_guide
+    if tour.status not in ['waiting_guide', 'pending_guide']:
+        return jsonify({"msg": "Tour chưa sẵn sàng để phản hồi"}), 403
 
+    # ===== LOGIC MỚI =====
     if action == 'accept':
         assign.status = 'accepted'
+
+        # ✅ chuyển sang chờ admin duyệt
+        tour.status = 'pending'
+
+        # ✅ tránh nhiều guide nhận
+        TourGuideAssignment.query.filter(
+            TourGuideAssignment.tour_id == tour.id,
+            TourGuideAssignment.id != assign.id
+        ).update({"status": "rejected"})
+
+        if hasattr(tour, 'needs_guide'):
+            tour.needs_guide = False
+
         msg = "Đã nhận tour thành công!"
+
     elif action == 'reject':
         assign.status = 'rejected'
+
+        # ✅ trả về cho supplier assign lại
+        tour.status = 'pending_guide'
+
+        if hasattr(tour, 'needs_guide'):
+            tour.needs_guide = True
+
         msg = "Đã từ chối tour."
+
     else:
         return jsonify({"msg": "Hành động không hợp lệ"}), 400
 
-    db.session.commit()
-    return jsonify({"msg": msg}), 200
+    try:
+        db.session.commit()
+        return jsonify({"msg": msg}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
 
 
 # 5. Lấy danh sách khách hàng
@@ -203,7 +223,8 @@ def guide_profile():
             if 'status' in data:
                 guide.status = data['status']
             if 'languages' in data:
-                guide.languages = ", ".join(data['languages']) if isinstance(data['languages'], list) else data['languages']
+                langs = data['languages']
+                guide.languages = ", ".join(langs) if isinstance(langs, list) else langs
             if 'years_of_experience' in data:
                 guide.years_of_experience = data['years_of_experience']
 

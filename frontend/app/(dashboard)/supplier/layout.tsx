@@ -18,6 +18,7 @@ export default function SupplierLayout({
     { name: "Quản lý Hướng dẫn viên", href: "/supplier/tour_guide_management" },
     { name: "Duyệt HDV", href: "/supplier/approve-guide" },
     { name: "Doanh thu", href: "/supplier/revenue" },
+    
   ];
 
   return (

@@ -9,6 +9,11 @@ export default function UploadManageTourPage() {
   const [uploading, setUploading] = useState(false);
   const [guides, setGuides] = useState<any[]>([]);
 
+  // Modal assign lại guide
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [selectedTour, setSelectedTour] = useState<any>(null);
+  const [selectedGuideId, setSelectedGuideId] = useState("");
+
   const [formData, setFormData] = useState({
     id: null,
     name: "",
@@ -96,8 +101,7 @@ export default function UploadManageTourPage() {
     }
     setIsModalOpen(true);
   };
-
-  // 4. Upload ảnh lên Supabase
+// 4. Upload ảnh lên Supabase
   const uploadImageToSupabase = async (file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -195,6 +199,62 @@ export default function UploadManageTourPage() {
         alert("Lỗi khi xóa tour");
       }
     } catch (e) {
+alert("Lỗi kết nối mạng");
+    }
+  };
+
+const handleRequestCancel = async (id: number) => {
+  if (!confirm("Gửi yêu cầu hủy tour này đến Admin?")) return;
+  try {
+    const res = await fetch(`http://127.0.0.1:5000/api/supplier/tours/${id}/request-cancel`, {
+      method: "PUT",
+      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+    });
+    if (res.ok) {
+      alert("Đã gửi yêu cầu hủy!");
+      fetchTours(); // Load lại danh sách
+    } else {
+      const err = await res.json();
+      alert(err.msg || "Lỗi khi gửi yêu cầu");
+    }
+  } catch (e) { alert("Lỗi kết nối"); }
+};
+
+  // 7. Mở modal assign lại guide
+  const handleOpenAssignModal = (tour: any) => {
+    setSelectedTour(tour);
+    setSelectedGuideId("");
+    setAssignModalOpen(true);
+  };
+
+  // 8. Gửi assign lại guide
+  const handleAssignGuide = async () => {
+    if (!selectedGuideId) {
+      alert("Vui lòng chọn HDV!");
+      return;
+    }
+    try {
+      const res = await fetch(
+        `http://127.0.0.1:5000/api/supplier/tours/${selectedTour.id}/assign-guide`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${localStorage.getItem("token")}`
+          },
+          body: JSON.stringify({ guide_id: Number(selectedGuideId) })
+        }
+      );
+
+      if (res.ok) {
+        alert("Đã gửi yêu cầu cho HDV mới!");
+        setAssignModalOpen(false);
+        fetchTours();
+      } else {
+        const err = await res.json();
+        alert("Lỗi: " + (err.msg || "Không xác định"));
+      }
+    } catch (e) {
       alert("Lỗi kết nối mạng");
     }
   };
@@ -224,7 +284,9 @@ export default function UploadManageTourPage() {
           {tours.map((t) => (
             <div
               key={t.id || Math.random()}
-              className="group bg-gray-50 hover:bg-white border hover:border-emerald-200 p-6 rounded-3xl transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
+              className={`group bg-gray-50 hover:bg-white border hover:border-emerald-200 p-6 rounded-3xl transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
+                t.needs_guide ? "border-red-200 bg-red-50/30" : ""
+              }`}
             >
               {/* Thumbnail */}
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
@@ -236,7 +298,8 @@ export default function UploadManageTourPage() {
               </div>
 
               <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+{/* Status badge */}
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${
                     t.status === 'approved' ? 'bg-green-100 text-green-600' :
                     t.status === 'rejected' ? 'bg-red-100 text-red-600' :
@@ -244,8 +307,17 @@ export default function UploadManageTourPage() {
                   }`}>
                     {t.status ? t.status.toUpperCase() : "CHỜ DUYỆT"}
                   </span>
+
+                  {/* ⚠️ Badge đỏ khi HDV từ chối */}
+                  {t.needs_guide && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 animate-pulse">
+                      ⚠️ HDV đã từ chối — Cần chọn lại
+                    </span>
+                  )}
+
                   <span className="text-xs font-bold text-gray-500 uppercase">ID: #{t.id}</span>
                 </div>
+
                 <h3 className="text-lg font-black text-gray-800 group-hover:text-emerald-700 transition-colors">
                   {t.name}
                 </h3>
@@ -254,7 +326,9 @@ export default function UploadManageTourPage() {
                     <span className="text-gray-800">{t.price?.toLocaleString() || 0}đ</span>
                   </p>
                   <p className="text-sm text-gray-500 font-medium">
-                    HDV: <span className="text-gray-800">{t.guide_name || "Chưa phân công"}</span>
+                    HDV: <span className={`${t.needs_guide ? "text-red-500 font-bold" : "text-gray-800"}`}>
+                      {t.guide_name || "Chưa phân công"}
+                    </span>
                   </p>
                   {t.start_date && (
                     <p className="text-sm text-gray-500 font-medium">
@@ -267,20 +341,52 @@ export default function UploadManageTourPage() {
                 </div>
               </div>
 
-              <div className="flex gap-2 w-full md:w-auto border-t md:border-none pt-4 md:pt-0">
-                {(t.status === 'pending' || t.status === 'rejected') ? (
-                  <>
-                    <button onClick={() => handleOpenModal(t)} className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all">
-                      SỬA
-                    </button>
-                    <button onClick={() => handleDelete(t.id)} className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all">
-                      XÓA
-                    </button>
-                  </>
-                ) : (
-                  <div className="text-gray-400 italic text-[11px]">Đã duyệt</div>
-                )}
-              </div>
+             <div className="flex flex-wrap gap-2 w-full md:w-auto border-t md:border-none pt-4 md:pt-0">
+  {/* 1. Nút chọn lại HDV khi bị từ chối */}
+  {t.needs_guide && (
+    <button
+      onClick={() => handleOpenAssignModal(t)}
+      className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 transition-all shadow-md"
+    >
+      🔄 Chọn HDV mới
+    </button>
+  )}
+
+  {/* 2. NÚT YÊU CẦU HỦY: Hiện khi tour đã approved */}
+  {t.status === 'approved' && (
+    <button 
+      onClick={() => handleRequestCancel(t.id)}
+      className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
+    >
+      ⚠️ YÊU CẦU HỦY
+    </button>
+  )}
+
+  {/* 3. NÚT SỬA/XÓA: Hiện khi tour chưa duyệt hoặc bị từ chối */}
+  {['pending', 'rejected', 'pending_guide', 'waiting_guide'].includes(t.status) && (
+    <>
+      <button
+        onClick={() => handleOpenModal(t)}
+        className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all"
+      >
+        SỬA
+      </button>
+      <button
+        onClick={() => handleDelete(t.id)}
+        className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
+      >
+        XÓA
+      </button>
+    </>
+  )}
+
+  {/* 4. THÔNG BÁO khi đang chờ Admin duyệt hủy */}
+  {t.status === 'cancel_requested' && (
+    <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl italic text-[11px] font-bold border border-dashed border-gray-300">
+      ⏳ Đang chờ Admin duyệt hủy...
+    </span>
+  )}
+</div>
             </div>
           ))}
 
@@ -290,9 +396,54 @@ export default function UploadManageTourPage() {
         </div>
       )}
 
-      {/* MODAL FORM */}
-      {isModalOpen && (
+      {/* MODAL ASSIGN LẠI HDV */}
+      {assignModalOpen && selectedTour && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-2xl">
+            <h2 className="text-xl font-black text-gray-800 mb-2">Chọn HDV mới</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              Tour: <span className="font-bold text-gray-800">{selectedTour.name}</span>
+              <br />
+              <span className="text-red-500 text-xs">HDV cũ đã từ chối yêu cầu này</span>
+            </p>
+
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
+              Chọn Hướng Dẫn Viên
+            </label>
+            <select
+              className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-emerald-500 font-bold text-gray-700 mb-6"
+              value={selectedGuideId}
+              onChange={e => setSelectedGuideId(e.target.value)}
+            >
+              <option value="">-- Chọn HDV --</option>
+              {guides
+                .filter(g => g.status && g.status.toUpperCase() === 'AVAILABLE')
+                .map(g => (
+                  <option key={g.id} value={g.id}>{g.full_name}</option>
+                ))}
+            </select>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setAssignModalOpen(false)}
+                className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-500 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={handleAssignGuide}
+                className="flex-1 px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-all shadow-lg"
+              >
+                Gửi yêu cầu
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL FORM TẠO/SỬA TOUR */}
+      {isModalOpen && (
+<div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-white w-full max-w-3xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-black text-gray-800 uppercase italic">
@@ -302,8 +453,6 @@ export default function UploadManageTourPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              {/* Tên tour */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Tên Tour</label>
                 <input
@@ -314,7 +463,6 @@ export default function UploadManageTourPage() {
                 />
               </div>
 
-              {/* Hình ảnh */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Hình ảnh</label>
                 <input
@@ -330,7 +478,6 @@ export default function UploadManageTourPage() {
                 )}
               </div>
 
-              {/* Giá */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Giá (VNĐ)</label>
                 <input
@@ -342,7 +489,6 @@ export default function UploadManageTourPage() {
                 />
               </div>
 
-              {/* Số lượng */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Số lượng khách</label>
                 <input
@@ -354,9 +500,8 @@ export default function UploadManageTourPage() {
                 />
               </div>
 
-              {/* Ngày bắt đầu */}
               <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày bắt đầu</label>
+<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày bắt đầu</label>
                 <input
                   type="date"
                   required
@@ -366,7 +511,6 @@ export default function UploadManageTourPage() {
                 />
               </div>
 
-              {/* Ngày kết thúc */}
               <div>
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày kết thúc</label>
                 <input
@@ -378,7 +522,6 @@ export default function UploadManageTourPage() {
                 />
               </div>
 
-              {/* HDV */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
                   Chọn Hướng Dẫn Viên (Đang sẵn sàng)
@@ -400,7 +543,6 @@ export default function UploadManageTourPage() {
                 </select>
               </div>
 
-              {/* Lịch trình */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Lịch trình & Mô tả</label>
                 <textarea
@@ -410,7 +552,6 @@ export default function UploadManageTourPage() {
                   onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
                 />
               </div>
-
             </div>
 
             <div className="flex justify-end gap-4 mt-10">
@@ -421,12 +562,11 @@ export default function UploadManageTourPage() {
                 type="button"
                 onClick={handleSubmit}
                 disabled={uploading}
-                className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400"
+className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400"
               >
                 {uploading ? "Đang xử lý..." : (formData.id ? "Lưu thay đổi" : "Gửi tour")}
               </button>
             </div>
-
           </div>
         </div>
       )}

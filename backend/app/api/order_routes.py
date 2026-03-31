@@ -1,20 +1,85 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
+from datetime import datetime
+
+# Import các Model cần thiết cho việc truy vấn và Join bảng
 from app.models.order import Order
 from app.models.tour import Tour
-from datetime import datetime
+from app.models.tour_guide import TourGuide ,TourGuideAssignment
 
 order_bp = Blueprint('orders', __name__)
 
-# 1. Lấy danh sách đơn hàng của tôi
+# ---------------------------------------------------------
+# 1. LẤY CHI TIẾT ĐƠN HÀNG (Kèm thông tin Hướng dẫn viên)
+# ---------------------------------------------------------
+@order_bp.route('/<int:order_id>', methods=['GET'])
+@jwt_required()
+def get_order_detail(order_id):
+    try:
+        current_user_id = get_jwt_identity()
+        
+        # Thực hiện Join 4 bảng để lấy đầy đủ thông tin:
+        # Order -> Tour (để lấy tên tour)
+        # Tour -> Assignment (bảng trung gian)
+        # Assignment -> TourGuide (để lấy thông tin người dẫn đoàn)
+        result = db.session.query(Order, Tour, TourGuide)\
+            .join(Tour, Order.tour_id == Tour.id)\
+            .outerjoin(TourGuideAssignment, Tour.id == TourGuideAssignment.tour_id)\
+            .outerjoin(TourGuide, TourGuideAssignment.guide_id == TourGuide.id)\
+            .filter(Order.id == order_id, Order.user_id == current_user_id)\
+            .first()
+
+        if not result:
+            return jsonify({"error": "Không tìm thấy đơn hàng hoặc bạn không có quyền xem"}), 404
+        
+        order, tour, guide = result
+
+        return jsonify({
+            "id": order.id,
+            "status": order.status,
+            "total_price": order.total_price,
+            "guest_count": order.guest_count,
+            "booking_date": order.booking_date.isoformat() if order.booking_date else None,
+            "tour": {
+                "id": tour.id,
+                "name": tour.name,
+                "image": tour.image,
+                "itinerary": tour.itinerary,
+                "price_per_person": tour.price
+            },
+            # Trả về thông tin HDV nếu đã được phân công
+            "guide": {
+                "id": guide.id,
+                "user_id": str(guide.user_id), # Dùng ID này để Front-end mở trang Chat
+                "full_name": guide.full_name,
+                "phone": guide.phone,
+                "license_number": guide.license_number,
+                "email": guide.email,
+                "languages": guide.languages,
+                "specialties": guide.specialties,
+                "years_of_experience": guide.years_of_experience
+            } if guide else None,
+            "payment": {
+                "method": "Thanh toán trực tuyến",
+                "transaction_id": f"PAY{order.id:06d}",
+                "payment_date": order.booking_date.isoformat() if order.booking_date else None
+            }
+        }), 200
+    except Exception as e:
+        print(f"Lỗi lấy chi tiết đơn hàng: {e}")
+        return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
+
+# ---------------------------------------------------------
+# 2. LẤY DANH SÁCH LỊCH SỬ ĐƠN HÀNG CỦA TÔI
+# ---------------------------------------------------------
 @order_bp.route('/my-orders', methods=['GET'])
 @jwt_required()
 def get_my_orders():
     try:
         current_user_id = get_jwt_identity()
         
-        # Join Order với Tour để lấy tên và ảnh minh họa
+        # Lấy các đơn hàng của User hiện tại, sắp xếp mới nhất lên đầu
         orders = db.session.query(Order, Tour)\
             .join(Tour, Order.tour_id == Tour.id)\
             .filter(Order.user_id == current_user_id)\
@@ -35,56 +100,13 @@ def get_my_orders():
             })
             
         return jsonify(result), 200
-        
     except Exception as e:
-        print("Lỗi lấy lịch sử đơn hàng:", e)
+        print(f"Lỗi lấy lịch sử đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
 
-# 2. Lấy chi tiết một đơn hàng (Gộp từ nhánh nnna)
-@order_bp.route('/<int:order_id>', methods=['GET'])
-@jwt_required()
-def get_order_details(order_id):
-    try:
-        current_user_id = get_jwt_identity()
-        from app.models.order import Payment
-        
-        # Query bộ ba: Order, Tour và thông tin Payment (nếu có)
-        result = db.session.query(Order, Tour, Payment)\
-            .join(Tour, Order.tour_id == Tour.id)\
-            .outerjoin(Payment, Order.id == Payment.order_id)\
-            .filter(Order.id == order_id, Order.user_id == current_user_id)\
-            .first()
-            
-        if not result:
-            return jsonify({"error": "Không tìm thấy đơn hàng hoặc bạn không có quyền xem."}), 404
-            
-        order, tour, payment = result
-        
-        return jsonify({
-            "id": order.id,
-            "status": order.status,
-            "total_price": order.total_price,
-            "guest_count": order.guest_count,
-            "booking_date": order.booking_date.isoformat() if order.booking_date else None,
-            "tour": {
-                "id": tour.id,
-                "name": tour.name,
-                "image": tour.image,
-                "itinerary": tour.itinerary,
-                "price_per_person": tour.price
-            },
-            "payment": {
-                "method": payment.payment_method if payment else "Chưa thanh toán",
-                "transaction_id": payment.transaction_id if payment else None,
-                "payment_date": payment.payment_date.isoformat() if payment and payment.payment_date else None,
-            }
-        }), 200
-        
-    except Exception as e:
-        print("Lỗi lấy chi tiết đơn hàng:", str(e))
-        return jsonify({"error": f"Lỗi máy chủ: {str(e)}"}), 500
-
-# 3. Tạo đơn hàng mới
+# ---------------------------------------------------------
+# 3. TẠO ĐƠN ĐẶT TOUR MỚI
+# ---------------------------------------------------------
 @order_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_order():
@@ -104,7 +126,7 @@ def create_order():
             tour_id=tour_id,
             total_price=float(total_price),
             guest_count=int(guest_count),
-            status='paid' # Giả định thanh toán thành công ngay khi tạo
+            status='paid' # Mặc định sau khi đặt là đã thanh toán
         )
         
         db.session.add(new_order)
@@ -114,10 +136,12 @@ def create_order():
         
     except Exception as e:
         db.session.rollback()
-        print("Lỗi tạo đơn hàng:", e)
+        print(f"Lỗi tạo đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
 
-# 4. Hủy đơn hàng (Chỉ cho phép trong vòng 24h)
+# ---------------------------------------------------------
+# 4. HỦY ĐƠN HÀNG (Trong vòng 24h)
+# ---------------------------------------------------------
 @order_bp.route('/<int:order_id>/cancel', methods=['PUT'])
 @jwt_required()
 def cancel_order(order_id):
@@ -128,22 +152,22 @@ def cancel_order(order_id):
         if not order:
             return jsonify({"error": "Không tìm thấy đơn hàng"}), 404
             
-        # Kiểm tra điều kiện thời gian
+        # Logic kiểm tra thời gian 24 giờ
         if order.booking_date:
             time_diff = datetime.utcnow() - order.booking_date
             if time_diff.total_seconds() > 24 * 3600:
                 return jsonify({"error": "Đã quá thời hạn 24 giờ để hủy tour miễn phí."}), 400
 
-        # Kiểm tra trạng thái có thể hủy
+        # Kiểm tra trạng thái đơn hàng có được phép hủy không
         if order.status not in ['pending', 'paid', 'Đã thanh toán']: 
             return jsonify({"error": "Không thể hủy đơn hàng ở trạng thái này."}), 400
             
         order.status = 'cancelled'
         db.session.commit()
         
-        return jsonify({"msg": "Hủy đơn hàng thành công! Tiền sẽ được hoàn lại.", "order_id": order_id}), 200
+        return jsonify({"msg": "Hủy đơn hàng thành công!", "order_id": order_id}), 200
         
     except Exception as e:
         db.session.rollback()
-        print("Lỗi hủy đơn hàng:", e)
+        print(f"Lỗi hủy đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500

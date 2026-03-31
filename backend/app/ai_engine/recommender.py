@@ -1,5 +1,3 @@
-#back/app/ai_engine/recommender.py
-
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -14,8 +12,9 @@ class TourRecommender:
         self.similarity_matrix = None
         self.tour_ids = []
 
-    # tour có số lượng mua nhiều để giới thiệu (lấy start date sắp tới
-    
+    # ================================
+    # 🔥 POPULAR TOUR (CHỈ TOUR SẮP ĐI)
+    # ================================
     def get_popular_tours(self, limit=6):
         """
         1. Đếm số lượng từ bảng Orders (status='paid' hoặc 'completed').
@@ -64,7 +63,9 @@ class TourRecommender:
             print(f"Error getting popular tours: {e}")
             return []
 
-    # train model (Collaborative Filtering)
+    # ================================
+    # TRAIN MODEL (Collaborative Filtering)
+    # ================================
     def train_model(self):
         orders = Order.query.all()
         logs = TourViewLog.query.all()
@@ -88,7 +89,7 @@ class TourRecommender:
             interactions.append({'user_id': l.user_id, 'tour_id': l.tour_id, 'score': 1})
 
         if not interactions:
-            print(" Chưa có dữ liệu tương tác để train AI.")
+            print("⚠️ Chưa có dữ liệu tương tác để train AI.")
             return False
 
         df = pd.DataFrame(interactions)
@@ -104,8 +105,9 @@ class TourRecommender:
         print(" AI Model retrained successfully!")
         return True
 
-
-    # gợi ý
+    # ================================
+    # RECOMMEND
+    # ================================
     def recommend(self, user_id, top_n=6):
 
         #  Nếu chưa train

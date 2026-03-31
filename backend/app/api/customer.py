@@ -1,4 +1,3 @@
-#backend/app/api/customer.py 
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
@@ -7,10 +6,11 @@ from app.models import Tour
 from app.models.order import Order
 from sqlalchemy import func
 
-customer_bp = Blueprint('customer_bp', __name__, url_prefix='/api')
+customer_bp = Blueprint('customer_bp', __name__)
 recommender = TourRecommender()
 
 
+# ================= SEARCH =================
 @customer_bp.route('/tours/search', methods=['GET'])
 def search_tours():
     query_string = request.args.get('q', '').strip()

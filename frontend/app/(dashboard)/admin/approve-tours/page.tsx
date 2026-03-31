@@ -12,12 +12,14 @@ interface Tour {
   start_date: string;
   end_date: string;
   created_at: string;
+  status: string; // Thêm status để nhận diện loại yêu cầu
 }
 
 export default function ApproveToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // 1. Gọi API lấy danh sách Tour đang chờ duyệt (Pending + Cancel Requested)
   const fetchPendingTours = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/tours/pending");
@@ -33,12 +35,25 @@ export default function ApproveToursPage() {
     fetchPendingTours();
   }, []);
 
-  const handleStatusChange = async (id: number, status: "approved" | "rejected") => {
-    if (!confirm(`Bạn chắc chắn muốn ${status === "approved" ? "DUYỆT" : "TỪ CHỐI"} tour này?`)) return;
+  // 2. Xử lý Duyệt hoặc Từ chối (Tự động nhận diện API theo status)
+  const handleStatusChange = async (id: number, currentStatus: string, action: "approve" | "reject") => {
+    const isCancelRequest = currentStatus === "cancel_requested";
+    const url = isCancelRequest 
+        ? `http://localhost:5000/api/admin/tours/${id}/cancel` 
+        : `http://localhost:5000/api/admin/tours/${id}/moderate`;
+
+    const displayMsg = isCancelRequest 
+        ? (action === "approve" ? "ĐỒNG Ý HỦY" : "BÁC BỎ HỦY")
+        : (action === "approve" ? "DUYỆT ĐĂNG" : "TỪ CHỐI ĐĂNG");
+
+    if (!confirm(`Bạn chắc chắn muốn ${displayMsg} tour này?`)) return;
+
     try {
-      await axios.put(`http://localhost:5000/api/admin/tours/${id}/moderate`, {
-        action: status === "approved" ? "approve" : "reject",
+      await axios.put(url, {
+        action: action === "approve" ? "approve" : "reject",
       });
+      
+      // Cập nhật State tại chỗ
       setTours(tours.filter((t) => t.id !== id));
       alert("Xử lý thành công!");
     } catch (error) {
@@ -46,23 +61,26 @@ export default function ApproveToursPage() {
     }
   };
 
+  // Giao diện khi đang tải dữ liệu
   if (loading) return (
-    <div className="flex h-screen items-center justify-center">
+    <div className="flex h-screen items-center justify-center font-black">
       <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
     </div>
   );
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-8">
+      {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
         <div>
           <h1 className="text-4xl font-black text-gray-900 tracking-tight">Kiểm duyệt Tour</h1>
-          <p className="text-gray-500 font-bold italic mt-1">Phê duyệt nội dung từ nhà cung cấp</p>
+          <p className="text-gray-500 font-bold italic mt-1">Phê duyệt nội dung mới và yêu cầu hủy từ NCC</p>
         </div>
         
+        {/* Quick Stats Card */}
         <div className="bg-white p-6 rounded-3xl shadow-xl border border-gray-100 flex items-center gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Tổng giá trị chờ</p>
+            <p className="text-[10px] font-black uppercase text-gray-400 tracking-widest">Tổng giá trị chờ duyệt</p>
             <p className="text-2xl font-black text-gray-800">
               {tours.reduce((sum, t) => sum + (t.price * t.quantity), 0).toLocaleString()} <span className="text-sm">đ</span>
             </p>
@@ -70,9 +88,10 @@ export default function ApproveToursPage() {
         </div>
       </div>
 
+      {/* Main Content */}
       {tours.length === 0 ? (
         <div className="bg-white p-20 text-center rounded-[3rem] shadow-2xl border border-gray-100">
-           <p className="text-gray-400 font-black tracking-tight text-xl"> Không có tour nào cần duyệt!</p>
+            <p className="text-gray-400 font-black tracking-tight text-xl">Hiện không còn yêu cầu nào cần phê duyệt!</p>
         </div>
       ) : (
         <div className="bg-white shadow-2xl rounded-[2.5rem] overflow-hidden border border-gray-50">
@@ -81,7 +100,7 @@ export default function ApproveToursPage() {
               <thead>
                 <tr className="bg-gray-50/50 border-b border-gray-100">
                   <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Thông tin Tour</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Giá & SL</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Loại Yêu Cầu</th>
                   <th className="px-8 py-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Nhà cung cấp</th>
                   <th className="px-8 py-5 text-[10px] font-black text-blue-600 uppercase tracking-widest text-center">Thao tác</th>
                 </tr>
@@ -90,32 +109,40 @@ export default function ApproveToursPage() {
                 {tours.map((tour) => (
                   <tr key={tour.id} className="hover:bg-blue-50/20 transition-all group">
                     <td className="px-8 py-6">
-                      <div className="text-sm font-black text-gray-800 group-hover:text-blue-600 transition-colors">{tour.name}</div>
+                      <div className="text-sm font-black text-gray-800 group-hover:text-blue-600 transition-colors">
+                        {tour.name}
+                      </div>
                       <div className="flex gap-4 mt-1 text-[10px] font-bold text-gray-400 uppercase">
-                        <span> {new Date(tour.start_date).toLocaleDateString('vi-VN')}</span>
+                        <span> Khởi hành: {new Date(tour.start_date).toLocaleDateString('vi-VN')}</span>
                         <span>ID: #{tour.id}</span>
                       </div>
                     </td>
+
                     <td className="px-8 py-6">
-                      <div className="text-sm font-black text-gray-800">{tour.price.toLocaleString()} đ</div>
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Tồn kho: {tour.quantity}</p>
+                        {tour.status === "cancel_requested" ? (
+                            <span className="bg-rose-100 text-rose-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">Yêu cầu hủy</span>
+                        ) : (
+                            <span className="bg-blue-100 text-blue-600 px-3 py-1 rounded-full text-[9px] font-black uppercase">Đăng ký mới</span>
+                        )}
                     </td>
+
                     <td className="px-8 py-6">
                       <span className="bg-gray-100 px-3 py-1 rounded-full text-[10px] font-black text-gray-600 uppercase tracking-tighter">
-                        {tour.supplier_name || `Supplier ${tour.supplier_id}`}
+                        {tour.supplier_name || `NCC #${tour.supplier_id}`}
                       </span>
                     </td>
+
                     <td className="px-8 py-6">
                       <div className="flex justify-center gap-3">
                         <button 
-                          onClick={() => handleStatusChange(tour.id, "approved")}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg shadow-blue-200 transition-all active:scale-95"
+                          onClick={() => handleStatusChange(tour.id, tour.status, "approve")}
+                          className={`${tour.status === 'cancel_requested' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-200' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'} text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg transition-all active:scale-95`}
                         >
-                          Duyệt
+                          {tour.status === 'cancel_requested' ? 'Duyệt Hủy' : 'Duyệt Đăng'}
                         </button>
                         <button 
-                          onClick={() => handleStatusChange(tour.id, "rejected")}
-                          className="bg-white border border-gray-200 text-rose-500 hover:bg-rose-50 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
+                          onClick={() => handleStatusChange(tour.id, tour.status, "reject")}
+                          className="bg-white border border-gray-200 text-gray-500 hover:bg-gray-50 px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all active:scale-95"
                         >
                           Từ chối
                         </button>

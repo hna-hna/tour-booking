@@ -1,4 +1,3 @@
-#backend/app/api/admin/routes.py
 from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models.tour import Tour
@@ -12,39 +11,91 @@ admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
 # QUẢN LÝ TOUR 
 
-#  API Lấy danh sách tour đang chờ duyệt
+#  API Lấy danh sách tour đang chờ duyệt (Đã gộp pending và cancel_requested)
 @admin_bp.route('/tours/pending', methods=['GET'])
 # @jwt_required()
 # @role_required(['admin'])  decorator check quyền
 def get_pending_tours():
-    # Sửa lỗi: Tách dòng rõ ràng
-    tours = Tour.query.filter_by(status='pending').all()
+    # Lấy các tour có trạng thái = 'pending' HOẶC 'cancel_requested'
+    tours = Tour.query.filter(Tour.status.in_(['pending', 'cancel_requested'])).all()
     
     result = []
     for t in tours:
+        # Xử lý an toàn nếu description bị None
         desc = getattr(t, 'description', '') or ''
+        
         result.append({
             "id": t.id,
             "name": t.name,
             "price": t.price,
             "quantity": t.quantity,
-            "start_date": t.start_date.isoformat() if t.start_date else None,
-            "end_date": t.end_date.isoformat() if t.end_date else None,
-            "supplier_name": t.supplier.full_name if t.supplier else "Không rõ", # Đã thêm dấu phẩy
             "description": desc,
             "supplier_id": t.supplier_id,
             "created_at": t.created_at.strftime('%Y-%m-%d %H:%M:%S') if t.created_at else None,
-            "status": t.status
+            "status": t.status,
+            "start_date": t.start_date.strftime('%Y-%m-%d') if t.start_date else None
         })
     return jsonify(result), 200
-#API Duyệt hoặc Từ chối Tour
+
+#  Lấy danh sách tour yêu cầu hủy (Giữ nguyên để dùng nếu cần riêng)
+@admin_bp.route('/tours/cancel-requests', methods=['GET'])
+def get_cancel_requests():
+    tours = Tour.query.filter_by(status='cancel_requested').all()
+
+    result = []
+    for t in tours:
+        result.append({
+            "id": t.id,
+            "name": t.name,
+            "price": t.price,
+            "supplier_id": t.supplier_id,
+            "status": t.status,
+            "created_at": t.created_at.strftime('%Y-%m-%d %H:%M:%S') if t.created_at else None
+        })
+
+    return jsonify(result), 200
+
+#  Duyệt hoặc từ chối yêu cầu hủy tour
+@admin_bp.route('/tours/<int:tour_id>/cancel', methods=['PUT'])
+def handle_cancel_request(tour_id):
+    data = request.get_json()
+    action = data.get('action')  # approve | reject
+
+    tour = Tour.query.get(tour_id)
+    if not tour:
+        return jsonify({"msg": "Tour không tồn tại"}), 404
+
+    if tour.status != 'cancel_requested':
+        return jsonify({"msg": "Tour không ở trạng thái chờ hủy"}), 400
+
+    try:
+        if action == 'approve':
+            tour.status = 'cancelled'
+            msg = "Đã duyệt hủy tour"
+        elif action == 'reject':
+            tour.status = 'approved'  # 🔥 trả lại trạng thái cũ
+            msg = "Đã từ chối yêu cầu hủy"
+        else:
+            return jsonify({"msg": "Hành động không hợp lệ"}), 400
+
+        db.session.commit()
+        return jsonify({"msg": msg, "status": tour.status}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+#API Duyệt hoặc Từ chối Tour mới
 @admin_bp.route('/tours/<int:tour_id>/moderate', methods=['PUT'])
 # @jwt_required()
 def moderate_tour(tour_id):
+    # Body nhận vào: { "action": "approve" } hoặc { "action": "reject" }
     data = request.get_json()
-    action = data.get('action') 
+    action = data.get('action') # 'approve' hoặc 'reject'
     
-    tour = Tour.query.get_or_404(tour_id) # Dùng get_or_404 cho an toàn
+    tour = Tour.query.get(tour_id)
+    if not tour:
+        return jsonify({"msg": "Tour không tồn tại"}), 404
         
     if action == 'approve':
         tour.status = 'approved'
@@ -58,6 +109,7 @@ def moderate_tour(tour_id):
     db.session.commit()
     return jsonify({"msg": msg, "status": tour.status}), 200
 
+
 # QUẢN LÝ USER
 
 #lấy danh sách toàn bộ Users
@@ -69,7 +121,7 @@ def get_all_users():
             'id': u.id,
             'full_name': u.full_name,
             'email': u.email,
-            'role': u.role.value if hasattr(u.role, 'value') else u.role, 
+            'role': u.role.value, # Lấy giá trị string từ Enum
             'is_active': u.is_active,
             'created_at': u.created_at.strftime('%Y-%m-%d %H:%M:%S') if u.created_at else None
         } for u in users

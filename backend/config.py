@@ -5,6 +5,7 @@ from datetime import timedelta
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
+# 2. Ghép đường dẫn đó với tên file .env
 env_path = os.path.join(basedir, '.env')
 
 class Config:

@@ -19,7 +19,5 @@ class Tour(db.Model):
     end_date = db.Column(db.DateTime, nullable=True)   # Ngày về
     # Quan hệ với phân công hướng dẫn viên
     guide_assignments = db.relationship('TourGuideAssignment', back_populates='tour', cascade='all, delete-orphan', overlaps="assignments")
-    supplier = db.relationship('User', backref='tours_created')
-
-
+    needs_guide = db.Column(db.Boolean, default=False)
 

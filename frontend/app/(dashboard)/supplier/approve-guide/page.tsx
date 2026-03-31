@@ -19,7 +19,7 @@ export default function ApproveGuidePage() {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-
+  
   const fetchGuides = async () => {
     const token = localStorage.getItem("token");
     if (!token) {

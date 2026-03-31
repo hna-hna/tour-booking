@@ -24,8 +24,8 @@ export default function HomePage() {
     
     // Nếu có token thì gọi API AI gợi ý, ngược lại gọi API tour phổ biến
     const endpoint = token 
-      ? "http://localhost:5000/api/tours/recommend" 
-      : "http://localhost:5000/api/tours/popular";
+      ? "http://localhost:5000/api/customer/tours/recommend" 
+      : "http://localhost:5000/api/customer/tours/popular";
 
     if (token) setUserType("user");
 

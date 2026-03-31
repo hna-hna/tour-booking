@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db, supabase
 from app.models.user import User
-from app.models.chat import Message, AIChatHistory
+from app.models.chat import Message
 from app.models.tour import Tour
 from app.models.order import Order
 from app.models.log import SearchLog, TourViewLog
@@ -101,7 +101,9 @@ def get_chat_partners():
                     "role": role_display,
                     "lastMessage": last_msg.get('content', "") if last_msg else ""
                 })
+
         return jsonify(partners), 200
+
     except Exception as e:
         print("Lỗi get partners:", str(e))
         return jsonify({"error": str(e)}), 500
@@ -254,7 +256,7 @@ def get_ai_history():
         return jsonify([]), 200
 
 
-# 🛡️ Giữ lại 1 hàm lấy lịch sử Chat trực tiếp duy nhất ở đây (đã lọc trùng)
+#  Giữ lại 1 hàm lấy lịch sử Chat trực tiếp duy nhất ở đây (đã lọc trùng)
 @chat_bp.route('/messages/<string:partner_id>', methods=['GET'])
 @jwt_required()
 def get_full_chat_history(partner_id):
@@ -286,6 +288,7 @@ def get_full_chat_history(partner_id):
 @chat_bp.route('/send', methods=['POST'])
 @jwt_required()
 def send_message():
+    current_user_id = int(get_jwt_identity()) # ID người gửi lấy từ Token
     data = request.get_json()
     sender_id = str(get_jwt_identity())
     receiver_id = str(data.get('receiver_id'))

@@ -73,7 +73,7 @@ export default function MainLayout({
         return "/guide";
       case "customer":
       default:
-        return "/customer/dashboard";
+        return "/";
     }
   };
 
@@ -133,13 +133,7 @@ export default function MainLayout({
               Về chúng tôi
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-emerald-600 group-hover:w-full transition-all"></span>
             </a>
-            <a
-              href="/contact"
-              className="text-gray-700 hover:text-emerald-600 font-medium transition-colors relative group"
-            >
-              Liên hệ
-              <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-emerald-600 group-hover:w-full transition-all"></span>
-            </a>
+            
           </nav>
 
           {/* Auth Section */}
@@ -278,7 +272,6 @@ export default function MainLayout({
                 <li><a href="/" className="hover:text-emerald-400 transition-colors">Trang chủ</a></li>
                 <li><a href="/tours" className="hover:text-emerald-400 transition-colors">Danh sách Tour</a></li>
                 <li><a href="/about" className="hover:text-emerald-400 transition-colors">Về chúng tôi</a></li>
-                <li><a href="/contact" className="hover:text-emerald-400 transition-colors">Liên hệ</a></li>
               </ul>
             </div>
 

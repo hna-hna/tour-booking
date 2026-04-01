@@ -66,6 +66,9 @@ def create_app():
     from .api.order_routes import order_bp
     app.register_blueprint(order_bp, url_prefix='/api/orders')
 
+    from .api.review_routes import review_bp
+    app.register_blueprint(review_bp, url_prefix='/api')
+
     # 4. Socket Events
 
     # Test route

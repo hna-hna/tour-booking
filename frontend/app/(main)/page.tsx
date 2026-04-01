@@ -94,7 +94,7 @@ export default function HomePage() {
         {loading ? (
           <div className="flex flex-col items-center py-20">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mb-4"></div>
-            <p className="text-emerald-600 font-medium animate-pulse">Đang phân tích dữ liệu AI...</p>
+            <p className="text-emerald-600 font-medium animate-pulse">Vui lòng chờ trong giây lát để tải thông tin..</p>
           </div>
         ) : recommendedTours.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

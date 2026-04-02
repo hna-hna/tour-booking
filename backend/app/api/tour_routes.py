@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, jsonify, request
 from app.models.tour import Tour
 from app.models.order import Order
@@ -116,16 +117,34 @@ def get_public_tours():
 def get_tour_detail(tour_id):
     tour = Tour.query.get_or_404(tour_id)
     
+    # Xử lý itinerary an toàn
+    itinerary_data = []
+    if tour.itinerary:
+        if isinstance(tour.itinerary, str):
+            try:
+                # Thử parse nếu là JSON array
+                parsed = json.loads(tour.itinerary)
+                if isinstance(parsed, list):
+                    itinerary_data = parsed
+                else:
+                    # Nếu chỉ là string đơn giản (như "biển"), chuyển thành format array
+                    itinerary_data = [{"day": 1, "title": "Thông tin lịch trình", "description": tour.itinerary}]
+            except:
+                # Nếu không parse được, chuyển string thành 1 ngày
+                itinerary_data = [{"day": 1, "title": "Lịch trình", "description": tour.itinerary}]
+        elif isinstance(tour.itinerary, list):
+            itinerary_data = tour.itinerary
+
     return jsonify({
         "id": tour.id,
         "name": tour.name,
         "description": tour.description or "",
         "price": tour.price,
         "image": tour.image,
-        "start_date": tour.start_date,
-        "end_date": tour.end_date,
+        "start_date": tour.start_date.isoformat() if tour.start_date else None,
+        "end_date": tour.end_date.isoformat() if tour.end_date else None,
         "status": tour.status,
-        "itinerary": tour.itinerary or "", 
+        "itinerary": itinerary_data,        # ← Luôn trả về mảng
         "quantity": getattr(tour, 'quantity', 0),
         "supplier_id": getattr(tour, 'supplier_id', None)
     }), 200

@@ -20,6 +20,8 @@ export default function GuideTourDetailPage() {
       .get(`http://localhost:5000/api/tours/${tourId}`)
       .then((res) => {
         let data = res.data;
+
+        // Xử lý itinerary
         if (data && typeof data.itinerary === "string") {
           try {
             data.itinerary = JSON.parse(data.itinerary);
@@ -104,106 +106,54 @@ export default function GuideTourDetailPage() {
 
         {/* STAT CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="relative overflow-hidden bg-gradient-to-br from-sky-100 to-blue-200 rounded-3xl p-8 text-slate-800 shadow-lg shadow-blue-200/40 hover:scale-[1.01] transition-transform duration-300">
+            <p className="text-sm text-slate-600 font-medium">Ngày bắt đầu</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900">
+              {tour.start_date ? new Date(tour.start_date).toLocaleDateString("vi-VN") : "---"}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">Khởi hành chính thức</p>
+          </div>
 
-          {/* Start date */}
-<div className="relative overflow-hidden 
-  bg-gradient-to-br from-sky-100 to-blue-200
-  rounded-3xl p-8 text-slate-800
-  shadow-lg shadow-blue-200/40
-  hover:scale-[1.01] transition-transform duration-300">
+          <div className="relative overflow-hidden bg-gradient-to-br from-violet-100 to-indigo-200 rounded-3xl p-8 text-slate-800 shadow-lg shadow-indigo-200/40 hover:scale-[1.01] transition-transform duration-300">
+            <p className="text-sm text-slate-600 font-medium">Ngày kết thúc</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900">
+              {tour.end_date ? new Date(tour.end_date).toLocaleDateString("vi-VN") : "---"}
+            </p>
+            <p className="text-xs text-slate-500 mt-2">Dự kiến hoàn thành</p>
+          </div>
 
-  <p className="text-sm text-slate-600 font-medium">
-    Ngày bắt đầu
-  </p>
-
-  <p className="text-3xl font-bold mt-2 text-slate-900">
-    {tour.start_date
-      ? new Date(tour.start_date).toLocaleDateString("vi-VN")
-      : "---"}
-  </p>
-
-  <p className="text-xs text-slate-500 mt-2">
-    Khởi hành chính thức
-  </p>
-</div>
-
-
-{/* End date */}
-<div className="relative overflow-hidden 
-  bg-gradient-to-br from-violet-100 to-indigo-200
-  rounded-3xl p-8 text-slate-800
-  shadow-lg shadow-indigo-200/40
-  hover:scale-[1.01] transition-transform duration-300">
-
-  <p className="text-sm text-slate-600 font-medium">
-    Ngày kết thúc
-  </p>
-
-  <p className="text-3xl font-bold mt-2 text-slate-900">
-    {tour.end_date
-      ? new Date(tour.end_date).toLocaleDateString("vi-VN")
-      : "---"}
-  </p>
-
-  <p className="text-xs text-slate-500 mt-2">
-    Dự kiến hoàn thành
-  </p>
-</div>
-
-
-{/* Passengers */}
-<div className="relative overflow-hidden 
-  bg-gradient-to-br from-emerald-100 to-teal-200
-  rounded-3xl p-8 text-slate-800
-  shadow-lg shadow-emerald-200/40
-  hover:scale-[1.01] transition-transform duration-300">
-
-  <p className="text-sm text-slate-600 font-medium">
-    Số hành khách
-  </p>
-
-  <p className="text-3xl font-bold mt-2 text-slate-900">
-    {customers.length} người
-  </p>
-
-  <p className="text-xs text-slate-500 mt-2">
-    Đã xác nhận tham gia
-  </p>
-</div>
-
+          <div className="relative overflow-hidden bg-gradient-to-br from-emerald-100 to-teal-200 rounded-3xl p-8 text-slate-800 shadow-lg shadow-emerald-200/40 hover:scale-[1.01] transition-transform duration-300">
+            <p className="text-sm text-slate-600 font-medium">Số hành khách</p>
+            <p className="text-3xl font-bold mt-2 text-slate-900">{customers.length} người</p>
+            <p className="text-xs text-slate-500 mt-2">Đã xác nhận tham gia</p>
+          </div>
         </div>
 
         {/* INFO + ITINERARY */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
           {/* Description */}
-          <div className="bg-white/80 backdrop-blur border border-gray-200
-            rounded-3xl p-8 shadow-xl">
-            <h2 className="text-xl font-black text-gray-800 mb-4"> Mô tả / Địa điểm</h2>
-            <p className="text-gray-600 leading-relaxed text-sm">{tour.description}</p>
+          <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl p-8 shadow-xl">
+            <h2 className="text-xl font-black text-gray-800 mb-4">Mô tả / Địa điểm</h2>
+            <p className="text-gray-600 leading-relaxed text-sm">
+              {tour.description || "Không có mô tả tour"}
+            </p>
 
             <div className="mt-8">
-  <button
-    onClick={handleFinishTour}
-    className="w-full py-4 rounded-2xl font-semibold 
-      bg-emerald-600 text-white
-      hover:bg-emerald-700
-      transition-all duration-200
-      shadow-md shadow-emerald-200/50
-      active:scale-[0.98]"
-  >
-    Hoàn thành tour
-  </button>
-
-  <p className="text-xs text-slate-400 text-center mt-3">
-    Hành động này không thể hoàn tác sau khi xác nhận
-  </p>
-</div>
+              <button
+                onClick={handleFinishTour}
+                className="w-full py-4 rounded-2xl font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-all duration-200 shadow-md shadow-emerald-200/50 active:scale-[0.98]"
+              >
+                Hoàn thành tour
+              </button>
+              <p className="text-xs text-slate-400 text-center mt-3">
+                Hành động này không thể hoàn tác sau khi xác nhận
+              </p>
+            </div>
           </div>
 
           {/* Itinerary */}
-          <div className="bg-white/80 backdrop-blur border border-gray-200
-            rounded-3xl p-8 shadow-xl">
+          <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl p-8 shadow-xl">
             <h2 className="text-xl font-black text-gray-800 mb-4">Lịch trình di chuyển</h2>
 
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
@@ -213,10 +163,7 @@ export default function GuideTourDetailPage() {
                     key={idx}
                     className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 hover:bg-blue-50/60 transition"
                   >
-                    <div className="min-w-[36px] h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600
-                      flex items-center justify-center text-white font-black text-sm shadow">
-                      {day.day || idx + 1}
-                    </div>
+                    
                     <div>
                       <p className="font-bold text-gray-800 text-sm">{day.title}</p>
                       <p className="text-xs text-gray-500 mt-0.5">{day.description}</p>
@@ -230,26 +177,19 @@ export default function GuideTourDetailPage() {
               )}
             </div>
           </div>
-
         </div>
 
         {/* CUSTOMER TABLE */}
         <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg">
           <div className="p-8 border-b bg-gray-50 flex justify-between items-center">
             <div>
-              <h2 className="text-xl font-black text-gray-800">
-                Danh sách Hành khách
-              </h2>
-              <p className="text-sm text-gray-500 mt-1">
-                {customers.length} hành khách đã đăng ký
-              </p>
+              <h2 className="text-xl font-black text-gray-800">Danh sách Hành khách</h2>
+              <p className="text-sm text-gray-500 mt-1">{customers.length} hành khách đã đăng ký</p>
             </div>
-
             <button
               onClick={() => loadCustomers(tourId)}
               disabled={loadingCust}
-              className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-100
-                rounded-2xl text-sm font-bold shadow-sm transition"
+              className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 rounded-2xl text-sm font-bold shadow-sm transition"
             >
               {loadingCust ? "Đang tải..." : "⟳ Làm mới"}
             </button>
@@ -259,51 +199,33 @@ export default function GuideTourDetailPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-100 border-b">
-                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">
-                    Hành khách
-                  </th>
-                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">
-                    Liên hệ
-                  </th>
-                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">
-                    Ghi chú
-                  </th>
-                  <th className="px-6 py-4 text-right font-black text-gray-500 uppercase text-xs tracking-wider">
-                    Thao tác
-                  </th>
+                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Hành khách</th>
+                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Liên hệ</th>
+                  <th className="px-6 py-4 text-left font-black text-gray-500 uppercase text-xs tracking-wider">Ghi chú</th>
+                  <th className="px-6 py-4 text-right font-black text-gray-500 uppercase text-xs tracking-wider">Thao tác</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-gray-100">
                 {customers.map((cus) => (
                   <tr key={cus.id} className="hover:bg-gray-50/80 transition">
                     <td className="px-6 py-4 font-bold text-gray-800">{cus.full_name}</td>
-
                     <td className="px-6 py-4 text-gray-600">
                       <p className="text-sm">{cus.phone}</p>
                       <p className="text-xs text-gray-400">{cus.email}</p>
                     </td>
-
                     <td className="px-6 py-4 text-xs text-gray-500">
-                      {cus.note || (
-                        <span className="italic text-gray-300">Trống</span>
-                      )}
+                      {cus.note || <span className="italic text-gray-300">Trống</span>}
                     </td>
-
                     <td className="px-6 py-4 text-right space-x-2">
                       <button
                         onClick={() => viewCustomerProfile(cus)}
-                        className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200
-                          rounded-xl text-xs font-bold transition"
+                        className="px-4 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs font-bold transition"
                       >
                         Hồ sơ
                       </button>
-
                       <button
                         onClick={() => goToChat(cus.id, cus.full_name)}
-                        className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-teal-500
-                          text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-300/30
-                          hover:scale-105 transition"
+                        className="px-4 py-1.5 bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-300/30 hover:scale-105 transition"
                       >
                         Chat
                       </button>
@@ -322,17 +244,15 @@ export default function GuideTourDetailPage() {
             </table>
           </div>
         </div>
-
       </div>
 
-      {/* MODAL */}
+      {/* ==================== MODAL HỒ SƠ KHÁCH HÀNG ==================== */}
       {selectedCustomer && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl">
 
-            <div className="mb-6">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500
-                flex items-center justify-center text-white font-black text-2xl mb-4 shadow-lg">
+            <div className="mb-6 text-center">
+              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white font-black text-4xl shadow-lg mb-4">
                 {selectedCustomer.full_name?.charAt(0)}
               </div>
               <h2 className="text-2xl font-black text-gray-900">
@@ -340,27 +260,22 @@ export default function GuideTourDetailPage() {
               </h2>
             </div>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl">
-                <span className="text-lg">📧</span>
-                <span className="text-sm text-gray-700">{selectedCustomer.email}</span>
+            <div className="space-y-4 mb-8">
+              <div className="p-4 bg-gray-50 rounded-2xl">
+                <p className="text-xs text-gray-500 mb-1">Email</p>
+                <p className="text-gray-800 font-medium">{selectedCustomer.email}</p>
               </div>
-              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-2xl">
-                <span className="text-lg">📞</span>
-                <span className="text-sm text-gray-700">{selectedCustomer.phone}</span>
+
+              <div className="p-4 bg-gray-50 rounded-2xl">
+                <p className="text-xs text-gray-500 mb-1">Số điện thoại</p>
+                <p className="text-gray-800 font-medium">{selectedCustomer.phone || "Chưa có"}</p>
               </div>
-              {selectedCustomer.note && (
-                <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-2xl">
-                  <span className="text-lg">📝</span>
-                  <span className="text-sm text-gray-500 italic">{selectedCustomer.note}</span>
-                </div>
-              )}
             </div>
 
             <div className="flex gap-3">
               <button
                 onClick={() => setSelectedCustomer(null)}
-                className="flex-1 py-3 bg-gray-100 hover:bg-gray-200 rounded-2xl font-bold text-sm transition"
+                className="flex-1 py-3.5 bg-gray-100 hover:bg-gray-200 rounded-2xl font-bold text-sm transition"
               >
                 Đóng
               </button>
@@ -370,18 +285,14 @@ export default function GuideTourDetailPage() {
                   setSelectedCustomer(null);
                   goToChat(selectedCustomer.id, selectedCustomer.full_name);
                 }}
-                className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-teal-500
-                  text-white rounded-2xl font-bold text-sm shadow-lg shadow-emerald-300/30
-                  hover:scale-[1.02] transition"
+                className="flex-1 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-2xl font-bold text-sm shadow-lg hover:scale-[1.02] transition"
               >
-                Nhắn tin
+                Nhắn tin ngay
               </button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -3,38 +3,92 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut, Menu, X } from "lucide-react";
+import axios from "axios";
+
+interface UserInfo {
+  id: number;
+  full_name: string;
+  email: string;
+  role: string;
+}
 
 export default function GuideLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+
   const [isSidebarOpen, setSidebarOpen] = useState(true);
   const [isMounted, setIsMounted] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [loading, setLoading] = useState(true);
 
+  // Lấy thông tin HDV từ API
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+
+    const fetchGuideProfile = async () => {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const res = await axios.get("http://localhost:5000/api/guide/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        setUser({
+          id: res.data.id,
+          full_name: res.data.full_name,
+          email: res.data.email,
+          role: "guide",
+        });
+      } catch (error) {
+        console.error("Không lấy được thông tin hướng dẫn viên:", error);
+        // Fallback nếu lỗi
+        setUser({
+          id: 0,
+          full_name: "Hướng Dẫn Viên",
+          email: "",
+          role: "guide",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGuideProfile();
+  }, [router]);
 
   const menuItems = [
-    { name: "Lịch Tour Hiện Tại", href: "/guide", icon: "" },
-    { name: "Yêu Cầu Mới", href: "/guide/requests", icon: "" },
-    { name: "Lịch Sử Tour", href: "/guide/history", icon: "" },
-    { name: "Tin Nhắn", href: "/guide/chat", icon: "" },
-    { name: "Hồ Sơ & Cài Đặt", href: "/guide/profile", icon: "" },
+    { name: "Lịch Tour Hiện Tại", href: "/guide" },
+    { name: "Yêu Cầu Mới", href: "/guide/requests" },
+    { name: "Lịch Sử Tour", href: "/guide/history" },
+    { name: "Tin Nhắn", href: "/guide/chat" },
+    { name: "Hồ Sơ & Cài Đặt", href: "/guide/profile"},
   ];
 
   const handleLogout = () => {
     if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
       localStorage.removeItem("token");
       localStorage.removeItem("role");
+      localStorage.removeItem("user_info");
       localStorage.removeItem("user_id");
       router.push("/login");
     }
   };
 
-  if (!isMounted) return null;
+  if (!isMounted || loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-gray-500">Đang tải thông tin...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
+      {/* Sidebar */}
       <aside
         className={`bg-gradient-to-b from-slate-800 to-slate-900 text-slate-100 transition-all duration-300 flex flex-col fixed h-full z-30 shadow-xl ${
           isSidebarOpen ? "w-72" : "w-20"
@@ -64,7 +118,6 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
                     : "text-slate-300 hover:bg-slate-700/40 hover:text-white"
                 }`}
               >
-                <span className="text-xl">{item.icon}</span>
                 {isSidebarOpen && <span className="font-medium">{item.name}</span>}
               </Link>
             );
@@ -82,6 +135,7 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
+      {/* Main Content */}
       <div
         className={`flex-1 flex flex-col transition-all duration-300 ${
           isSidebarOpen ? "ml-72" : "ml-20"
@@ -97,14 +151,16 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="font-semibold text-slate-800">HDV Nguyễn Văn A</p>
+              <p className="font-semibold text-slate-800">
+                {user?.full_name || "Hướng Dẫn Viên"}
+              </p>
               <p className="text-xs text-emerald-600 flex items-center justify-end gap-1.5">
-                <span className="w-2 h-2  animate-pulse"></span>
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
                 Trực tuyến
               </p>
             </div>
             <div className="w-10 h-10 rounded-full bg-emerald-600 flex items-center justify-center text-white font-semibold shadow">
-              guide
+              {user?.full_name?.charAt(0) || "G"}
             </div>
           </div>
         </header>

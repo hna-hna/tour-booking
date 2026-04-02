@@ -110,6 +110,7 @@ def get_chat_partners():
 @chat_bp.route('/ai', methods=['POST'])
 @jwt_required()
 def chat_with_ai():
+    # 1. Kiểm tra bảng (Chỉ nên chạy 1 lần khi khởi tạo, nhưng tạm giữ nếu Quỳnh chưa ổn định DB)
     from sqlalchemy import text
     try:
         db.session.execute(text("SELECT user_id FROM ai_chat_history LIMIT 1"))
@@ -123,37 +124,39 @@ def chat_with_ai():
     user_message = data.get('message')
     user_id = str(get_jwt_identity()) 
     session_id = data.get('session_id')
-
+    
     if not user_message:
         return jsonify({"reply": "Bạn chưa nhập tin nhắn."}), 400
 
-    # 1. Thu thập Context
-    recent_keywords = ""
-    recent_views = ""
-    recent_orders = ""
+    # 2. Thu thập Context (ĐÃ FIX LỖI BIẾN)
+    recent_keywords = "chưa có"
+    recent_views = "chưa xem"
+    recent_orders = "chưa đặt tour nào"
+    search_context = "chưa có"
+
     try:
-        searches = SearchLog.query.filter_by(user_id=user_id).order_by(SearchLog.searched_at.desc()).limit(5).all()
-        recent_keywords = ", ".join([s.keyword for s in searches if s.keyword]) or "chưa có"
+        searches = SearchLog.query.filter_by(user_id=user_id).order_by(SearchLog.searched_at.desc()).limit(5).all() 
+        if searches:
+            k_list = [s.keyword for s in searches if s.keyword]
+            if k_list:
+                recent_keywords = ", ".join(k_list)
+                search_context = recent_keywords
 
         views = TourViewLog.query.filter_by(user_id=user_id).order_by(TourViewLog.viewed_at.desc()).limit(4).all()
-        recent_views_list = []
-        for v in views:
-            t = Tour.query.get(v.tour_id)
-            if t: recent_views_list.append(t.name)
-        recent_views = ", ".join(recent_views_list) or "chưa xem"
+        recent_views_list = [Tour.query.get(v.tour_id).name for v in views if Tour.query.get(v.tour_id)]
+        if recent_views_list:
+            recent_views = ", ".join(recent_views_list)
 
         orders = Order.query.filter_by(user_id=user_id).order_by(Order.booking_date.desc()).limit(3).all()
-        recent_orders_list = []
-        for o in orders:
-            t = Tour.query.get(o.tour_id)
-            if t: recent_orders_list.append(t.name)
-        recent_orders = ", ".join(recent_orders_list) or "chưa đặt tour nào"
-    except Exception:
-        pass
+        recent_orders_list = [Tour.query.get(o.tour_id).name for o in orders if Tour.query.get(o.tour_id)]
+        if recent_orders_list:
+            recent_orders = ", ".join(recent_orders_list)
+    except Exception as e:
+        print(f"Context Error: {e}")
 
     context_extra = f"Khách tìm kiếm: {recent_keywords}\nKhách đã xem: {recent_views}\nKhách đã đặt: {recent_orders}"
 
-    # 2. Phân tích lọc tour
+    # 3. Phân tích lọc tour
     intent, budget_max = detect_intent(user_message)
     query = Tour.query.filter_by(status='approved')
 
@@ -163,42 +166,40 @@ def chat_with_ai():
 
     filtered_tours = query.limit(10).all()
     final_tours = ensure_minimum_tours(filtered_tours, min_count=5)
-
     tour_context = "\n".join([f"- ID {t.id}: {t.name} ({t.price:,} VNĐ)" for t in final_tours])
 
-    # 3. Gọi Ollama
+    # 4. Gọi Ollama 
     system_prompt = f"""
-Bạn là trợ lý du lịch AI tiếng Việt. {context_extra}
+    Bạn là **Trợ lý du lịch chuyên nghiệp** của công ty tour Việt Nam, tên là "DuLichAI".
+    Phong cách: Thân thiện, nhiệt tình, ngắn gọn, dùng tiếng Việt tự nhiên.
 
-Danh sách tour CÓ THỂ GIỚI THIỆU:
-{tour_context}
+    Thông tin khách hàng: {context_extra}
+    Danh sách tour: {tour_context}
 
-YÊU CẦU BẮT BUỘC:
-- Luôn gợi ý 2-3 Tour từ danh sách ID phía trên.
-- Chỉ trả về chuỗi JSON duy nhất. Không viết lời chào thừa thãi ở ngoài JSON.
+    YÊU CẦU: Trả về duy nhất JSON: {{"reply": "nội dung", "tour_ids": [id1, id2]}}
+    """
 
-Mẫu JSON:
-{{
-  "reply": "Chào bạn! Mình có các tour biển rất đẹp cho bạn đây...",
-  "tour_ids": [danh_sách_số_id_nguyên]
-}}
-"""
-    payload = {"model": MODEL_NAME, "prompt": f"{system_prompt}\nKhách: {user_message}", "format": "json", "stream": False}
+    payload = {
+        "model": MODEL_NAME,
+        "prompt": f"{system_prompt}\n\nKhách hàng hỏi: {user_message}",
+        "format": "json",
+        "stream": False,
+        "temperature": 0.7
+    }
 
     reply = "Chào anh/chị! Em có thể giúp gì cho việc tìm kiếm tour hôm nay ạ?"
     suggested_ids = []
 
     try:
         resp = requests.post(OLLAMA_API_URL, json=payload, timeout=60)
-        ai_text = resp.json().get('response', '{}')
-        
-        clean_text = re.sub(r'```json|```', '', ai_text).strip()
-        parsed = json.loads(clean_text)
-        
-        reply = parsed.get('reply', reply)
-        suggested_ids = [int(x) for x in parsed.get('tour_ids', []) if str(x).isdigit()]
-    except Exception:
-        pass
+        if resp.status_code == 200:
+            ai_text = resp.json().get('response', '{}')
+            clean_text = re.sub(r'```json|```', '', ai_text).strip()
+            parsed = json.loads(clean_text)
+            reply = parsed.get('reply', reply)
+            suggested_ids = [int(x) for x in parsed.get('tour_ids', []) if str(x).isdigit()]
+    except Exception as e:
+        print(f"Lỗi gọi Ollama: {e}")
 
     if not suggested_ids and final_tours:
         suggested_ids = [t.id for t in final_tours[:3]]
@@ -213,11 +214,11 @@ Mẫu JSON:
         db.session.add(AIChatHistory(user_id=user_id, session_id=session_id, role='user', content=user_message))
         db.session.add(AIChatHistory(user_id=user_id, session_id=session_id, role='assistant', content=reply, tours=suggested_tours))
         db.session.commit()
-    except Exception:
+    except Exception as e:
+        print(f"Lỗi lưu DB: {e}")
         db.session.rollback()
 
     return jsonify({"reply": reply, "suggested_tours": suggested_tours}), 200
-
 
 @chat_bp.route('/ai/history', methods=['GET'])
 @jwt_required()

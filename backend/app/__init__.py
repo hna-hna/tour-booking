@@ -7,6 +7,7 @@ from config import Config
 from flask_cors import CORS
 from datetime import timedelta
 from supabase import create_client, Client
+from app.tasks import start_scheduler
 
 SUPABASE_URL = "https://ailvrqwpsjumhsszbnlw.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFpbHZycXdwc2p1bWhzc3pibmx3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjgyODAyMDQsImV4cCI6MjA4Mzg1NjIwNH0.9kUNT1lgKH_rGWIdMD_ZLlyP6TR5YEkIRn1bmXcDqvA"

@@ -1,13 +1,17 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-
 export default function UploadManageTourPage() {
   const [tours, setTours] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [guides, setGuides] = useState<any[]>([]);
+  
+  // --- PHẦN MỚI THÊM VÀO ---
+  // State lưu trạng thái lọc tour: "all", "approved", "rejected", "pending"
+  const [statusFilter, setStatusFilter] = useState("all");
+  // ---------------------------
 
   // Modal assign lại guide
   const [assignModalOpen, setAssignModalOpen] = useState(false);
@@ -28,11 +32,20 @@ export default function UploadManageTourPage() {
     end_date: ""
   });
 
-  // 1. Lấy danh sách tour
+  // 1. Lấy danh sách tour (Cập nhật: Có kèm tham số lọc)
   const fetchTours = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://127.0.0.1:5000/api/supplier/tours?nocache=${Date.now()}`, {
+      
+      // --- CẬP NHẬT LOGIC URL ---
+      // Tạo URL với tham số status nếu Supplier chọn lọc
+      let url = `http://127.0.0.1:5000/api/supplier/tours?nocache=${Date.now()}`;
+      if (statusFilter !== "all") {
+        url += `&status=${statusFilter}`;
+      }
+      // ----------------------------
+
+      const res = await fetch(url, {
         headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
       });
 
@@ -52,7 +65,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 2. Lấy danh sách HDV
+  // 2. Lấy danh sách HDV (Giữ nguyên)
   const fetchGuides = async () => {
     try {
       const res = await fetch("http://127.0.0.1:5000/api/supplier/guides", {
@@ -66,12 +79,13 @@ export default function UploadManageTourPage() {
     }
   };
 
+  // Cập nhật Effect: Gọi lại API khi thay đổi trạng thái lọc
   useEffect(() => {
     fetchTours();
     fetchGuides();
-  }, []);
+  }, [statusFilter]); // <--- THÊM statusFilter VÀO ĐÂY
 
-  // 3. Mở modal
+  // 3. Mở modal (Giữ nguyên)
   const handleOpenModal = (tour: any = null) => {
     if (tour) {
       setFormData({
@@ -81,6 +95,8 @@ export default function UploadManageTourPage() {
         price: tour.price ? tour.price.toString() : "",
         quantity: tour.quantity ? tour.quantity.toString() : "",
         guide_id: tour.guide_id ? tour.guide_id.toString() : "",
+        itinerary: tour.itinerary || "",
+        description: tour.description || "",
         start_date: tour.start_date ? tour.start_date.substring(0, 10) : "",
         end_date: tour.end_date ? tour.end_date.substring(0, 10) : ""
       });
@@ -101,7 +117,8 @@ export default function UploadManageTourPage() {
     }
     setIsModalOpen(true);
   };
-// 4. Upload ảnh lên Supabase
+
+  // 4. Upload ảnh lên Supabase (Giữ nguyên)
   const uploadImageToSupabase = async (file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -125,7 +142,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 5. Submit form
+  // 5. Submit form (Giữ nguyên)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
@@ -184,7 +201,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 6. Xóa tour
+  // 6. Xóa tour (Giữ nguyên)
   const handleDelete = async (id: number) => {
     if (!confirm("Bạn có chắc chắn muốn xóa tour này?")) return;
     try {
@@ -199,35 +216,35 @@ export default function UploadManageTourPage() {
         alert("Lỗi khi xóa tour");
       }
     } catch (e) {
-alert("Lỗi kết nối mạng");
+      alert("Lỗi kết nối mạng");
     }
   };
 
-const handleRequestCancel = async (id: number) => {
-  if (!confirm("Gửi yêu cầu hủy tour này đến Admin?")) return;
-  try {
-    const res = await fetch(`http://127.0.0.1:5000/api/supplier/tours/${id}/request-cancel`, {
-      method: "PUT",
-      headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
-    });
-    if (res.ok) {
-      alert("Đã gửi yêu cầu hủy!");
-      fetchTours(); // Load lại danh sách
-    } else {
-      const err = await res.json();
-      alert(err.msg || "Lỗi khi gửi yêu cầu");
-    }
-  } catch (e) { alert("Lỗi kết nối"); }
-};
+  const handleRequestCancel = async (id: number) => {
+    if (!confirm("Gửi yêu cầu hủy tour này đến Admin?")) return;
+    try {
+      const res = await fetch(`http://127.0.0.1:5000/api/supplier/tours/${id}/request-cancel`, {
+        method: "PUT",
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      if (res.ok) {
+        alert("Đã gửi yêu cầu hủy!");
+        fetchTours(); // Load lại danh sách
+      } else {
+        const err = await res.json();
+        alert(err.msg || "Lỗi khi gửi yêu cầu");
+      }
+    } catch (e) { alert("Lỗi kết nối"); }
+  };
 
-  // 7. Mở modal assign lại guide
+  // 7. Mở modal assign lại guide (Giữ nguyên)
   const handleOpenAssignModal = (tour: any) => {
     setSelectedTour(tour);
     setSelectedGuideId("");
     setAssignModalOpen(true);
   };
 
-  // 8. Gửi assign lại guide
+  // 8. Gửi assign lại guide (Giữ nguyên)
   const handleAssignGuide = async () => {
     if (!selectedGuideId) {
       alert("Vui lòng chọn HDV!");
@@ -267,6 +284,28 @@ const handleRequestCancel = async (id: number) => {
             Quản lý & Đăng tải Tour
           </h1>
           <p className="text-gray-400 text-sm">Quản lý lịch trình, HDV và giá tour của bạn</p>
+          
+          {/* --- PHẦN MỚI THÊM VÀO --- */}
+          <div className="flex gap-4 mt-6">
+            {[
+              { id: "all", label: "TẤT CẢ" },
+              { id: "approved", label: "ĐÃ DUYỆT" },
+              { id: "rejected", label: "BỊ TỪ CHỐI" },
+              { id: "pending", label: "ĐANG CHỜ" }
+            ].map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setStatusFilter(st.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                  statusFilter === st.id 
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100" 
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={() => handleOpenModal()}
@@ -299,7 +338,6 @@ const handleRequestCancel = async (id: number) => {
 
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-{/* Status badge */}
                   <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${
                     t.status === 'approved' ? 'bg-green-100 text-green-600' :
                     t.status === 'rejected' ? 'bg-red-100 text-red-600' :
@@ -308,7 +346,6 @@ const handleRequestCancel = async (id: number) => {
                     {t.status ? t.status.toUpperCase() : "CHỜ DUYỆT"}
                   </span>
 
-                  {/* ⚠️ Badge đỏ khi HDV từ chối */}
                   {t.needs_guide && (
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 animate-pulse">
                       ⚠️ HDV đã từ chối — Cần chọn lại
@@ -341,52 +378,48 @@ const handleRequestCancel = async (id: number) => {
                 </div>
               </div>
 
-             <div className="flex flex-wrap gap-2 w-full md:w-auto border-t md:border-none pt-4 md:pt-0">
-  {/* 1. Nút chọn lại HDV khi bị từ chối */}
-  {t.needs_guide && (
-    <button
-      onClick={() => handleOpenAssignModal(t)}
-      className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 transition-all shadow-md"
-    >
-      🔄 Chọn HDV mới
-    </button>
-  )}
+              <div className="flex flex-wrap gap-2 w-full md:w-auto border-t md:border-none pt-4 md:pt-0">
+                {t.needs_guide && (
+                  <button
+                    onClick={() => handleOpenAssignModal(t)}
+                    className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 transition-all shadow-md"
+                  >
+                    🔄 Chọn HDV mới
+                  </button>
+                )}
 
-  {/* 2. NÚT YÊU CẦU HỦY: Hiện khi tour đã approved */}
-  {t.status === 'approved' && (
-    <button 
-      onClick={() => handleRequestCancel(t.id)}
-      className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
-    >
-      ⚠️ YÊU CẦU HỦY
-    </button>
-  )}
+                {t.status === 'approved' && (
+                  <button
+                    onClick={() => handleRequestCancel(t.id)}
+                    className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
+                  >
+                    ⚠️ YÊU CẦU HỦY
+                  </button>
+                )}
 
-  {/* 3. NÚT SỬA/XÓA: Hiện khi tour chưa duyệt hoặc bị từ chối */}
-  {['pending', 'rejected', 'pending_guide', 'waiting_guide'].includes(t.status) && (
-    <>
-      <button
-        onClick={() => handleOpenModal(t)}
-        className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all"
-      >
-        SỬA
-      </button>
-      <button
-        onClick={() => handleDelete(t.id)}
-        className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
-      >
-        XÓA
-      </button>
-    </>
-  )}
+                {['pending', 'rejected', 'pending_guide', 'waiting_guide'].includes(t.status) && (
+                  <>
+                    <button
+                      onClick={() => handleOpenModal(t)}
+                      className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all"
+                    >
+                      SỬA
+                    </button>
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
+                    >
+                      XÓA
+                    </button>
+                  </>
+                )}
 
-  {/* 4. THÔNG BÁO khi đang chờ Admin duyệt hủy */}
-  {t.status === 'cancel_requested' && (
-    <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl italic text-[11px] font-bold border border-dashed border-gray-300">
-      ⏳ Đang chờ Admin duyệt hủy...
-    </span>
-  )}
-</div>
+                {t.status === 'cancel_requested' && (
+                  <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl italic text-[11px] font-bold border border-dashed border-gray-300">
+                    ⏳ Đang chờ Admin duyệt hủy...
+                  </span>
+                )}
+              </div>
             </div>
           ))}
 
@@ -403,8 +436,6 @@ const handleRequestCancel = async (id: number) => {
             <h2 className="text-xl font-black text-gray-800 mb-2">Chọn HDV mới</h2>
             <p className="text-sm text-gray-500 mb-6">
               Tour: <span className="font-bold text-gray-800">{selectedTour.name}</span>
-              <br />
-              <span className="text-red-500 text-xs">HDV cũ đã từ chối yêu cầu này</span>
             </p>
 
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">
@@ -441,9 +472,9 @@ const handleRequestCancel = async (id: number) => {
         </div>
       )}
 
-      {/* MODAL FORM TẠO/SỬA TOUR */}
+      {/* MODAL FORM TẠO/SỬA TOUR - GIỮ NGUYÊN STYLE GỐC */}
       {isModalOpen && (
-<div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-white w-full max-w-3xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex justify-between items-center mb-8">
               <h2 className="text-2xl font-black text-gray-800 uppercase italic">
@@ -501,7 +532,7 @@ const handleRequestCancel = async (id: number) => {
               </div>
 
               <div>
-<label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày bắt đầu</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Ngày bắt đầu</label>
                 <input
                   type="date"
                   required
@@ -543,10 +574,21 @@ const handleRequestCancel = async (id: number) => {
                 </select>
               </div>
 
+              {/* Tách riêng Description & Itinerary nhưng giữ Class CSS cực đẹp của bạn */}
               <div className="md:col-span-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Lịch trình & Mô tả</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Mô tả tổng quan</label>
                 <textarea
-                  rows={4}
+                  rows={3}
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.description}
+                  onChange={e => setFormData({ ...formData, description: e.target.value })}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Lịch trình chi tiết</label>
+                <textarea
+                  rows={5}
                   className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm outline-none focus:ring-2 ring-emerald-500"
                   value={formData.itinerary}
                   onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
@@ -562,7 +604,7 @@ const handleRequestCancel = async (id: number) => {
                 type="button"
                 onClick={handleSubmit}
                 disabled={uploading}
-className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400"
+                className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase tracking-tighter hover:bg-gray-800 transition-all shadow-xl disabled:bg-gray-400"
               >
                 {uploading ? "Đang xử lý..." : (formData.id ? "Lưu thay đổi" : "Gửi tour")}
               </button>

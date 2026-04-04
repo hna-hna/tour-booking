@@ -8,8 +8,6 @@ export default function UploadManageTourPage() {
   const [uploading, setUploading] = useState(false);
   const [guides, setGuides] = useState<any[]>([]);
   
-  // --- PHẦN MỚI THÊM VÀO ---
-  // State lưu trạng thái lọc tour: "all", "approved", "rejected", "pending"
   const [statusFilter, setStatusFilter] = useState("all");
   // ---------------------------
 
@@ -57,9 +55,13 @@ export default function UploadManageTourPage() {
       }
 
       const data = await res.json();
+      if (!res.ok) {
+        alert("Lỗi tải danh sách: " + (data.error || data.msg || JSON.stringify(data)));
+      }
       setTours(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error("Lỗi tải tour:", err);
+      alert("Lỗi tải tour từ server!");
     } finally {
       setLoading(false);
     }
@@ -117,8 +119,7 @@ export default function UploadManageTourPage() {
     }
     setIsModalOpen(true);
   };
-
-  // 4. Upload ảnh lên Supabase (Giữ nguyên)
+  // 4. Upload ảnh lên Supabase
   const uploadImageToSupabase = async (file: File) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -323,9 +324,8 @@ export default function UploadManageTourPage() {
           {tours.map((t) => (
             <div
               key={t.id || Math.random()}
-              className={`group bg-gray-50 hover:bg-white border hover:border-emerald-200 p-6 rounded-3xl transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${
-                t.needs_guide ? "border-red-200 bg-red-50/30" : ""
-              }`}
+              className={`group bg-gray-50 hover:bg-white border hover:border-emerald-200 p-6 rounded-3xl transition-all flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${t.needs_guide ? "border-red-200 bg-red-50/30" : ""
+                }`}
             >
               {/* Thumbnail */}
               <div className="w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
@@ -338,17 +338,19 @@ export default function UploadManageTourPage() {
 
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${
-                    t.status === 'approved' ? 'bg-green-100 text-green-600' :
+                  {/* Status badge */}
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold tracking-widest ${t.status === 'approved' ? 'bg-green-100 text-green-600' :
                     t.status === 'rejected' ? 'bg-red-100 text-red-600' :
-                    'bg-orange-100 text-orange-600'
-                  }`}>
+                      'bg-orange-100 text-orange-600'
+                    }`}>
                     {t.status ? t.status.toUpperCase() : "CHỜ DUYỆT"}
                   </span>
 
-                  {t.needs_guide && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold bg-red-100 text-red-600 border border-red-200 animate-pulse">
-                      ⚠️ HDV đã từ chối — Cần chọn lại
+
+
+                  {t.status === 'rejected' && t.reject_reason && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[11px] font-bold bg-red-50 text-red-600 border border-red-100">
+                      Lý do: {t.reject_reason}
                     </span>
                   )}
 
@@ -414,6 +416,37 @@ export default function UploadManageTourPage() {
                   </>
                 )}
 
+
+
+                {/* 2. NÚT YÊU CẦU HỦY: Hiện khi tour đã approved */}
+                {t.status === 'approved' && (
+                  <button
+                    onClick={() => handleRequestCancel(t.id)}
+                    className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
+                  >
+                    ⚠️ YÊU CẦU HỦY
+                  </button>
+                )}
+
+                {/* 3. NÚT SỬA/XÓA: Hiện khi tour chưa duyệt hoặc bị từ chối */}
+                {['pending', 'rejected', 'pending_guide', 'waiting_guide'].includes(t.status) && (
+                  <>
+                    <button
+                      onClick={() => handleOpenModal(t)}
+                      className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all"
+                    >
+                      SỬA
+                    </button>
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
+                    >
+                      XÓA
+                    </button>
+                  </>
+                )}
+
+                {/* 4. THÔNG BÁO khi đang chờ Admin duyệt hủy */}
                 {t.status === 'cancel_requested' && (
                   <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-xl italic text-[11px] font-bold border border-dashed border-gray-300">
                     ⏳ Đang chờ Admin duyệt hủy...

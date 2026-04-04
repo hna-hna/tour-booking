@@ -17,6 +17,8 @@ interface OrderDetail {
     image: string;
     itinerary: string;
     price_per_person: number;
+    start_date?: string;
+    end_date?: string;
   };
   guide?: {
     id: number;
@@ -158,8 +160,18 @@ export default function OrderDetailsPage() {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-slate-900 leading-tight mb-2">{order.tour.name}</h3>
-                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-sm text-slate-700 font-semibold mb-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-lg text-sm text-slate-700 font-semibold mb-4">
                      Số lượng khách: <span className="text-emerald-600">{order.guest_count} người</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div className="bg-emerald-50 rounded-xl p-3.5 border border-emerald-100 flex flex-col justify-center">
+                      <p className="text-xs text-emerald-800 font-semibold uppercase tracking-wider mb-1">Khởi hành</p>
+                      <p className="text-emerald-900 font-bold text-sm">{order.tour.start_date ? new Date(order.tour.start_date).toLocaleDateString("vi-VN") : "Đang cập nhật"}</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-xl p-3.5 border border-emerald-100 flex flex-col justify-center">
+                      <p className="text-xs text-emerald-800 font-semibold uppercase tracking-wider mb-1">Kết thúc</p>
+                      <p className="text-emerald-900 font-bold text-sm">{order.tour.end_date ? new Date(order.tour.end_date).toLocaleDateString("vi-VN") : "Đang cập nhật"}</p>
+                    </div>
                   </div>
                   <p className="text-slate-500 text-sm line-clamp-3">{order.tour.itinerary}</p>
                 </div>

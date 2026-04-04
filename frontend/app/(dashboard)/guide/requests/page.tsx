@@ -14,6 +14,7 @@ export default function GuideRequestsPage() {
       .then((res) => setRequests(res.data))
       .catch((err) => {
         console.error("Lỗi load requests:", err);
+        alert("Lỗi tải yêu cầu từ server!");
       });
   };
 

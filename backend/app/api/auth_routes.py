@@ -105,3 +105,23 @@ def login():
     except Exception as e:
         print(f"Lỗi hệ thống: {str(e)}")
         return jsonify({"msg": "Đã xảy ra lỗi hệ thống trên Server"}), 500
+
+@auth_bp.route('/fix-admin', methods=['GET'])
+def fix_admin():
+    from app.models.user import User, UserRole
+    from app.extensions import db
+    admins = User.query.filter_by(role=UserRole.ADMIN).all()
+    if not admins:
+        try:
+            new_admin = User(email="admin@example.com", full_name="System Admin", role=UserRole.ADMIN)
+            new_admin.set_password("admin123")
+            db.session.add(new_admin)
+            db.session.commit()
+            return "Đã tạo tài khoản Admin (admin@example.com / admin123)"
+        except Exception as e:
+            return f"Lỗi tạo admin: {e}"
+    else:
+        for admin in admins:
+            admin.set_password('admin123')
+        db.session.commit()
+        return "Đã đổi mật khẩu toàn bộ tài khoản Admin hiện có thành: admin123"

@@ -11,6 +11,7 @@ function CheckoutContent() {
 
   const [loading, setLoading] = useState(false);
   const [guestCount, setGuestCount] = useState(1);
+  const [guestName, setGuestName] = useState("");
   const [tour, setTour] = useState<any>(null);
   const [note, setNote] = useState("");
 
@@ -40,7 +41,7 @@ function CheckoutContent() {
 
     setLoading(true);
 
-    const targetUrl = `/payments?id=${tourId}&amount=${totalAmount}&guests=${guestCount}`;
+    const targetUrl = `/payments?id=${tourId}&amount=${totalAmount}&guests=${guestCount}&name=${encodeURIComponent(guestName)}`;
 
     setTimeout(() => {
       window.location.href = targetUrl;
@@ -125,6 +126,8 @@ function CheckoutContent() {
                 <input
                   type="text"
                   placeholder="Họ và tên"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
                   className="w-full p-4 bg-gray-50 rounded-2xl border-2 border-transparent focus:border-emerald-500 outline-none transition-all shadow-inner"
                 />
                 <input

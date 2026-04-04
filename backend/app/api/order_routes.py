@@ -46,7 +46,9 @@ def get_order_detail(order_id):
                 "name": tour.name,
                 "image": tour.image,
                 "itinerary": tour.itinerary,
-                "price_per_person": tour.price
+                "price_per_person": tour.price,
+                "start_date": tour.start_date.isoformat() if tour.start_date and hasattr(tour.start_date, 'isoformat') else tour.start_date,
+                "end_date": tour.end_date.isoformat() if tour.end_date and hasattr(tour.end_date, 'isoformat') else tour.end_date
             },
             # Trả về thông tin HDV nếu đã được phân công
             "guide": {

@@ -90,7 +90,7 @@ def get_tour_requests():
                 "name": tour.name,
                 "start_date": tour.start_date.strftime('%Y-%m-%d') if tour.start_date else None,
                 "price": getattr(tour, 'price', 0),
-                "assigned_date": assign.assigned_date,
+                "assigned_date": assign.assigned_date.isoformat() if assign.assigned_date else None,
                 "tour_status": tour.status,
                 "can_respond": tour.status in ['waiting_guide', 'pending_guide'] and assign.status == 'pending'            })
     return jsonify(results), 200

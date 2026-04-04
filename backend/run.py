@@ -16,11 +16,9 @@ CORS(app,
 
 app.register_blueprint(payment_bp) 
 
-# 👇 ĐẨY KHỐI IN DEBUG LÊN TRÊN ĐÂY ĐỂ NÓ CHẠY TRƯỚC KHI BẬT SERVER
 print("--- DEBUG SUPABASE ---")
 print("URL:", os.environ.get("SUPABASE_URL"))
-# Lấy 30 ký tự đầu tiên để mình kiểm tra xem có đúng định dạng service_role hay không
-print("KEY:", os.environ.get("SUPABASE_KEY")[:30] if os.environ.get("SUPABASE_KEY") else "Không tìm thấy Key!")
+print("KEY:", os.environ.get("SUPABASE_KEY")[:30] if os.environ.get("SUPABASE_KEY") else "Not found Key")
 print("----------------------")
 
 if __name__ == "__main__":

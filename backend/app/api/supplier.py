@@ -11,7 +11,6 @@ from datetime import datetime
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
-# --- GIỮ NGUYÊN CÁC ROUTE 1, 2, 3 CỦA BẠN ---
 
 @supplier_bp.route('/tours', methods=['GET'])
 @jwt_required()
@@ -42,6 +41,17 @@ def get_my_tours():
             "id": t.id, "name": t.name, "price": t.price, "quantity": t.quantity,
             "status": t.status, "image": t.image, "guide_name": guide_name,
             "guide_id": guide_id, "itinerary": t.itinerary, "description": t.description,
+            "id": t.id,
+            "name": t.name,
+            "price": t.price,
+            "quantity": t.quantity,
+            "status": t.status,
+            "reject_reason": getattr(t, 'reject_reason', ''),
+            "image": t.image,
+            "guide_name": guide_name,
+            "guide_id": guide_id,
+            "itinerary": t.itinerary,
+            "description": t.description,
             "start_date": t.start_date.strftime('%Y-%m-%d') if t.start_date else None,
             "end_date": t.end_date.strftime('%Y-%m-%d') if t.end_date else None,
             "needs_guide": getattr(t, 'needs_guide', False)
@@ -63,6 +73,14 @@ def create_tour():
             itinerary=data.get('itinerary'), price=data.get('price'),
             quantity=data.get('quantity', 20), supplier_id=sid,
             status='pending_guide', image=image_url,
+            name=data.get('name'),
+            description=data.get('description'),
+            itinerary=data.get('itinerary'),
+            price=data.get('price'),
+            quantity=data.get('quantity', 20),
+            supplier_id=sid,
+            status='pending', # Nếu không có HDV thì chuyển thẳng cho Admin duyệt
+            image=image_url,
             start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
             end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
         )
@@ -74,10 +92,16 @@ def create_tour():
             if guide:
                 assignment = TourGuideAssignment(tour_id=new_tour.id, guide_id=guide_id, status='pending')
                 db.session.add(assignment)
-                new_tour.status = 'waiting_guide'
+                new_tour.status = 'waiting_guide' # Nếu có HDV thì chờ HDV xác nhận trước
+                if hasattr(new_tour, 'needs_guide'):
+                    new_tour.needs_guide = True
+
         db.session.commit()
         return jsonify({"message": "Tạo tour thành công, đang chờ HDV xác nhận"}), 201
     except Exception as e:
+        import traceback
+        with open("error_log.txt", "a", encoding="utf-8") as f:
+            f.write("CREATE TOUR ERROR: " + traceback.format_exc() + "\n")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 

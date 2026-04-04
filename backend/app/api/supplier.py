@@ -50,6 +50,7 @@ def get_my_tours():
             "price": t.price,
             "quantity": t.quantity,
             "status": t.status,
+            "reject_reason": getattr(t, 'reject_reason', ''),
             "image": t.image,
             "guide_name": guide_name,
             "guide_id": guide_id,
@@ -82,7 +83,7 @@ def create_tour():
             price=data.get('price'),
             quantity=data.get('quantity', 20),
             supplier_id=sid,
-            status='pending_guide',
+            status='pending', # Nếu không có HDV thì chuyển thẳng cho Admin duyệt
             image=image_url,
             start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
             end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
@@ -103,12 +104,17 @@ def create_tour():
                     status='pending'
                 )
                 db.session.add(assignment)
-                new_tour.status = 'waiting_guide'
+                new_tour.status = 'waiting_guide' # Nếu có HDV thì chờ HDV xác nhận trước
+                if hasattr(new_tour, 'needs_guide'):
+                    new_tour.needs_guide = True
 
         db.session.commit()
         return jsonify({"message": "Tạo tour thành công, đang chờ HDV xác nhận"}), 201
 
     except Exception as e:
+        import traceback
+        with open("error_log.txt", "a", encoding="utf-8") as f:
+            f.write("CREATE TOUR ERROR: " + traceback.format_exc() + "\n")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 

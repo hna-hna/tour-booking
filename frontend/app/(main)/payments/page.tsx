@@ -58,6 +58,7 @@ function PaymentContent() {
   const tourId = searchParams.get("id");
   const amount = searchParams.get("amount");
   const guests = searchParams.get("guests");
+  const guestName = searchParams.get("name") || "Khách hàng";
   const date = searchParams.get("date");
 
   const [tour, setTour] = useState<any>(null);
@@ -197,7 +198,9 @@ function PaymentContent() {
             <div className="space-y-4">
               <p className="text-xl font-bold italic">{tour.name}</p>
               <div className="border-t border-white/20 pt-4 space-y-3">
-                <div className="flex justify-between text-sm"><span>Ngày đi:</span> <b>{date}</b></div>
+                <div className="flex justify-between text-sm"><span>Khách hàng:</span> <b>{guestName}</b></div>
+                <div className="flex justify-between text-sm"><span>Ngày đi:</span> <b>{tour.start_date ? new Date(tour.start_date).toLocaleDateString("vi-VN") : "Đang cập nhật"}</b></div>
+                <div className="flex justify-between text-sm"><span>Ngày về:</span> <b>{tour.end_date ? new Date(tour.end_date).toLocaleDateString("vi-VN") : "Đang cập nhật"}</b></div>
                 <div className="flex justify-between text-sm"><span>Số khách:</span> <b>{guests}</b></div>
                 <div className="flex justify-between text-xl pt-4 border-t border-white/30 font-black">
                   <span>TỔNG TIỀN:</span>

@@ -12,8 +12,9 @@ class Tour(db.Model):
     itinerary = db.Column(db.Text)
     quantity = db.Column(db.Integer, default=20)
     price = db.Column(db.Float, nullable=False)
-    status = db.Column(db.String(20), default='pending') 
-    supplier_id = db.Column(db.Integer, db.ForeignKey('users.id'))    
+    status = db.Column(db.String(20), default='pending', index=True) 
+    reject_reason = db.Column(db.Text, nullable=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('users.id'), index=True)    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     start_date = db.Column(db.DateTime, nullable=True) # Ngày đi
     end_date = db.Column(db.DateTime, nullable=True)   # Ngày về

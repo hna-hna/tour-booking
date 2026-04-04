@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, Map, ShoppingCart, BarChart3, LogOut } from "lucide-react";
+import { Menu, X, LayoutDashboard, Users, Map, ShoppingCart, BarChart3, LogOut, ClipboardList } from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -20,8 +20,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Tổng quan", href: "/admin", icon: <LayoutDashboard size={20} /> },
     { name: "Quản lý Users", href: "/admin/users", icon: <Users size={20} /> },
     { name: "Duyệt Tour", href: "/admin/approve-tours", icon: <Map size={20} /> },
+    { name: "Lịch sử duyệt", href: "/admin/approve-history", icon: <ClipboardList size={20} /> },
     { name: "Đơn hàng", href: "/admin/orders", icon: <ShoppingCart size={20} /> },
-    { name: "Thống kê", href: "/admin/reports", icon: <BarChart3 size={20} /> },
+    { name: "Thống kê", href: "/admin/role-stats", icon: <BarChart3 size={20} /> },
   ];
 
   const handleLogout = () => {

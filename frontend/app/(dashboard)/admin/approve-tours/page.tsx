@@ -19,6 +19,12 @@ export default function ApproveToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // States cho Modal Từ chối
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectTourId, setRejectTourId] = useState<number | null>(null);
+  const [rejectStatus, setRejectStatus] = useState<string>("");
+  const [rejectReason, setRejectReason] = useState("");
+
   // 1. Gọi API lấy danh sách Tour đang chờ duyệt (Pending + Cancel Requested)
   const fetchPendingTours = async () => {
     try {
@@ -37,25 +43,47 @@ export default function ApproveToursPage() {
 
   // 2. Xử lý Duyệt hoặc Từ chối (Tự động nhận diện API theo status)
   const handleStatusChange = async (id: number, currentStatus: string, action: "approve" | "reject") => {
+    if (action === "reject") {
+        setRejectTourId(id);
+        setRejectStatus(currentStatus);
+        setRejectReason("");
+        setRejectModalOpen(true);
+        return;
+    }
+
     const isCancelRequest = currentStatus === "cancel_requested";
     const url = isCancelRequest 
         ? `http://localhost:5000/api/admin/tours/${id}/cancel` 
         : `http://localhost:5000/api/admin/tours/${id}/moderate`;
 
-    const displayMsg = isCancelRequest 
-        ? (action === "approve" ? "ĐỒNG Ý HỦY" : "BÁC BỎ HỦY")
-        : (action === "approve" ? "DUYỆT ĐĂNG" : "TỪ CHỐI ĐĂNG");
+    const displayMsg = isCancelRequest ? "ĐỒNG Ý HỦY" : "DUYỆT ĐĂNG";
 
     if (!confirm(`Bạn chắc chắn muốn ${displayMsg} tour này?`)) return;
 
     try {
-      await axios.put(url, {
-        action: action === "approve" ? "approve" : "reject",
-      });
-      
-      // Cập nhật State tại chỗ
+      await axios.put(url, { action: "approve" });
       setTours(tours.filter((t) => t.id !== id));
       alert("Xử lý thành công!");
+    } catch (error) {
+      alert("Có lỗi xảy ra khi cập nhật trạng thái");
+    }
+  };
+
+  const submitReject = async () => {
+    if (!rejectTourId) return;
+    
+    const isCancelRequest = rejectStatus === "cancel_requested";
+    const url = isCancelRequest 
+        ? `http://localhost:5000/api/admin/tours/${rejectTourId}/cancel` 
+        : `http://localhost:5000/api/admin/tours/${rejectTourId}/moderate`;
+
+    try {
+      const payload: any = { action: "reject", reject_reason: rejectReason };
+      await axios.put(url, payload);
+      
+      setTours(tours.filter((t) => t.id !== rejectTourId));
+      setRejectModalOpen(false);
+      alert("Đã từ chối tour!");
     } catch (error) {
       alert("Có lỗi xảy ra khi cập nhật trạng thái");
     }
@@ -152,6 +180,39 @@ export default function ApproveToursPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL TỪ CHỐI TOUR */}
+      {rejectModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] p-8 shadow-2xl">
+            <h2 className="text-xl font-black text-gray-800 mb-2">Nhập lý do từ chối</h2>
+            <p className="text-sm text-gray-500 mb-6">Lý do này sẽ được gửi tới Nhà cung cấp để họ tham khảo chỉnh sửa.</p>
+            
+            <textarea
+              rows={4}
+              placeholder="VD: Lịch trình chưa rõ ràng, giá tour chưa hợp lý..."
+              className="w-full bg-gray-50 p-4 rounded-2xl outline-none focus:ring-2 ring-blue-500 font-medium text-sm text-gray-800 mb-6"
+              value={rejectReason}
+              onChange={e => setRejectReason(e.target.value)}
+            />
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setRejectModalOpen(false)}
+                className="flex-1 px-6 py-3 border-2 border-gray-200 text-gray-500 rounded-xl font-bold text-sm hover:bg-gray-50 transition-all"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={submitReject}
+                className="flex-1 px-6 py-3 bg-rose-600 text-white rounded-xl font-bold text-sm hover:bg-rose-700 transition-all shadow-lg"
+              >
+                Xác nhận
+              </button>
+            </div>
           </div>
         </div>
       )}

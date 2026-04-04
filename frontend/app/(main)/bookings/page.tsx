@@ -229,7 +229,7 @@ export default function BookingsPage() {
                                                     href={`/reviews?tour_id=${booking.tour_id}&order_id=${booking.id}`}
                                                     className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium flex items-center gap-2"
                                                 >
-                                                    ✍️ Đánh giá tour
+                                                     Đánh giá tour
                                                 </Link>
                                             )}
 

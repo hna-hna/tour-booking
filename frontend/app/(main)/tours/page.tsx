@@ -158,7 +158,7 @@ export default function ToursListPage() {
         {/* Gợi ý cá nhân hóa */}
         {token && recommendedTours.length > 0 && (
           <div>
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">✨ Gợi ý dành riêng cho bạn</h2>
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"> Gợi ý dành riêng cho bạn</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               {recommendedTours.slice(0, 4).map(tour => (
                 <Link key={tour.id} href={`/tours/${tour.id}`} className="block group">
@@ -177,7 +177,7 @@ export default function ToursListPage() {
 
         {/* Tour nổi bật */}
         <div>
-          <h2 className="text-2xl font-bold mb-6">🔥 Tour nổi bật</h2>
+          <h2 className="text-2xl font-bold mb-6"> Tour nổi bật</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {popularTours.slice(0, 4).map(tour => (
               <Link key={tour.id} href={`/tours/${tour.id}`} className="block group">

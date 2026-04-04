@@ -1,15 +1,32 @@
-// app/(main)/tours/[id]/page.tsx
 "use client";
 
 import { use, useEffect, useState } from "react";
 import axios from "axios";
 
+// Định nghĩa interface để quản lý dữ liệu tốt hơn
+interface ItineraryItem {
+  day: number;
+  title: string;
+  description: string;
+}
+
+interface Tour {
+  id: number;
+  name: string;
+  price: number;
+  description: string;
+  itinerary: ItineraryItem[] | string; // Có thể là mảng Object hoặc String dự phòng
+  image: string;
+  image_url?: string;
+  quantity?: number;
+  start_date?: string;
+  end_date?: string;
+}
+
 export default function TourDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  // Giải mã params theo chuẩn Next.js 15
   const resolvedParams = use(params);
 
-  // State lưu trữ dữ liệu
-  const [tour, setTour] = useState<any>(null);
+  const [tour, setTour] = useState<Tour | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -17,7 +34,6 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     const fetchTour = async () => {
       try {
         setLoading(true);
-        // Gọi API lấy chi tiết tour từ Backend Flask
         const res = await axios.get(`http://127.0.0.1:5000/api/tours/${resolvedParams.id}`);
         setTour(res.data);
       } catch (err) {
@@ -33,7 +49,6 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     }
   }, [resolvedParams.id]);
 
-  // Trạng thái Loading
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
@@ -41,7 +56,6 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
     </div>
   );
 
-  // Trạng thái Error
   if (error || !tour) return (
     <div className="p-20 text-center">
       <h2 className="text-2xl font-bold text-red-500">Tour không tồn tại hoặc đã bị gỡ bỏ!</h2>
@@ -63,13 +77,11 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             {tour.name}
           </h1>
           
-          {/* Hình ảnh Tour */}
           <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-xl bg-gray-100 mb-8">
             <img 
-              src={tour.image || tour.image_url || "/placeholder-tour.jpg"} 
+              src={tour.image || tour.image_url || "https://via.placeholder.com/800x400?text=No+Image"} 
               className="w-full h-full object-cover" 
               alt={tour.name} 
-              referrerPolicy="no-referrer"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "https://via.placeholder.com/800x400?text=Loi_Link_Anh";
               }}
@@ -79,11 +91,10 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           </div>
 
-          {/* Lịch trình & Mô tả */}
-          <div className="space-y-8">
+          <div className="space-y-10">
+            {/* Phần Mô tả */}
             <section>
               <h3 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="w-8 h-8 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center text-lg"></span>
                 Mô tả chi tiết
               </h3>
               <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">
@@ -91,14 +102,39 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
               </p>
             </section>
 
-            {tour.itinerary && (
-              <section className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                <h3 className="text-2xl font-bold text-gray-800 mb-4">Lịch trình dự kiến</h3>
-                <div className="prose prose-emerald max-w-none text-gray-600 whitespace-pre-line">
-                  {tour.itinerary}
+            {/* Phần Lịch trình - ĐÃ FIX LỖI OBJECT Ở ĐÂY */}
+            <section className="bg-gray-50 p-6 md:p-8 rounded-3xl border border-gray-100">
+              <h3 className="text-2xl font-bold text-gray-800 mb-6">Lịch trình dự kiến</h3>
+              
+              {tour.itinerary && Array.isArray(tour.itinerary) ? (
+                <div className="space-y-6">
+                  {tour.itinerary.map((item, index) => (
+                    <div key={index} className="flex gap-4 group">
+                      <div className="flex flex-col items-center">
+                        <div className="w-10 h-10 bg-emerald-600 text-white rounded-full flex items-center justify-center font-bold shrink-0">
+                          {item.day}
+                        </div>
+                        {index !== (tour.itinerary as ItineraryItem[]).length - 1 && (
+                          <div className="w-0.5 h-full bg-emerald-200 my-1"></div>
+                        )}
+                      </div>
+                      <div className="pb-6">
+                        <h4 className="text-xl font-bold text-gray-900 group-hover:text-emerald-600 transition">
+                          {item.title}
+                        </h4>
+                        <p className="text-gray-600 mt-2 leading-relaxed">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </section>
-            )}
+              ) : (
+                <div className="text-gray-600 whitespace-pre-line leading-relaxed">
+                  {typeof tour.itinerary === 'string' ? tour.itinerary : "Chưa có thông tin lịch trình chi tiết."}
+                </div>
+              )}
+            </section>
           </div>
         </div>
 
@@ -117,24 +153,22 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             
             <div className="space-y-4 mb-8 border-t border-b border-gray-50 py-4">
               <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100">
-                <span className="text-xl"></span> 
-                Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
+                ⚡ Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
               </div>
               
-              <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
-                <span className="text-emerald-500"></span> Xác nhận tức thì
+              <div className="flex items-center gap-3 text-sm text-gray-600 px-2 font-medium">
+                ✅ Xác nhận tức thì
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600 px-2">
-                <span className="text-emerald-500"></span> Bảo hiểm du lịch trọn gói
+              <div className="flex items-center gap-3 text-sm text-gray-600 px-2 font-medium">
+                🛡️ Bảo hiểm du lịch trọn gói
               </div>
             </div>
 
             <a 
               href={`/checkout?id=${tour.id}`}
-              className="group flex w-full justify-center items-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200"
+              className="flex w-full justify-center items-center gap-2 bg-emerald-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95"
             >
               ĐẶT TOUR NGAY
-              <span className="group-hover:translate-x-1 transition-transform"></span>
             </a>
             
             <p className="text-xs text-center text-gray-400 mt-6 leading-relaxed">

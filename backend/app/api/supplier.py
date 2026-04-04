@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, current_app
 from app.extensions import db
 from app.models.tour import Tour
-from app.models.tour_guide import TourGuide, TourGuideAssignment, GuideStatus # Thêm GuideStatus vào đây
+from app.models.tour_guide import TourGuide, TourGuideAssignment, GuideStatus
 from app.models.order import Order, Payment
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
@@ -10,7 +10,6 @@ from werkzeug.security import generate_password_hash
 from datetime import datetime
 
 supplier_bp = Blueprint('supplier_bp', __name__)
-
 
 @supplier_bp.route('/tours', methods=['GET'])
 @jwt_required()
@@ -33,14 +32,9 @@ def get_my_tours():
                 guide = TourGuide.query.get(assignment.guide_id)
                 if guide:
                     guide_id = guide.id
-                    if accepted:
-                        guide_name = guide.full_name
-                    else:
-                        guide_name = f"{guide.full_name} (chờ xác nhận)"
+                    guide_name = guide.full_name if accepted else f"{guide.full_name} (chờ xác nhận)"
+        
         result.append({
-            "id": t.id, "name": t.name, "price": t.price, "quantity": t.quantity,
-            "status": t.status, "image": t.image, "guide_name": guide_name,
-            "guide_id": guide_id, "itinerary": t.itinerary, "description": t.description,
             "id": t.id,
             "name": t.name,
             "price": t.price,
@@ -68,40 +62,39 @@ def create_tour():
         guide_id = data.get('guide_id')
         start_date = data.get("start_date")
         end_date = data.get("end_date")
+        
+        # ĐÃ SỬA: Loại bỏ các tham số bị lặp lại ở đây
         new_tour = Tour(
-            name=data.get('name'), description=data.get('description'),
-            itinerary=data.get('itinerary'), price=data.get('price'),
-            quantity=data.get('quantity', 20), supplier_id=sid,
-            status='pending_guide', image=image_url,
-            name=data.get('name'),
+            name=data.get('name'), 
             description=data.get('description'),
-            itinerary=data.get('itinerary'),
+            itinerary=data.get('itinerary'), 
             price=data.get('price'),
-            quantity=data.get('quantity', 20),
+            quantity=data.get('quantity', 20), 
             supplier_id=sid,
-            status='pending', # Nếu không có HDV thì chuyển thẳng cho Admin duyệt
+            status='pending', # Mặc định là pending để chờ duyệt
             image=image_url,
             start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
             end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
         )
-        if hasattr(new_tour, 'needs_guide'): new_tour.needs_guide = False
+        
+        if hasattr(new_tour, 'needs_guide'): 
+            new_tour.needs_guide = False
+            
         db.session.add(new_tour)
-        db.session.flush()
+        db.session.flush() # Để lấy được new_tour.id
+        
         if guide_id:
             guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
             if guide:
                 assignment = TourGuideAssignment(tour_id=new_tour.id, guide_id=guide_id, status='pending')
                 db.session.add(assignment)
-                new_tour.status = 'waiting_guide' # Nếu có HDV thì chờ HDV xác nhận trước
+                new_tour.status = 'waiting_guide'
                 if hasattr(new_tour, 'needs_guide'):
                     new_tour.needs_guide = True
 
         db.session.commit()
-        return jsonify({"message": "Tạo tour thành công, đang chờ HDV xác nhận"}), 201
+        return jsonify({"message": "Tạo tour thành công", "id": new_tour.id}), 201
     except Exception as e:
-        import traceback
-        with open("error_log.txt", "a", encoding="utf-8") as f:
-            f.write("CREATE TOUR ERROR: " + traceback.format_exc() + "\n")
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
@@ -124,26 +117,21 @@ def update_my_tour(tour_id):
     db.session.commit()
     return jsonify({"msg": "Cập nhật thành công"}), 200
 
-# 4. DANH SÁCH GUIDE (Sửa lỗi lọc Enum)
 @supplier_bp.route('/guides', methods=['GET'])
 @jwt_required()
 def get_my_guides():
     sid = get_jwt_identity()
     status_filter = request.args.get('status')
     query = TourGuide.query.filter_by(supplier_id=sid)
-    
     if status_filter and status_filter.upper() != "ALL":
         try:
-            # Chuyển chuỗi từ URL thành Object Enum
             enum_status = GuideStatus[status_filter.upper()]
             query = query.filter(TourGuide.status == enum_status)
         except KeyError:
             return jsonify({"msg": "Trạng thái lọc không hợp lệ"}), 400
-            
     guides = query.all()
     return jsonify([g.to_dict() for g in guides]), 200
 
-# 5. TẠO GUIDE (Giữ nguyên code của bạn)
 @supplier_bp.route('/guides', methods=['POST'])
 @jwt_required()
 def create_guide():
@@ -154,14 +142,17 @@ def create_guide():
             return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
         existing_user = User.query.filter_by(email=data.get("email")).first()
         if existing_user: return jsonify({"msg": "Email đã tồn tại"}), 400
+        
         new_user = User(
-            email=data.get("email"), password_hash=generate_password_hash("123456"),
-            full_name=data.get("full_name"), role=UserRole.GUIDE, is_active=True
+            email=data.get("email"), 
+            password_hash=generate_password_hash("123456"),
+            full_name=data.get("full_name"), 
+            role=UserRole.GUIDE, 
+            is_active=True
         )
         db.session.add(new_user)
         db.session.flush()
         
-        # Xử lý Enum status khi tạo
         input_status = data.get("status", "AVAILABLE").upper()
         guide_status = GuideStatus[input_status] if input_status in GuideStatus.__members__ else GuideStatus.AVAILABLE
 
@@ -180,7 +171,6 @@ def create_guide():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# --- CÁC ROUTE 6, 7, 8, 9, 10 GIỮ NGUYÊN ---
 @supplier_bp.route('/tours/<int:tour_id>/assign-guide', methods=['POST'])
 @jwt_required()
 def assign_guide(tour_id):
@@ -189,16 +179,18 @@ def assign_guide(tour_id):
     guide_id = data.get("guide_id")
     tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first()
     if not tour: return jsonify({"msg": "Không tìm thấy tour"}), 404
-    if tour.status not in ['pending_guide', 'waiting_guide']:
+    if tour.status not in ['pending_guide', 'waiting_guide', 'pending']:
         return jsonify({"msg": "Tour không ở trạng thái có thể phân công"}), 403
     guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
     if not guide: return jsonify({"msg": "Guide không hợp lệ"}), 404
+    
     existing = TourGuideAssignment.query.filter_by(tour_id=tour_id, guide_id=guide_id, status='pending').first()
     if existing: return jsonify({"msg": "HDV này đã được phân công cho tour rồi"}), 400
+    
     assignment = TourGuideAssignment(tour_id=tour_id, guide_id=guide_id, status='pending')
     db.session.add(assignment)
     tour.status = 'waiting_guide'
-    if hasattr(tour, 'needs_guide'): tour.needs_guide = False
+    if hasattr(tour, 'needs_guide'): tour.needs_guide = True
     db.session.commit()
     return jsonify({"msg": "Đã gửi yêu cầu dẫn tour cho HDV mới"}), 201
 
@@ -213,17 +205,12 @@ def get_revenue_summary():
     total_revenue = stats.total_revenue or 0
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
-    escrow_stats = db.session.query(func.sum(Payment.amount)).join(Order, Payment.order_id == Order.id)\
-                    .join(Tour, Order.tour_id == Order.tour_id).filter(Tour.supplier_id == sid)\
-                    .filter(Payment.status == 'pending').scalar()
-    escrow_amount = escrow_stats or 0
-    pending_orders_count = db.session.query(func.count(Order.id)).join(Tour, Order.tour_id == Tour.id)\
-                            .filter(Tour.supplier_id == sid).filter(Order.status == 'pending').scalar()
+    
     return jsonify({
-        'total_revenue': total_revenue, 'admin_commission': admin_commission,
-        'supplier_revenue': supplier_revenue, 'escrow_amount': escrow_amount,
-        'paid_out_amount': 0, 'pending_payout': supplier_revenue,
-        'total_orders': total_orders, 'pending_orders': pending_orders_count or 0
+        'total_revenue': total_revenue, 
+        'admin_commission': admin_commission,
+        'supplier_revenue': supplier_revenue, 
+        'total_orders': total_orders
     }), 200
 
 @supplier_bp.route('/revenue/by-tour', methods=['GET'])
@@ -263,7 +250,7 @@ def delete_tour(tour_id):
     sid = get_jwt_identity()
     tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first_or_404()
     if tour.status not in ['pending', 'rejected', 'pending_guide', 'waiting_guide']:
-        return jsonify({"msg": "Không thể xóa tour đã được duyệt hoặc đang chờ hủy"}), 403
+        return jsonify({"msg": "Không thể xóa tour đã được duyệt"}), 403
     try:
         db.session.delete(tour)
         db.session.commit()
@@ -272,18 +259,14 @@ def delete_tour(tour_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# 11. CẬP NHẬT TRẠNG THÁI 
 @supplier_bp.route('/guides/<int:guide_id>/status', methods=['PATCH'])
 @jwt_required()
 def update_guide_status(guide_id):
     sid = get_jwt_identity()
     data = request.get_json()
     new_status_str = data.get('status')
-    
     guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first_or_404()
-    
     try:
-        # Quan trọng: Phải chuyển String thành Object Enum GuideStatus
         guide.status = GuideStatus[new_status_str.upper()]
         db.session.commit()
         return jsonify({"msg": "Cập nhật thành công", "new_status": guide.status.value}), 200
@@ -293,7 +276,6 @@ def update_guide_status(guide_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# 12. XÓA GUIDE
 @supplier_bp.route('/guides/<int:guide_id>', methods=['DELETE'])
 @jwt_required()
 def delete_guide(guide_id):

@@ -67,7 +67,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 2. Lấy danh sách HDV (Giữ nguyên)
+  // 2. Lấy danh sách HDV 
   const fetchGuides = async () => {
     try {
       const res = await fetch("http://127.0.0.1:5000/api/supplier/guides", {
@@ -85,7 +85,7 @@ export default function UploadManageTourPage() {
   useEffect(() => {
     fetchTours();
     fetchGuides();
-  }, [statusFilter]); // <--- THÊM statusFilter VÀO ĐÂY
+  }, [statusFilter]); 
 
   // 3. Mở modal (Giữ nguyên)
   const handleOpenModal = (tour: any = null) => {
@@ -143,7 +143,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 5. Submit form (Giữ nguyên)
+  // 5. Submit form 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploading(true);
@@ -202,7 +202,7 @@ export default function UploadManageTourPage() {
     }
   };
 
-  // 6. Xóa tour (Giữ nguyên)
+  // 6. Xóa tour 
   const handleDelete = async (id: number) => {
     if (!confirm("Bạn có chắc chắn muốn xóa tour này?")) return;
     try {
@@ -238,14 +238,14 @@ export default function UploadManageTourPage() {
     } catch (e) { alert("Lỗi kết nối"); }
   };
 
-  // 7. Mở modal assign lại guide (Giữ nguyên)
+  // 7. Mở modal assign lại guide
   const handleOpenAssignModal = (tour: any) => {
     setSelectedTour(tour);
     setSelectedGuideId("");
     setAssignModalOpen(true);
   };
 
-  // 8. Gửi assign lại guide (Giữ nguyên)
+  // 8. Gửi assign lại guide 
   const handleAssignGuide = async () => {
     if (!selectedGuideId) {
       alert("Vui lòng chọn HDV!");
@@ -371,7 +371,7 @@ export default function UploadManageTourPage() {
                   </p>
                   {t.start_date && (
                     <p className="text-sm text-gray-500 font-medium">
-                      🗓 <span className="text-gray-800">
+                      Ngày <span className="text-gray-800">
                         {new Date(t.start_date).toLocaleDateString("vi-VN")}
                         {t.end_date && ` → ${new Date(t.end_date).toLocaleDateString("vi-VN")}`}
                       </span>
@@ -390,31 +390,7 @@ export default function UploadManageTourPage() {
                   </button>
                 )}
 
-                {t.status === 'approved' && (
-                  <button
-                    onClick={() => handleRequestCancel(t.id)}
-                    className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
-                  >
-                    ⚠️ YÊU CẦU HỦY
-                  </button>
-                )}
 
-                {['pending', 'rejected', 'pending_guide', 'waiting_guide'].includes(t.status) && (
-                  <>
-                    <button
-                      onClick={() => handleOpenModal(t)}
-                      className="bg-blue-50 text-blue-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-600 hover:text-white transition-all"
-                    >
-                      SỬA
-                    </button>
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      className="bg-red-50 text-red-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 hover:text-white transition-all"
-                    >
-                      XÓA
-                    </button>
-                  </>
-                )}
 
 
 
@@ -424,7 +400,7 @@ export default function UploadManageTourPage() {
                     onClick={() => handleRequestCancel(t.id)}
                     className="bg-amber-100 text-amber-600 px-4 py-2 rounded-xl font-bold text-xs hover:bg-amber-600 hover:text-white transition-all border border-amber-200"
                   >
-                    ⚠️ YÊU CẦU HỦY
+                     YÊU CẦU HỦY
                   </button>
                 )}
 
@@ -505,7 +481,7 @@ export default function UploadManageTourPage() {
         </div>
       )}
 
-      {/* MODAL FORM TẠO/SỬA TOUR - GIỮ NGUYÊN STYLE GỐC */}
+      {/* MODAL FORM TẠO/SỬA TOUR  */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-white w-full max-w-3xl rounded-[2.5rem] p-10 shadow-2xl overflow-y-auto max-h-[90vh]">

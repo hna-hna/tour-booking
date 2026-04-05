@@ -91,14 +91,13 @@ export default function ApproveGuidePage() {
             ? 'bg-emerald-50 text-emerald-700 border-emerald-100' 
             : 'bg-rose-50 text-rose-700 border-rose-100' 
         }`}>
-          <span className="text-2xl">{message.type === 'success' ? '✅' : '⚠️'}</span>
+          <span className="text-2xl">{message.type === 'success' }</span>
           <span className="font-medium">{message.text}</span>
         </div>
       )}
 
       {guides.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-12 text-center">
-          <div className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">👥</div>
           <h3 className="text-lg font-bold text-gray-700 mb-2">Không có hướng dẫn viên chờ duyệt</h3>
           <p className="text-gray-500">Hiện tại không có thành viên mới nào đăng ký tham gia làm Hướng dẫn viên tự do.</p>
         </div>

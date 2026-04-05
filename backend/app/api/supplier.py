@@ -63,7 +63,6 @@ def create_tour():
         start_date = data.get("start_date")
         end_date = data.get("end_date")
         
-        # ĐÃ SỬA: Loại bỏ các tham số bị lặp lại ở đây
         new_tour = Tour(
             name=data.get('name'), 
             description=data.get('description'),
@@ -71,7 +70,7 @@ def create_tour():
             price=data.get('price'),
             quantity=data.get('quantity', 20), 
             supplier_id=sid,
-            status='pending', # Mặc định là pending để chờ duyệt
+            status='pending',
             image=image_url,
             start_date=datetime.strptime(start_date, "%Y-%m-%d") if start_date else None,
             end_date=datetime.strptime(end_date, "%Y-%m-%d") if end_date else None
@@ -81,7 +80,7 @@ def create_tour():
             new_tour.needs_guide = False
             
         db.session.add(new_tour)
-        db.session.flush() # Để lấy được new_tour.id
+        db.session.flush()
         
         if guide_id:
             guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
@@ -140,33 +139,54 @@ def create_guide():
     try:
         if not data.get("email") or not data.get("full_name"):
             return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
+
+        #  KIỂM TRA 1 HDV CHỈ THUỘC 1 SUPPLIER
+        existing_guide = TourGuide.query.filter_by(email=data.get("email")).first()
+        if existing_guide:
+            return jsonify({
+                "msg": f"HDV '{data.get('full_name')}' đã thuộc supplier khác (ID: {existing_guide.supplier_id})"
+            }), 400
+
+        # Kiểm tra user đã tồn tại chưa
         existing_user = User.query.filter_by(email=data.get("email")).first()
-        if existing_user: return jsonify({"msg": "Email đã tồn tại"}), 400
+        if existing_user and existing_user.role != UserRole.GUIDE:
+            return jsonify({"msg": "Email này đã được sử dụng cho tài khoản khác"}), 400
+
+        if existing_user and existing_user.role == UserRole.GUIDE:
+            # User đã là guide → chỉ tạo TourGuide mới
+            user = existing_user
+        else:
+            # Tạo user mới
+            user = User(
+                email=data.get("email"),
+                password_hash=generate_password_hash("123456"),
+                full_name=data.get("full_name"),
+                role=UserRole.GUIDE,
+                is_active=True
+            )
+            db.session.add(user)
+            db.session.flush()  # Để lấy user.id
         
-        new_user = User(
-            email=data.get("email"), 
-            password_hash=generate_password_hash("123456"),
-            full_name=data.get("full_name"), 
-            role=UserRole.GUIDE, 
-            is_active=True
-        )
-        db.session.add(new_user)
-        db.session.flush()
-        
+        #  TẠO GUIDE CHO SUPPLIER NÀY
         input_status = data.get("status", "AVAILABLE").upper()
         guide_status = GuideStatus[input_status] if input_status in GuideStatus.__members__ else GuideStatus.AVAILABLE
 
         guide = TourGuide(
-            user_id=new_user.id, supplier_id=sid, full_name=data.get('full_name'),
-            phone=data.get('phone'), email=data.get('email'),
+            user_id=user.id, 
+            supplier_id=sid, 
+            full_name=data.get('full_name'),
+            phone=data.get('phone'), 
+            email=data.get('email'),
             license_number=data.get('license_number'),
             years_of_experience=data.get('years_of_experience', 0),
-            languages=data.get('languages'), specialties=data.get('specialties'),
+            languages=data.get('languages'), 
+            specialties=data.get('specialties'),
             status=guide_status
         )
         db.session.add(guide)
         db.session.commit()
         return jsonify({"message": "Thêm HDV thành công", "guide": guide.to_dict()}), 201
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
@@ -198,11 +218,17 @@ def assign_guide(tour_id):
 @jwt_required()
 def get_revenue_summary():
     sid = get_jwt_identity()
-    stats = db.session.query(func.count(Order.id).label('total_orders'), func.sum(Payment.amount).label('total_revenue'))\
-             .join(Payment, Order.id == Payment.order_id).join(Tour, Order.tour_id == Tour.id)\
-             .filter(Tour.supplier_id == sid).filter(Payment.status == 'success').first()
+    stats = db.session.query(
+        func.count(Order.id).label('total_orders'), 
+        func.sum(Payment.amount).label('total_revenue')
+    ).join(Payment, Order.id == Payment.order_id)\
+     .join(Tour, Order.tour_id == Tour.id)\
+     .filter(Tour.supplier_id == sid)\
+     .filter(Payment.status == 'success')\
+     .first()
+    
     total_orders = stats.total_orders or 0
-    total_revenue = stats.total_revenue or 0
+    total_revenue = float(stats.total_revenue or 0)
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
     
@@ -217,17 +243,51 @@ def get_revenue_summary():
 @jwt_required()
 def get_revenue_by_tour():
     sid = get_jwt_identity()
-    results = db.session.query(Tour.id, Tour.name, func.count(Order.id).label('total_bookings'), func.sum(Payment.amount).label('total_revenue'))\
-             .join(Order, Tour.id == Order.tour_id).join(Payment, Order.id == Payment.order_id)\
-             .filter(Tour.supplier_id == sid).filter(Payment.status == 'success').group_by(Tour.id, Tour.name).all()
+
+    #  FILTER & SORT PARAMS 
+    name_filter = request.args.get('name', '').strip()
+    sort = request.args.get('sort', 'revenue')  # revenue | newest | oldest
+
+    query = db.session.query(
+        Tour.id.label('tour_id'),
+        Tour.name.label('tour_name'),
+        func.count(Order.id).label('total_bookings'),
+        func.sum(Payment.amount).label('total_revenue'),
+        Tour.created_at
+    ).outerjoin(Order, Tour.id == Order.tour_id)\
+     .outerjoin(Payment, Order.id == Payment.order_id)\
+     .filter(Tour.supplier_id == sid)\
+     .filter((Payment.status == 'success') | (Payment.id.is_(None)))\
+     .group_by(Tour.id, Tour.name, Tour.created_at)
+
+    # FILTER THEO TÊN TOUR
+    if name_filter:
+        query = query.filter(Tour.name.ilike(f"%{name_filter}%"))
+
+    #  SORT 
+    if sort == "newest":
+        query = query.order_by(Tour.created_at.desc())
+    elif sort == "oldest":
+        query = query.order_by(Tour.created_at.asc())
+    else:  # revenue (default)
+        query = query.order_by(func.sum(Payment.amount).desc().nulls_last())
+
+    results = query.all()
+    
     data = []
     for r in results:
-        rev = r.total_revenue or 0
+        total_rev = float(r.total_revenue or 0)
         data.append({
-            'tour_id': r.id, 'tour_name': r.name, 'total_revenue': rev,
-            'admin_commission': rev * 0.15, 'supplier_revenue': rev * 0.85, 'total_bookings': r.total_bookings
+            'tour_id': r.tour_id,
+            'tour_name': r.tour_name,
+            'total_revenue': total_rev,
+            'admin_commission': total_rev * 0.15,
+            'supplier_revenue': total_rev * 0.85,
+            'total_bookings': r.total_bookings or 0
         })
+
     return jsonify(data), 200
+
 
 @supplier_bp.route('/tours/<int:tour_id>/request-cancel', methods=['PUT'])
 @jwt_required()

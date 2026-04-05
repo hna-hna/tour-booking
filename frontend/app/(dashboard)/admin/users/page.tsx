@@ -3,13 +3,14 @@ import React, { useEffect, useState } from 'react';
 
 interface User {
   id: number; full_name: string; email: string;
-  role: string; is_active: boolean; created_at: string;
+  role: string; is_active: boolean; is_deleted: boolean; created_at: string;
 }
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all"); 
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editUser, setEditUser] = useState<User | null>(null);
@@ -17,7 +18,7 @@ export default function AdminUsersPage() {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:5000/api/admin/users');
+      const res = await fetch(`http://127.0.0.1:5000/api/admin/users?status=${statusFilter}`);
       if (res.ok) setUsers(await res.json());
     } catch (e) { console.error(e); }
     finally { setLoading(false); }
@@ -25,7 +26,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [statusFilter]);
 
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,19 +45,32 @@ export default function AdminUsersPage() {
         fetchUsers();
         alert(editUser ? "Cập nhật thành công!" : "Thêm mới thành công! Mật khẩu mặc định: 123456");
       } else {
-        const error = await res.json();
-        alert(`Lỗi: ${error.msg || error.error}`);
+        try {
+          const error = await res.json();
+          alert(`Lỗi: ${error.msg || error.error || 'Dữ liệu không hợp lệ.'}`);
+        } catch(err) {
+          alert('Có lỗi hệ thống khi lưu thông tin!');
+        }
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); alert('Không thể kết nối đến server!'); }
   };
 
   const handleDeleteUser = async (id: number) => {
-    if (!confirm("Bạn có chắc chắn muốn xóa vĩnh viễn tài khoản này?")) return;
+    if (!confirm("Bạn có chắc chắn muốn XÓA (Soft delete) tài khoản này? Người dùng sẽ không thể đăng nhập.")) return;
     try {
       const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${id}`, { method: 'DELETE' });
-      if (res.ok) fetchUsers();
-      else alert("Xóa thất bại!");
-    } catch (e) { console.error(e); }
+      if (res.ok) {
+        fetchUsers();
+        alert("Xóa thành công!");
+      } else {
+        try {
+           const error = await res.json();
+           alert(`Xóa thất bại: ${error.error || error.msg}`);
+        } catch(err) {
+           alert("Xóa thất bại do lỗi hệ thống!");
+        }
+      }
+    } catch (e) { console.error(e); alert('Không thể kết nối đến server!'); }
   };
 
   const openAddModal = () => {
@@ -77,8 +91,10 @@ export default function AdminUsersPage() {
       const res = await fetch(`http://127.0.0.1:5000/api/admin/users/${id}/toggle-status`, { method: 'PUT' });
       if (res.ok) {
         setUsers(users.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u));
+      } else {
+        alert("Thao tác thất bại do lỗi hệ thống!");
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); alert('Không thể kết nối đến server!'); }
   };
 
   const filteredUsers = users.filter(u => {
@@ -100,7 +116,7 @@ export default function AdminUsersPage() {
           <select 
             value={roleFilter} 
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="w-full md:w-48 px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm shadow-sm bg-white"
+            className="w-full md:w-40 px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs shadow-sm bg-white font-bold"
           >
             <option value="all">Tất cả vai trò</option>
             <option value="customer">Khách hàng</option>
@@ -108,12 +124,24 @@ export default function AdminUsersPage() {
             <option value="guide">Hướng dẫn viên</option>
             <option value="admin">Quản trị viên</option>
           </select>
+
+          <select 
+            value={statusFilter} 
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="w-full md:w-40 px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs shadow-sm bg-white font-bold text-emerald-600 border-emerald-100"
+          >
+            <option value="all">Trạng thái: Tất cả</option>
+            <option value="active">Chỉ: Đang hoạt động</option>
+            <option value="locked">Chỉ: Đã khóa</option>
+            <option value="deleted">Chỉ: Đã xóa (Ẩn)</option>
+          </select>
+
           <input
             type="text"
-            placeholder="🔍 Tìm kiếm"
+            placeholder="🔍 Tìm kiếm tên/email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full md:w-64 px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-sm shadow-sm"
+            className="w-full md:w-48 px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all text-xs shadow-sm"
           />
           <button 
             onClick={openAddModal}
@@ -161,30 +189,44 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="p-6 text-center">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${user.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
-                        {user.is_active ? 'Hoạt động' : 'Đã khóa'}
-                      </span>
+                      {user.is_deleted ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
+                           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                           Đã xóa (Mềm)
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold ${user.is_active ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${user.is_active ? 'bg-green-500' : 'bg-red-500'}`} />
+                          {user.is_active ? 'Hoạt động' : 'Đã khóa'}
+                        </span>
+                      )}
                     </td>
                     <td className="p-6 text-right space-x-2 whitespace-nowrap">
-                      <button
-                        onClick={() => openEditModal(user)}
-                        className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-bold hover:bg-blue-100 transition"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        onClick={() => handleToggleStatus(user.id, user.is_active)}
-                        className={`px-3 py-1.5 rounded-lg font-bold transition ${user.is_active ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
-                      >
-                        {user.is_active ? 'Khóa' : 'Mở'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold hover:bg-red-100 transition"
-                      >
-                        Xóa
-                      </button>
+                      {!user.is_deleted && (
+                        <>
+                          <button
+                            onClick={() => openEditModal(user)}
+                            className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-bold hover:bg-blue-100 transition"
+                          >
+                            Sửa
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(user.id, user.is_active)}
+                            className={`px-3 py-1.5 rounded-lg font-bold transition ${user.is_active ? 'bg-amber-50 text-amber-600 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'}`}
+                          >
+                            {user.is_active ? 'Khóa' : 'Mở'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user.id)}
+                            className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-bold hover:bg-red-100 transition"
+                          >
+                            Xóa
+                          </button>
+                        </>
+                      )}
+                      {user.is_deleted && (
+                        <span className="text-xs text-slate-400 italic">Không thể thao tác</span>
+                      )}
                     </td>
                   </tr>
                 ))

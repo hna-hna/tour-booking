@@ -18,6 +18,8 @@ interface Tour {
 export default function ApproveHistoryPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortOrder, setSortOrder] = useState("newest");
 
   // Gọi API lấy danh sách Tour lịch sử (Đã duyệt, Từ chối, Đã hủy)
   const fetchToursHistory = async () => {
@@ -48,6 +50,14 @@ export default function ApproveHistoryPage() {
     }
   };
 
+  const filteredAndSortedTours = tours
+    .filter(tour => statusFilter === "all" || tour.status === statusFilter)
+    .sort((a, b) => {
+      const dateA = new Date(a.created_at || 0).getTime();
+      const dateB = new Date(b.created_at || 0).getTime();
+      return sortOrder === "newest" ? dateB - dateA : dateA - dateB;
+    });
+
   // Giao diện khi đang tải dữ liệu
   if (loading) return (
     <div className="flex h-screen items-center justify-center font-black">
@@ -67,18 +77,41 @@ export default function ApproveHistoryPage() {
         {/* Quick Stats Card */}
         <div className="bg-white p-6 rounded-3xl shadow-xl border border-slate-100 flex items-center gap-4">
           <div>
-            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Số lượng đã xử lý</p>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Kết quả hiển thị</p>
             <p className="text-2xl font-black text-slate-800">
-              {tours.length} <span className="text-sm font-bold text-slate-500">yêu cầu</span>
+              {filteredAndSortedTours.length} <span className="text-sm font-bold text-slate-500">yêu cầu</span>
             </p>
           </div>
         </div>
       </div>
 
+      {/* Controls Section */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <select 
+          className="bg-white border text-sm font-bold border-slate-200 text-slate-700 px-4 py-3 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 hover:bg-slate-50 transition-colors cursor-pointer"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+        >
+          <option value="all">Tất cả trạng thái</option>
+          <option value="approved">Đã Duyệt</option>
+          <option value="rejected">Đã Từ Chối</option>
+          <option value="cancelled">Đã Phê Duyệt Hủy</option>
+        </select>
+
+        <select 
+          className="bg-white border text-sm font-bold border-slate-200 text-slate-700 px-4 py-3 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-400 hover:bg-slate-50 transition-colors cursor-pointer"
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value)}
+        >
+          <option value="newest">Ngày cập nhật: Mới nhất</option>
+          <option value="oldest">Ngày cập nhật: Cũ nhất</option>
+        </select>
+      </div>
+
       {/* Main Content */}
-      {tours.length === 0 ? (
+      {filteredAndSortedTours.length === 0 ? (
         <div className="bg-white p-20 text-center rounded-[3rem] border border-slate-100">
-            <p className="text-slate-400 font-black tracking-tight text-xl">Lịch sử hệ thống đang trống!</p>
+            <p className="text-slate-400 font-black tracking-tight text-xl">Không tìm thấy yêu cầu nào phù hợp!</p>
         </div>
       ) : (
         <div className="bg-white shadow-xl rounded-[2.5rem] overflow-hidden border border-slate-100">
@@ -92,7 +125,7 @@ export default function ApproveHistoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {tours.map((tour) => (
+                {filteredAndSortedTours.map((tour) => (
                   <tr key={tour.id} className="hover:bg-slate-50/50 transition-all group">
                     <td className="px-8 py-6">
                       <div className="text-sm font-black text-slate-800 transition-colors">

@@ -12,3 +12,4 @@ class Review(db.Model):
     rating = db.Column(db.Integer, nullable=False) # 1 đến 5 sao
     comment = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)

@@ -3,7 +3,8 @@ from app.extensions import db
 from app.models.tour import Tour
 from app.models.user import User, UserRole  
 from app.models.order import Order         
-from sqlalchemy import func
+from sqlalchemy import func, extract
+from datetime import datetime, timedelta, date
 # from flask_jwt_extended import jwt_required, get_jwt_identity # Bật lại khi nào có Auth
 
 # Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
@@ -141,32 +142,57 @@ def moderate_tour(tour_id):
 
 # QUẢN LÝ USER
 
-#lấy danh sách toàn bộ Users
+# lấy danh sách toàn bộ Users
 @admin_bp.route('/users', methods=['GET'])
 def get_all_users():
-    users = User.query.all()
+    status_filter = request.args.get('status', 'all')
+    
+    query = User.query
+    
+    try:
+        if status_filter == 'active':
+            query = query.filter_by(is_active=True, is_deleted=False)
+        elif status_filter == 'locked':
+            query = query.filter_by(is_active=False, is_deleted=False)
+        elif status_filter == 'deleted':
+            query = query.filter_by(is_deleted=True)
+        else:
+            # Mặc định 'all' nhưng ẩn các user đã bị xóa
+            query = query.filter_by(is_deleted=False)
+        
+        users = query.all()
+    except Exception as e:
+        print(f"Error fetching users: {e}")
+        db.session.rollback()
+        users = User.query.all()
+
     return jsonify([
         {
             'id': u.id,
             'full_name': u.full_name,
             'email': u.email,
-            'role': u.role.value, # Lấy giá trị string từ Enum
+            'role': u.role.value,
             'is_active': u.is_active,
+            'is_deleted': u.is_deleted,
             'created_at': u.created_at.strftime('%Y-%m-%d %H:%M:%S') if u.created_at else None
         } for u in users
     ]), 200
 
 # Khóa/Mở khóa User
-@admin_bp.route('/users/<int:user_id>/toggle-status', methods=['PUT'])
+@admin_bp.route('/users/<user_id>/toggle-status', methods=['PUT'])
 def toggle_user_status(user_id):
     user = User.query.get_or_404(user_id)
     
-    # Đảo ngược trạng thái
-    user.is_active = not user.is_active
-    db.session.commit()
-    
-    status_text = "Hoạt động" if user.is_active else "Đã khóa"
-    return jsonify({'message': f'Trạng thái user đã đổi thành: {status_text}', 'is_active': user.is_active}), 200
+    try:
+        # Đảo ngược trạng thái
+        user.is_active = not user.is_active
+        db.session.commit()
+        
+        status_text = "Hoạt động" if user.is_active else "Đã khóa"
+        return jsonify({'message': f'Trạng thái user đã đổi thành: {status_text}', 'is_active': user.is_active}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 # Thêm User Mới
 @admin_bp.route('/users', methods=['POST'])
@@ -211,7 +237,7 @@ def create_user():
         return jsonify({"error": str(e)}), 500
 
 # Cập nhật thông tin User
-@admin_bp.route('/users/<int:user_id>', methods=['PUT'])
+@admin_bp.route('/users/<user_id>', methods=['PUT'])
 def update_user_info(user_id):
     user = User.query.get_or_404(user_id)
     data = request.get_json()
@@ -237,14 +263,20 @@ def update_user_info(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-#Xóa User (Soft delete hoặc Hard delete tùy nhu cầu)
-@admin_bp.route('/users/<int:user_id>', methods=['DELETE'])
+#Xóa User (Soft delete)
+@admin_bp.route('/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
-    # Hard delete (Xóa vĩnh viễn)
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'message': 'Đã xóa user vĩnh viễn'}), 200
+    
+    try:
+        # Soft delete (Đổi trạng thái is_deleted)
+        user.is_deleted = True
+        user.is_active = False # Khóa luôn cho chắc
+        db.session.commit()
+        return jsonify({'message': 'Đã xóa người dùng thành công (Xóa mềm)'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 # lấy danh sách toàn bộ đơn hàng
 @admin_bp.route('/orders', methods=['GET'])
@@ -279,33 +311,68 @@ def get_all_orders():
 # 8. API Tổng quan 
 @admin_bp.route('/dashboard/stats', methods=['GET'])
 def get_admin_dashboard_stats():
-   
-    # Tổng doanh thu:
-    # Lấy tổng dòng tiền (Gross Merchandise Value) từ các đơn đã thanh toán
-    total_flow = db.session.query(func.sum(Order.total_price)).filter(
-        Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed'])
-    ).scalar() or 0
+    period = request.args.get('period', 'all')
+    now = datetime.utcnow()
     
-    # 1. Hoa hồng Admin thực nhận (15%)
+    # 1. Định nghĩa khoảng thời gian hiện tại (current) và trước đó (previous)
+    curr_start, curr_end = None, None
+    prev_start, prev_end = None, None
+    
+    if period == 'month':
+        curr_start = date(now.year, now.month, 1)
+        curr_end = now
+        # Tính tháng trước
+        if now.month == 1:
+            prev_start = date(now.year - 1, 12, 1)
+            prev_end = date(now.year - 1, 12, 31)
+        else:
+            prev_start = date(now.year, now.month - 1, 1)
+            # Ngày cuối tháng trước là ngày ngay trước ngày 1 tháng này
+            prev_end = curr_start - timedelta(days=1)
+            
+    elif period == 'year':
+        curr_start = date(now.year, 1, 1)
+        curr_end = now
+        prev_start = date(now.year - 1, 1, 1)
+        prev_end = date(now.year - 1, 12, 31)
+
+    # 2. Hàm query doanh thu theo khoảng thời gian
+    def get_revenue(start, end):
+        query = db.session.query(func.sum(Order.total_price)).filter(
+            Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed', 'success'])
+        )
+        if start:
+            query = query.filter(Order.booking_date >= start)
+        if end:
+            query = query.filter(Order.booking_date <= end)
+        return query.scalar() or 0
+
+    total_flow = get_revenue(curr_start, curr_end)
+    prev_flow = get_revenue(prev_start, prev_end)
+    
+    # Tính % tăng trưởng (Change)
+    revenue_change = 0
+    if prev_flow > 0:
+        revenue_change = ((total_flow - prev_flow) / prev_flow) * 100
+    elif total_flow > 0:
+        revenue_change = 100 # Coi như tăng 100% nếu kỳ trước chưa có gì
+
+    # 3. Tính toán các chỉ số khác (Giữ nguyên hoặc theo kỳ nếu cần)
+    # Ở đây chúng ta tính tổng quan toàn hệ thống cho các số lượng khác
     admin_commission = total_flow * 0.15
-    
-    # 2. Tiền hệ thống đang giữ cho NCC (85% - Quỹ Escrow)
     escrow_balance = total_flow * 0.85  
     
-    # Đơn hàng mới: Tổng số đơn hàng trong hệ thống
     total_orders = Order.query.count()
-    
-    # Khách hàng: Số lượng User có vai trò là customer
-    total_customers = User.query.filter_by(role=UserRole.CUSTOMER).count()
-    
-    # Tour chờ duyệt: Số tour có status là pending
-    pending_tours = Tour.query.filter_by(status='pending').count()
-    
+    if curr_start:
+        total_orders = Order.query.filter(Order.booking_date >= curr_start).count()
+        
     return jsonify({
-        "total_revenue": total_flow,          # Tổng doanh số (100%)
-        "admin_commission": admin_commission, # Tiền của bạn (15%)
-        "escrow_balance": escrow_balance,     # Tiền trả NCC (85%)
-        "total_orders": Order.query.count(),
+        "total_revenue": total_flow,
+        "prev_revenue": prev_flow,
+        "revenue_change": round(revenue_change, 1),
+        "admin_commission": admin_commission,
+        "escrow_balance": escrow_balance,
+        "total_orders": total_orders,
         "total_customers": User.query.filter_by(role=UserRole.CUSTOMER).count(),
         "pending_tours": Tour.query.filter_by(status='pending').count()
     }), 200
@@ -401,6 +468,7 @@ def get_role_stats():
     from app.models.tour_guide import TourGuide, TourGuideAssignment
     guide_query = db.session.query(
         User.id, User.full_name, User.email,
+        Tour.id.label("tour_id"),
         Tour.name.label("tour_name")
     ).outerjoin(TourGuide, TourGuide.user_id == User.id)\
      .outerjoin(TourGuideAssignment, TourGuideAssignment.guide_id == TourGuide.id)\
@@ -409,13 +477,13 @@ def get_role_stats():
      
     g_dict = {}
     for row in guide_query:
-        user_id, name, email, tour_name = row
+        user_id, name, email, t_id, t_name = row
         if user_id not in g_dict:
-             g_dict[user_id] = {"id": user_id, "name": name, "email": email, "total_tours": 0, "tours": set(), "assignments": 0}
+             g_dict[user_id] = {"id": user_id, "name": name, "email": email, "total_tours": 0, "tours": [], "assignments": 0}
         
-        if tour_name:
+        if t_name:
              g_dict[user_id]["assignments"] += 1
-             g_dict[user_id]["tours"].add(tour_name)
+             g_dict[user_id]["tours"].append({"id": t_id, "name": t_name})
              
     guide_result = []
     for uid, v in g_dict.items():
@@ -429,4 +497,37 @@ def get_role_stats():
         "customers": customer_result,
         "suppliers": supplier_result,
         "guides": guide_result
+    }), 200
+
+# 11. Chi tiết doanh thu tour cụ thể (Admin)
+@admin_bp.route('/tours/<int:tour_id>/revenue-details', methods=['GET'])
+def get_admin_tour_revenue_details(tour_id):
+    tour = Tour.query.get_or_404(tour_id)
+    
+    # Tính tổng doanh thu từ orders
+    orders = Order.query.filter_by(tour_id=tour_id).filter(
+        Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed', 'success'])
+    ).all()
+    
+    total_revenue = sum(o.total_price for o in orders)
+    total_bookings = len(orders)
+    
+    # Tính toán hoa hồng
+    admin_commission = total_revenue * 0.15
+    supplier_revenue = total_revenue * 0.85
+    guide_commission = total_revenue * 0.10 # Giả định 10% như đề xuất
+    
+    return jsonify({
+        "tour_id": tour.id,
+        "tour_name": tour.name,
+        "total_revenue": total_revenue,
+        "total_bookings": total_bookings,
+        "admin_commission": admin_commission,
+        "supplier_revenue": supplier_revenue,
+        "guide_commission": guide_commission,
+        "commission_rates": {
+            "admin": "15%",
+            "supplier_net": "85%",
+            "guide": "10%"
+        }
     }), 200

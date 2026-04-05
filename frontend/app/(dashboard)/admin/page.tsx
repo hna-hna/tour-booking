@@ -6,14 +6,15 @@ export default function AdminDashboardPage() {
   const [statsData, setStatsData] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [revenueByTour, setRevenueByTour] = useState<any[]>([]);
+  const [period, setPeriod] = useState("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
-        // Tối ưu: Gọi tất cả API cùng lúc thay vì đợi từng cái một
         const [resStats, resOrders, resRevenue] = await Promise.all([
-          fetch("http://127.0.0.1:5000/api/admin/dashboard/stats"),
+          fetch(`http://127.0.0.1:5000/api/admin/dashboard/stats?period=${period}`),
           fetch("http://127.0.0.1:5000/api/admin/orders"),
           fetch("http://127.0.0.1:5000/api/admin/dashboard/revenue-by-tour")
         ]);
@@ -23,7 +24,7 @@ export default function AdminDashboardPage() {
         const dataRevenue = await resRevenue.json();
 
         setStatsData(dataStats);
-        setOrders(dataOrders.slice(0, 5)); // Chỉ lấy 5 đơn mới nhất để hiển thị Dashboard
+        setOrders(dataOrders.slice(0, 5));
         setRevenueByTour(dataRevenue);
       } catch (error) {
         console.error("Lỗi kết nối API:", error);
@@ -32,8 +33,7 @@ export default function AdminDashboardPage() {
       }
     };
     fetchData();
-  }, []);
-
+  }, [period]);
   if (loading) {
     return (
       <div className="p-20 text-center font-black text-emerald-600 animate-pulse uppercase tracking-[0.3em]">
@@ -47,6 +47,7 @@ export default function AdminDashboardPage() {
     { 
       title: "Tổng Doanh Thu", 
       value: statsData?.total_revenue, 
+      change: statsData?.revenue_change,
       label: "GMV", 
       color: "from-slate-900 to-slate-800" 
     },
@@ -82,7 +83,21 @@ export default function AdminDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-8">
         <div>
           <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter">Hệ thống quản trị</h1>
-          <p className="text-slate-500 text-sm font-medium mt-1 italic">Chào buổi sáng, Admin! Đây là hiệu suất kinh doanh hôm nay.</p>
+          <p className="text-slate-500 text-sm font-medium mt-1 italic">Chào buổi sáng, Admin! Đây là hiệu suất kinh doanh.</p>
+          
+          {/* Bộ lọc thời gian */}
+          <div className="mt-6 flex items-center gap-4">
+            <span className="text-[10px] font-black uppercase text-slate-400">Xem theo:</span>
+            <select 
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="bg-slate-100 border-none rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+            >
+              <option value="all">Tất cả thời gian</option>
+              <option value="month">Tháng này</option>
+              <option value="year">Năm này</option>
+            </select>
+          </div>
         </div>
         <div className="text-right">
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dữ liệu thời gian thực</p>
@@ -102,7 +117,14 @@ export default function AdminDashboardPage() {
                 : s.value?.toLocaleString() || 0}
             </h3>
             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
-              <span className="text-[9px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-tighter">{s.label}</span>
+              <div className="flex flex-col">
+                <span className="text-[9px] font-black bg-white/20 px-2 py-1 rounded-lg uppercase tracking-tighter w-fit">{s.label}</span>
+                {s.change !== undefined && (
+                  <span className={`text-[10px] font-bold mt-2 ${s.change >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {s.change >= 0 ? '▲' : '▼'} {Math.abs(s.change)}% <span className="opacity-50 font-normal">so với kỳ trước</span>
+                  </span>
+                )}
+              </div>
               <span className="text-[10px] opacity-50 font-bold italic">Realtime</span>
             </div>
           </div>

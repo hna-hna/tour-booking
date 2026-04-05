@@ -22,7 +22,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Duyệt Tour", href: "/admin/approve-tours", icon: <Map size={20} /> },
     { name: "Lịch sử duyệt", href: "/admin/approve-history", icon: <ClipboardList size={20} /> },
     { name: "Đơn hàng", href: "/admin/orders", icon: <ShoppingCart size={20} /> },
-    { name: "Thống kê", href: "/admin/role-stats", icon: <BarChart3 size={20} /> },
+    { name: "Thống kê Tổng quan", href: "/admin/role-stats", icon: <BarChart3 size={20} /> },
+    { name: "TK Khách hàng", href: "/admin/role-stats/customers", icon: <Users size={18} className="ml-2" /> },
+    { name: "TK Nhà cung cấp", href: "/admin/role-stats/suppliers", icon: <ShoppingCart size={18} className="ml-2" /> },
+    { name: "TK Hướng dẫn viên", href: "/admin/role-stats/guides", icon: <BarChart3 size={18} className="ml-2" /> },
   ];
 
   const handleLogout = () => {

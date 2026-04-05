@@ -13,7 +13,9 @@ export default function UploadManageTourPage() {
 
   // Modal assign lại guide
   const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [revenueModalOpen, setRevenueModalOpen] = useState(false);
   const [selectedTour, setSelectedTour] = useState<any>(null);
+  const [selectedTourRevenue, setSelectedTourRevenue] = useState<any>(null);
   const [selectedGuideId, setSelectedGuideId] = useState("");
 
   const [formData, setFormData] = useState({
@@ -260,7 +262,7 @@ export default function UploadManageTourPage() {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${localStorage.getItem("token")}`
           },
-          body: JSON.stringify({ guide_id: Number(selectedGuideId) })
+          body: JSON.stringify({ guide_id: selectedGuideId })
         }
       );
 
@@ -274,6 +276,29 @@ export default function UploadManageTourPage() {
       }
     } catch (e) {
       alert("Lỗi kết nối mạng");
+    }
+  };
+
+  // 9. Mở Modal doanh thu chi tiết
+  const handleOpenRevenueModal = async (tour: any) => {
+    setSelectedTour(tour);
+    setRevenueModalOpen(true);
+    setSelectedTourRevenue(null); // Loading state inside modal
+
+    try {
+      const res = await fetch("http://127.0.0.1:5000/api/supplier/revenue/by-tour", {
+        headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+      });
+      const data = await res.json();
+      const tourRevenue = data.find((r: any) => r.tour_id === tour.id);
+      setSelectedTourRevenue(tourRevenue || { 
+        total_revenue: 0, 
+        admin_commission: 0, 
+        supplier_revenue: 0, 
+        total_bookings: 0 
+      });
+    } catch (e) {
+      console.error("Lỗi lấy doanh thu:", e);
     }
   };
 
@@ -357,7 +382,10 @@ export default function UploadManageTourPage() {
                   <span className="text-xs font-bold text-gray-500 uppercase">ID: #{t.id}</span>
                 </div>
 
-                <h3 className="text-lg font-black text-gray-800 group-hover:text-emerald-700 transition-colors">
+                <h3 
+                  className="text-lg font-black text-gray-800 group-hover:text-emerald-700 transition-colors cursor-pointer hover:underline"
+                  onClick={() => handleOpenRevenueModal(t)}
+                >
                   {t.name}
                 </h3>
                 <div className="flex flex-wrap gap-x-6 gap-y-1 mt-2">
@@ -642,6 +670,64 @@ export default function UploadManageTourPage() {
                 {uploading ? "Đang xử lý..." : (formData.id ? "Lưu thay đổi" : "Gửi tour")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DOANH THU CHI TIẾT */}
+      {revenueModalOpen && selectedTour && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white w-full max-w-lg rounded-[2.5rem] p-10 shadow-2xl relative">
+            <button 
+              onClick={() => setRevenueModalOpen(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-black text-2xl"
+            >
+              ×
+            </button>
+            <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter">Chi tiết doanh thu</h2>
+            <p className="text-sm text-gray-500 font-medium mb-8">Tour: <span className="text-emerald-600 font-bold">{selectedTour.name}</span></p>
+
+            {!selectedTourRevenue ? (
+              <div className="py-10 text-center animate-pulse text-gray-400 italic">Đang bóc tách dữ liệu...</div>
+            ) : (
+              <div className="space-y-6">
+                <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Kết quả kinh doanh</p>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center group">
+                      <span className="text-sm font-bold text-slate-600">Tổng doanh thu (100%)</span>
+                      <span className="text-lg font-black text-slate-900">{(selectedTourRevenue.total_revenue || 0).toLocaleString()}đ</span>
+                    </div>
+                    <div className="flex justify-between items-center text-rose-500">
+                      <span className="text-sm font-bold">Phí sàn Admin (15%)</span>
+                      <span className="text-md font-black italic">-{(selectedTourRevenue.admin_commission || 0).toLocaleString()}đ</span>
+                    </div>
+                    <div className="pt-4 border-t border-slate-200 flex justify-between items-center text-emerald-600">
+                      <span className="text-sm font-black uppercase">Thực nhận NCC (85%)</span>
+                      <span className="text-2xl font-black">{(selectedTourRevenue.supplier_revenue || 0).toLocaleString()}đ</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-blue-50 p-6 rounded-3xl border border-blue-100">
+                    <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Số vé đã bán</p>
+                    <p className="text-2xl font-black text-blue-700">{selectedTourRevenue.total_bookings || 0}</p>
+                  </div>
+                  <div className="bg-purple-50 p-6 rounded-3xl border border-purple-100 text-right">
+                    <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-1">Giá vé niêm yết</p>
+                    <p className="text-xl font-black text-purple-700">{(selectedTour?.price || 0).toLocaleString()}đ</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <button 
+              onClick={() => setRevenueModalOpen(false)}
+              className="w-full mt-10 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
+            >
+              Đóng báo cáo
+            </button>
           </div>
         </div>
       )}

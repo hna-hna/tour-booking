@@ -67,8 +67,10 @@ export default function GuideTourDetailPage() {
     if (!confirmFinish) return;
 
     try {
-      await axios.put(`http://localhost:5000/api/guide/tours/${params.id}/finish`);
-      alert("🎉 Chúc mừng bạn đã hoàn thành tour!");
+      await axios.put(`http://localhost:5000/api/guide/tours/${params.id}/finish`,
+      {},
+      { headers: getAuthHeader() });
+      alert(" Chúc mừng bạn đã hoàn thành tour!");
       router.push("/guide/profile");
     } catch (error) {
       alert("Lỗi: Không thể hoàn thành tour.");
@@ -191,7 +193,7 @@ export default function GuideTourDetailPage() {
               disabled={loadingCust}
               className="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-100 rounded-2xl text-sm font-bold shadow-sm transition"
             >
-              {loadingCust ? "Đang tải..." : "⟳ Làm mới"}
+              {loadingCust ? "Đang tải..." : " Làm mới"}
             </button>
           </div>
 

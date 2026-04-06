@@ -68,7 +68,6 @@ export default function GuideRequestsPage() {
       ) : (
         <div className="grid gap-6">
           {requests.map((req) => {
-            // ✅ FIX: dùng đúng từ backend
             const canRespond = req.can_respond;
             const isWaitingAdmin = req.assign_status === 'accepted' && req.tour_status === 'pending';
             return (
@@ -84,18 +83,18 @@ export default function GuideRequestsPage() {
 
                     {!canRespond && (
                       <span className="px-2.5 py-1 bg-amber-50 text-amber-600 text-[10px] font-black uppercase rounded-lg border border-amber-100 animate-pulse">
-                        ⏳ Đang chờ admin duyệt
+                         Đang chờ admin duyệt
                       </span>
                     )}
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex items-center text-gray-600 text-sm gap-2">
-                      <span className="font-bold">📅 Khởi hành:</span> 
+                      <span className="font-bold"> Khởi hành:</span> 
                       {new Date(req.start_date).toLocaleDateString('vi-VN')}
                     </div>
                     <div className="flex items-center text-gray-400 text-[11px] gap-2">
-                      <span className="font-bold uppercase tracking-widest">📨 Nhận lúc:</span> 
+                      <span className="font-bold uppercase tracking-widest"> Nhận lúc:</span> 
                       {new Date(req.assigned_date).toLocaleString('vi-VN')}
                     </div>
                   </div>

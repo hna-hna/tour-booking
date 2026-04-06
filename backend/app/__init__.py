@@ -77,7 +77,7 @@ def create_app():
     def scheduled_train():
         """Wrapper để chạy train_model trong application context"""
         with app.app_context():
-            print("🤖 APScheduler: Training AI Recommender...")
+            print(" APScheduler: Training AI Recommender...")
             recommender.train_model()
 
     # Train mỗi 30 phút

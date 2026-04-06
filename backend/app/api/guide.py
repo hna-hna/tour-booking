@@ -1,3 +1,4 @@
+import json
 from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 from app.models.tour import Tour
@@ -267,6 +268,7 @@ def guide_profile():
 
 
 # 7. Kết thúc tour
+# 7. Kết thúc tour (BẢN ĐÃ FIX LỖI 500)
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_tour(tour_id):
@@ -296,23 +298,18 @@ def finish_tour(tour_id):
         # 2. Hoàn thành Tour
         tour.status = 'completed'
         
-        # 3. Quan trọng: Hoàn thành tất cả đơn hàng của tour này
+        # 3. Hoàn thành tất cả đơn hàng của tour này
         orders = Order.query.filter_by(tour_id=tour_id, status='paid').all()
         for order in orders:
             order.status = 'completed'
 
-        # 4. Tính tiền hoa hồng cho Supplier (giữ nguyên logic cũ)
-        if tour.supplier_id:
-            supplier = User.query.get(tour.supplier_id)
-            if supplier:
-                total_revenue = sum(o.total_price for o in orders)
-                supplier_revenue = total_revenue * 0.85
-                supplier.balance = (supplier.balance or 0.0) + supplier_revenue
+        # --- ĐÃ XÓA LOGIC TÍNH TIỀN VÀO CỘT BALANCE Ở ĐÂY ---
+        # Không còn gọi đến supplier.balance nữa nên sẽ không bị lỗi 500
 
         db.session.commit()
 
         return jsonify({
-            "msg": "Tour đã được đánh dấu hoàn thành. Tất cả đơn hàng liên quan cũng đã hoàn tất.",
+            "msg": "Tour đã được đánh dấu hoàn thành thành công!",
             "status": "completed"
         }), 200
 

@@ -1,6 +1,5 @@
-//frontend/app/(dashboard)/guide/page.tsx
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import Link from "next/link";
 
@@ -17,6 +16,10 @@ export default function GuideDashboard() {
   const [selectedTour, setSelectedTour] = useState<any>(null);
   const [revenueData, setRevenueData] = useState<any>(null);
   const [revenueModalOpen, setRevenueModalOpen] = useState(false);
+
+  // --- STATE CHO BỘ LỌC ---
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState("earliest"); // earliest | latest
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -39,6 +42,23 @@ export default function GuideDashboard() {
       });
   }, []);
 
+  // --- LOGIC LỌC VÀ SẮP XẾP ---
+  const filteredTours = useMemo(() => {
+    // 1. Lọc theo tên
+    let result = tours.filter((t) =>
+      t.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // 2. Sắp xếp theo ngày khởi hành
+    result.sort((a, b) => {
+      const dateA = new Date(a.start_date).getTime();
+      const dateB = new Date(b.start_date).getTime();
+      return sortOrder === "earliest" ? dateA - dateB : dateB - dateA;
+    });
+
+    return result;
+  }, [tours, searchTerm, sortOrder]);
+
   const handleOpenRevenueModal = async (tour: MyTour) => {
     setSelectedTour(tour);
     setRevenueModalOpen(true);
@@ -57,18 +77,44 @@ export default function GuideDashboard() {
 
   return (
     <div className="p-6">
-      <h1 className="text-3xl font-black text-gray-900 mb-8 uppercase tracking-tighter italic">Lịch Dẫn Tour Của Tôi</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+        <h1 className="text-3xl font-black text-gray-900 uppercase tracking-tighter italic">
+          Lịch Dẫn Tour Của Tôi
+        </h1>
+        
+        {/* THANH CÔNG CỤ LỌC */}
+        <div className="flex flex-wrap gap-4 w-full md:w-auto">
+          <input 
+            type="text" 
+            placeholder="TÌM TÊN TOUR..." 
+            className="bg-white border-2 border-black px-4 py-2 text-xs font-black uppercase tracking-widest focus:bg-yellow-50 rounded-2xl shadow-sm outline-none w-full md:w-64"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+          <select 
+            className="bg-black text-white border-2 rounded-2xl shadow-sm border-black px-4 py-2 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value)}
+          >
+            <option value="earliest">KHỞI HÀNH: SỚM NHẤT</option>
+            <option value="latest">KHỞI HÀNH: TRỄ NHẤT</option>
+          </select>
+        </div>
+      </div>
       
-      {tours.length === 0 ? (
+      {filteredTours.length === 0 ? (
         <div className="bg-white p-12 rounded-[2rem] text-center shadow-xl border border-dashed border-gray-200">
-          <p className="text-gray-400 mb-4 font-medium italic">Bạn chưa có lịch dẫn tour nào.</p>
-          <Link href="/guide/requests" className="bg-emerald-600 text-white px-8 py-3 rounded-2xl font-bold hover:bg-emerald-700 transition-all inline-block shadow-lg shadow-emerald-100">
-            Kiểm tra yêu cầu mới ngay 
-          </Link>
+          <p className="text-gray-400 mb-4 font-medium italic">Không tìm thấy tour nào khớp với yêu cầu.</p>
+          <button 
+            onClick={() => {setSearchTerm(""); setSortOrder("earliest");}}
+            className="text-emerald-600 font-black text-xs uppercase tracking-widest hover:underline"
+          >
+            LÀM MỚI BỘ LỌC
+          </button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {tours.map((tour) => (
+          {filteredTours.map((tour) => (
             <div key={tour.id} className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden hover:translate-y-[-5px] transition-all duration-300 group">
               <div className="h-32 bg-gradient-to-br from-emerald-500 to-teal-700 p-6 flex flex-col justify-end relative overflow-hidden">
                 <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
@@ -82,7 +128,7 @@ export default function GuideDashboard() {
               
               <div className="p-6">
                 <div className="flex justify-between text-sm mb-6 grayscale group-hover:grayscale-0 transition-all">
-                  <div className="bg-gray-50 p-3 rounded-2xl flex-1 mr-2">
+                  <div className="bg-gray-50 p-3 rounded-2xl flex-1 mr-2 border border-transparent group-hover:border-emerald-100">
                     <p className="text-[10px] text-gray-400 font-black uppercase tracking-widest mb-1">Khởi hành</p>
                     <p className="font-bold text-gray-800">
                         {tour.start_date ? new Date(tour.start_date).toLocaleDateString('vi-VN') : 'Chưa cập nhật'}
@@ -100,7 +146,7 @@ export default function GuideDashboard() {
                   href={`/guide/tours/${tour.id}`} 
                   className="flex items-center justify-center w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg"
                 >
-                  Quản lý hành khách →
+                  Quản lý hành khách [CHI TIẾT]
                 </Link>
               </div>
             </div>
@@ -114,15 +160,15 @@ export default function GuideDashboard() {
           <div className="bg-white w-full max-w-md rounded-[2.5rem] p-10 shadow-2xl relative">
             <button 
               onClick={() => setRevenueModalOpen(false)}
-              className="absolute top-6 right-6 text-gray-400 hover:text-black text-2xl"
+              className="absolute top-6 right-6 text-gray-400 hover:text-black text-2xl font-bold"
             >
-              ×
+              DÓNG [X]
             </button>
             <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter">Thu nhập của bạn</h2>
             <p className="text-sm text-gray-500 font-medium mb-8 italic">Theo dõi hoa hồng từ tour: <span className="text-emerald-600 font-bold">{selectedTour.name}</span></p>
 
             {!revenueData ? (
-              <div className="py-10 text-center animate-pulse text-gray-400 italic">Đang tổng hợp thu nhập...</div>
+              <div className="py-10 text-center animate-pulse text-gray-400 italic font-black uppercase text-xs">Đang tổng hợp...</div>
             ) : (
               <div className="space-y-6">
                 <div className="bg-emerald-50 p-8 rounded-[2rem] border border-emerald-100 relative overflow-hidden">
@@ -148,11 +194,11 @@ export default function GuideDashboard() {
               onClick={() => setRevenueModalOpen(false)}
               className="w-full mt-8 bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all"
             >
-              Đóng báo cáo
+              Xác nhận báo cáo
             </button>
           </div>
         </div>
       )}
     </div>
   );
-}
+}

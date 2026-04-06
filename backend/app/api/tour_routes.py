@@ -98,10 +98,16 @@ def get_recommended_tours():
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
 def get_public_tours():
-    # Chỉ lấy các tour đã được Admin phê duyệt và còn hạn khởi hành
-    tours = Tour.query.filter(Tour.status == 'approved', Tour.start_date >= datetime.utcnow()).all()
-    return jsonify([
-        {
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
+    status = request.args.get('status', 'approved')
+
+    query = Tour.query.filter(Tour.status == status, Tour.start_date >= datetime.utcnow())
+    
+    result = paginate_query(query, page, per_page)
+    
+    return jsonify({
+        "tours": [{
             "id": t.id,
             "name": t.name,
             "price": t.price,
@@ -109,9 +115,14 @@ def get_public_tours():
             "image": t.image,
             "start_date": t.start_date,
             "end_date": t.end_date
+        } for t in result["items"]],
+        "pagination": {
+            "total": result["total"],
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total_pages": result["total_pages"]
         }
-        for t in tours
-    ]), 200
+    }), 200
 
 # API: Lấy chi tiết 1 Tour (Public)
 @tour_bp.route('/<int:tour_id>', methods=['GET'])

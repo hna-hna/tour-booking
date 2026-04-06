@@ -1,254 +1,225 @@
 "use client";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-import { useEffect, useState } from "react";
-import axios from "axios";
-import Link from "next/link";
+interface Booking {
+  id: number;
+  tour_name: string;
+  tour_image?: string;
+  total_price: number;
+  guest_count: number;
+  status: string;
+  booking_date: string;
+  tour_id: number;
+}
 
 export default function BookingsPage() {
-    const [bookings, setBookings] = useState<any[]>([]);
-    const [filteredBookings, setFilteredBookings] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
 
-    // Các state cho filter
-    const [searchTerm, setSearchTerm] = useState("");
-    const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
-    const [selectedDate, setSelectedDate] = useState("");
-    const [guestFilter, setGuestFilter] = useState<number | "">("");
-
+  // 1. Fetch bookings với xử lý an toàn
+  useEffect(() => {
     const fetchBookings = async () => {
-        try {
-            const token = localStorage.getItem("token");
-            if (!token) {
-                window.location.href = "/login";
-                return;
-            }
+      try {
+        setLoading(true);
+        const token = localStorage.getItem("token");
 
-            const res = await axios.get("http://localhost:5000/api/orders/my-orders", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setBookings(res.data);
-            setFilteredBookings(res.data);
-        } catch (error: any) {
-            console.error("Lỗi lấy danh sách đơn hàng:", error);
-            if (error.response?.status === 401) {
-                alert("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
-                localStorage.removeItem("token");
-                window.location.href = "/login";
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // Áp dụng filter & sort
-    useEffect(() => {
-        let result = [...bookings];
-
-        // Lọc theo tên tour
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase();
-            result = result.filter(b => 
-                b.tour_name?.toLowerCase().includes(term)
-            );
+        if (!token) {
+          router.push("/login");
+          return;
         }
 
-        // Lọc theo ngày cụ thể
-        if (selectedDate) {
-            result = result.filter(b => {
-                const bookingDate = new Date(b.booking_date).toISOString().split('T')[0];
-                return bookingDate === selectedDate;
-            });
-        }
-
-        // Lọc theo số lượng khách
-        if (guestFilter !== "") {
-            result = result.filter(b => b.guest_count === Number(guestFilter));
-        }
-
-        // Sắp xếp
-        result.sort((a, b) => {
-            const dateA = new Date(a.booking_date).getTime();
-            const dateB = new Date(b.booking_date).getTime();
-            return sortBy === "newest" ? dateB - dateA : dateA - dateB;
+        const res = await fetch("http://127.0.0.1:5000/api/orders/my-orders", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         });
 
-        setFilteredBookings(result);
-    }, [bookings, searchTerm, sortBy, selectedDate, guestFilter]);
-
-    useEffect(() => {
-        fetchBookings();
-    }, []);
-
-    const handleCancel = async (orderId: number) => {
-        if (!confirm("Bạn có chắc chắn muốn hủy đơn hàng này không?")) return;
-
-        try {
-            const token = localStorage.getItem("token");
-            await axios.put(`http://localhost:5000/api/orders/${orderId}/cancel`, {}, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            alert("Hủy đơn hàng thành công!");
-            fetchBookings();
-        } catch (error) {
-            console.error("Lỗi khi hủy đơn:", error);
-            alert("Không thể hủy đơn hàng lúc này.");
+        if (res.status === 401) {
+          alert("Phiên đăng nhập hết hạn!");
+          localStorage.removeItem("token");
+          router.push("/login");
+          return;
         }
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Không thể tải danh sách");
+
+        const bookingList = data.orders || [];
+        setBookings(bookingList);
+        setFilteredBookings(bookingList);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "Có lỗi xảy ra khi tải dữ liệu");
+        setBookings([]);
+        setFilteredBookings([]);
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const getStatusText = (status: string) => {
-        switch (status) {
-            case "pending": return <span className="text-yellow-600 bg-yellow-100 px-3 py-1 rounded-full text-xs font-bold">Chờ xử lý</span>;
-            case "paid": return <span className="text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full text-xs font-bold">Đã thanh toán</span>;
-            case "cancelled": return <span className="text-red-600 bg-red-100 px-3 py-1 rounded-full text-xs font-bold">Đã hủy</span>;
-            case "completed": return <span className="text-blue-600 bg-blue-100 px-3 py-1 rounded-full text-xs font-bold">Đã hoàn thành</span>;
-            default: return <span className="text-gray-500">{status}</span>;
-        }
-    };
+    fetchBookings();
+  }, [router]);
 
-    if (loading) {
-        return <div className="p-8 text-center font-bold text-gray-500">Đang tải lịch sử đặt tour...</div>;
+  // 2. Bộ lọc kết hợp Search + Status
+  useEffect(() => {
+    let result = [...bookings];
+
+    if (searchTerm) {
+      result = result.filter((b) =>
+        b.tour_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
 
-    return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
-            <div className="max-w-5xl mx-auto">
-                <h1 className="text-4xl font-black text-gray-900 mb-2">Lịch sử đặt Tour</h1>
-                <p className="text-gray-600 mb-8">Quản lý tất cả các đơn đặt tour của bạn</p>
+    if (statusFilter !== "all") {
+      result = result.filter((b) => b.status === statusFilter);
+    }
 
-                {/* Bộ lọc */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {/* Tìm theo tên tour */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Tìm theo tên tour</label>
-                        <input
-                            type="text"
-                            placeholder="Nhập tên tour..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                    </div>
+    setFilteredBookings(result);
+  }, [bookings, searchTerm, statusFilter]);
 
-                    {/* Sắp xếp */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Sắp xếp theo</label>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value as "newest" | "oldest")}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        >
-                            <option value="newest">Ngày đặt mới nhất</option>
-                            <option value="oldest">Ngày đặt cũ nhất</option>
-                        </select>
-                    </div>
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "paid": return "bg-green-100 text-green-700";
+      case "completed": return "bg-blue-100 text-blue-700";
+      case "cancelled": return "bg-red-100 text-red-700";
+      case "pending": return "bg-yellow-100 text-yellow-700";
+      default: return "bg-gray-100 text-gray-700";
+    }
+  };
 
-                    {/* Lọc theo ngày */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Ngày đặt cụ thể</label>
-                        <input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(e) => setSelectedDate(e.target.value)}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                    </div>
+  const getStatusText = (status: string) => {
+    const map: { [key: string]: string } = {
+      paid: "Đã thanh toán",
+      completed: "Hoàn thành",
+      cancelled: "Đã hủy",
+      pending: "Chờ thanh toán",
+    };
+    return map[status] || status;
+  };
 
-                    {/* Lọc theo số lượng khách */}
-                    <div>
-                        <label className="text-sm font-medium text-gray-700 mb-1 block">Số lượng khách</label>
-                        <input
-                            type="number"
-                            placeholder="Ví dụ: 2"
-                            value={guestFilter}
-                            onChange={(e) => setGuestFilter(e.target.value ? Number(e.target.value) : "")}
-                            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
-                    </div>
+  return (
+    <div className="p-6 max-w-6xl mx-auto">
+      {/* Header & Filter Section */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <h1 className="text-3xl font-bold text-gray-800">Đơn đặt tour của tôi</h1>
+        
+        <div className="flex flex-wrap gap-2 justify-center">
+          {["all", "paid", "completed", "cancelled", "pending"].map((st) => (
+            <button
+              key={st}
+              onClick={() => setStatusFilter(st)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                statusFilter === st
+                  ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200"
+                  : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+              }`}
+            >
+              {st === "all" ? "Tất cả" : getStatusText(st)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search Input */}
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Tìm kiếm theo tên tour..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-5 py-3 rounded-2xl border border-gray-200 focus:ring-2 focus:ring-emerald-500 outline-none"
+        />
+      </div>
+
+      {loading ? (
+        <div className="text-center py-20">
+          <div className="animate-spin w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-4 text-gray-500">Đang tải đơn hàng...</p>
+        </div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 text-red-600 p-6 rounded-2xl text-center">
+          {error}
+        </div>
+      ) : (
+        <div className="grid gap-6">
+          {(filteredBookings || []).map((booking) => (
+            <div
+              key={booking.id}
+              className="bg-white border border-gray-100 rounded-3xl p-6 hover:shadow-xl transition-all flex flex-col md:flex-row gap-6 shadow-sm"
+            >
+              {/* Image Section */}
+              <div className="w-full md:w-48 h-40 rounded-2xl overflow-hidden bg-gray-100 shrink-0">
+                {booking.tour_image ? (
+                  <img
+                    src={booking.tour_image}
+                    alt={booking.tour_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">No Image</div>
+                )}
+              </div>
+
+              {/* Info Section */}
+              <div className="flex-1">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-xl font-bold text-gray-800 line-clamp-1">{booking.tour_name}</h3>
+                  <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
+                    {getStatusText(booking.status)}
+                  </span>
                 </div>
 
-                {filteredBookings.length === 0 ? (
-                    <div className="bg-white p-12 text-center rounded-xl shadow-sm border border-gray-100">
-                        <p className="text-gray-500 mb-4">Không tìm thấy đơn hàng nào phù hợp.</p>
-                        <button 
-                            onClick={() => {
-                                setSearchTerm("");
-                                setSelectedDate("");
-                                setGuestFilter("");
-                                setSortBy("newest");
-                            }}
-                            className="text-emerald-600 hover:underline"
-                        >
-                            Xóa tất cả bộ lọc
-                        </button>
-                    </div>
-                ) : (
-                    <div className="space-y-5">
-                        {filteredBookings.map((booking) => (
-                            <div key={booking.id} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:border-emerald-200 transition-all">
-                                <div className="flex flex-col md:flex-row gap-6">
-                                    {/* Ảnh tour */}
-                                    <div className="w-full md:w-56 h-40 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                                        {booking.tour_image ? (
-                                            <img 
-                                                src={booking.tour_image.startsWith('http') ? booking.tour_image : `http://localhost:5000/static/uploads/${booking.tour_image}`} 
-                                                alt={booking.tour_name} 
-                                                className="w-full h-full object-cover" 
-                                            />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400">Không có ảnh</div>
-                                        )}
-                                    </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400 mb-1 uppercase text-[10px] font-bold">Số khách</p>
+                    <p className="font-bold text-gray-700">{booking.guest_count} người</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 mb-1 uppercase text-[10px] font-bold">Tổng tiền</p>
+                    <p className="font-bold text-emerald-600 text-lg">
+                      {booking.total_price?.toLocaleString()}đ
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 mb-1 uppercase text-[10px] font-bold">Ngày đặt</p>
+                    <p className="font-bold text-gray-700">
+                      {new Date(booking.booking_date).toLocaleDateString("vi-VN")}
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-                                    {/* Thông tin */}
-                                    <div className="flex-1">
-                                        <div className="flex justify-between items-start">
-                                            <h3 className="text-xl font-bold text-gray-900">{booking.tour_name}</h3>
-                                            {getStatusText(booking.status)}
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-y-3 mt-4 text-sm">
-                                            <p><strong>Mã đơn:</strong> #{booking.id}</p>
-                                            <p><strong>Ngày đặt:</strong> {new Date(booking.booking_date).toLocaleDateString("vi-VN", { 
-                                                year: 'numeric', month: 'long', day: 'numeric' 
-                                            })}</p>
-                                            <p><strong>Số khách:</strong> {booking.guest_count} người</p>
-                                            <p><strong>Tổng tiền:</strong> <span className="font-bold text-emerald-600">{booking.total_price.toLocaleString()} ₫</span></p>
-                                        </div>
-
-                                        {/* Nút hành động */}
-                                        <div className="flex flex-wrap gap-3 mt-6">
-                                            <Link 
-                                                href={`/bookings/${booking.id}`}
-                                                className="px-6 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-black transition font-medium"
-                                            >
-                                                Xem chi tiết
-                                            </Link>
-
-                                            {booking.status === "completed" && (
-                                                <Link 
-                                                    href={`/reviews?tour_id=${booking.tour_id}&order_id=${booking.id}`}
-                                                    className="px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition font-medium flex items-center gap-2"
-                                                >
-                                                     Đánh giá tour
-                                                </Link>
-                                            )}
-
-                                            {["pending", "paid"].includes(booking.status) && (
-                                                <button
-                                                    onClick={() => handleCancel(booking.id)}
-                                                    className="px-6 py-2.5 border border-red-500 text-red-600 hover:bg-red-50 rounded-xl transition font-medium"
-                                                >
-                                                    Hủy đơn hàng
-                                                </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+              {/* Actions Section */}
+              <div className="flex flex-col gap-3 md:w-44 justify-center">
+                <button
+                  onClick={() => router.push(`/tours/${booking.tour_id}`)}
+                  className="bg-gray-50 hover:bg-gray-100 text-gray-700 py-3 rounded-2xl font-bold text-sm transition-colors"
+                >
+                  Xem Tour
+                </button>
+                <button
+                  onClick={() => router.push(`/bookings/${booking.id}`)}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-100 transition-all"
+                >
+                  Chi tiết đơn
+                </button>
+              </div>
             </div>
+          ))}
+
+          {(!filteredBookings || filteredBookings.length === 0) && (
+            <div className="text-center py-20 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-200">
+              <p className="text-gray-400 text-lg">Không tìm thấy đơn đặt tour nào phù hợp.</p>
+            </div>
+          )}
         </div>
-    );
+      )}
+    </div>
+  );
 }

@@ -10,6 +10,13 @@ from app.models.tour_guide import TourGuide ,TourGuideAssignment
 
 order_bp = Blueprint('orders', __name__)
 
+def paginate_query(query, page=1, per_page=10):
+    page = max(1, int(page))
+    per_page = min(50, max(5, int(per_page)))
+    total = query.count()
+    items = query.offset((page-1)*per_page).limit(per_page).all()
+    return {"items": items, "total": total, "page": page, "per_page": per_page, "total_pages": (total + per_page - 1) // per_page} 
+
 # ---------------------------------------------------------
 # 1. LẤY CHI TIẾT ĐƠN HÀNG (Kèm thông tin Hướng dẫn viên)
 # ---------------------------------------------------------
@@ -78,33 +85,39 @@ def get_order_detail(order_id):
 @order_bp.route('/my-orders', methods=['GET'])
 @jwt_required()
 def get_my_orders():
-    try:
-        current_user_id = get_jwt_identity()
-        
-        # Lấy các đơn hàng của User hiện tại, sắp xếp mới nhất lên đầu
-        orders = db.session.query(Order, Tour)\
-            .join(Tour, Order.tour_id == Tour.id)\
-            .filter(Order.user_id == current_user_id)\
-            .order_by(Order.booking_date.desc())\
-            .all()
-            
-        result = []
-        for order, tour in orders:
-            result.append({
-                "id": order.id,
-                "tour_id": tour.id,
-                "tour_name": tour.name,
-                "tour_image": tour.image,
-                "total_price": order.total_price,
-                "guest_count": order.guest_count,
-                "status": order.status,
-                "booking_date": order.booking_date.isoformat() if order.booking_date else None,
-            })
-            
-        return jsonify(result), 200
-    except Exception as e:
-        print(f"Lỗi lấy lịch sử đơn hàng: {e}")
-        return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
+    current_user_id = get_jwt_identity()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 10, type=int)
+
+    query = db.session.query(Order, Tour)\
+        .join(Tour, Order.tour_id == Tour.id)\
+        .filter(Order.user_id == current_user_id)\
+        .order_by(Order.booking_date.desc())
+
+    result = paginate_query(query, page, per_page)
+
+    data = []
+    for order, tour in result["items"]:
+        data.append({
+            "id": order.id,
+            "tour_id": tour.id,
+            "tour_name": tour.name,
+            "tour_image": tour.image,
+            "total_price": order.total_price,
+            "guest_count": order.guest_count,
+            "status": order.status,
+            "booking_date": order.booking_date.isoformat() if order.booking_date else None,
+        })
+
+    return jsonify({
+        "orders": data,
+        "pagination": {
+            "total": result["total"],
+            "page": result["page"],
+            "per_page": result["per_page"],
+            "total_pages": result["total_pages"]
+        }
+    }), 200
 
 # ---------------------------------------------------------
 # 3. TẠO ĐƠN ĐẶT TOUR MỚI

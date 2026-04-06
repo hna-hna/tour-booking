@@ -31,4 +31,3 @@ class User(db.Model):
     # Hàm kiểm tra mật khẩu
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
-        return check_password_hash(self.password_hash, password)

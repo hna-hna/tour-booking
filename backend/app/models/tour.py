@@ -22,3 +22,4 @@ class Tour(db.Model):
     guide_assignments = db.relationship('TourGuideAssignment', back_populates='tour', cascade='all, delete-orphan', overlaps="assignments")
     needs_guide = db.Column(db.Boolean, default=False)
 
+

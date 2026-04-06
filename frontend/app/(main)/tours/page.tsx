@@ -22,7 +22,6 @@ export default function ToursListPage() {
   const [filteredTours, setFilteredTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Filter states
   const [searchTerm, setSearchTerm] = useState("");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -30,60 +29,66 @@ export default function ToursListPage() {
 
   const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
-  // Fetch dữ liệu
-  const fetchAllTours = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/tours");
-      setTours(res.data);
-      setFilteredTours(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchPopularTours = async () => {
-    try {
-      const res = await axios.get("http://localhost:5000/api/tours/popular");
-      setPopularTours(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const fetchRecommendedTours = async () => {
-    if (!token) return;
-    try {
-      const res = await axios.get("http://localhost:5000/api/tours/recommend", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setRecommendedTours(res.data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    fetchAllTours();
-    fetchPopularTours();
-    if (token) fetchRecommendedTours();
-    setLoading(false);
+    const fetchData = async () => {
+      try {
+        const [allRes, popularRes] = await Promise.all([
+          axios.get("http://localhost:5000/api/tours"),
+          axios.get("http://localhost:5000/api/tours/popular")
+        ]);
+
+        setTours(allRes.data);
+        setFilteredTours(allRes.data);
+        setPopularTours(popularRes.data);
+
+        if (token) {
+          try {
+            const recRes = await axios.get("http://localhost:5000/api/tours/recommend", {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            setRecommendedTours(recRes.data);
+          } catch (e) {
+            console.log("Không có gợi ý riêng.");
+          }
+        }
+      } catch (err) {
+        console.error("Lỗi tải tour:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
   }, [token]);
 
-  // Áp dụng filter
+  // Bộ lọc logic
   useEffect(() => {
     let result = [...tours];
 
     if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
+      const term = searchTerm.toLowerCase().trim();
       result = result.filter(tour =>
         tour.name.toLowerCase().includes(term) ||
-        (tour.description && tour.description.toLowerCase().includes(term)) ||
-        (tour.itinerary && tour.itinerary.toLowerCase().includes(term))
+        (tour.description && tour.description.toLowerCase().includes(term))
       );
     }
 
-    if (minPrice) result = result.filter(t => t.price >= Number(minPrice));
-    if (maxPrice) result = result.filter(t => t.price <= Number(maxPrice));
+    if (minPrice.trim() || maxPrice.trim()) {
+      result = result.filter(tour => {
+        const priceStr = String(tour.price);
+        const minP = minPrice.trim();
+        const maxP = maxPrice.trim();
+        const matchMin = minP === "" || priceStr.startsWith(minP);
+        let matchMax = true;
+        if (maxP !== "") {
+          if (maxP.length < priceStr.length) {
+            matchMax = priceStr.startsWith(maxP) || parseInt(priceStr[0]) <= parseInt(maxP[0]);
+          } else {
+            matchMax = tour.price <= parseFloat(maxP);
+          }
+        }
+        return matchMin && matchMax;
+      });
+    }
 
     if (startDate) {
       result = result.filter(tour => {
@@ -91,145 +96,138 @@ export default function ToursListPage() {
         return new Date(tour.start_date).toISOString().split('T')[0] === startDate;
       });
     }
-
     setFilteredTours(result);
   }, [tours, searchTerm, minPrice, maxPrice, startDate]);
 
-  if (loading) return <div className="p-8 text-center">Đang tải danh sách tour...</div>;
+  // --- HÀM NÀY BỊ THIẾU NÊN GÂY LỖI ĐÂY QUỲNH ƠI ---
+  const resetFilters = () => {
+    setSearchTerm("");
+    setMinPrice("");
+    setMaxPrice("");
+    setStartDate("");
+  };
+
+  const getDisplayTours = () => {
+    if (token && recommendedTours.length > 0) {
+      const rec = recommendedTours.slice(0, 3);
+      const pop = popularTours.filter(p => !rec.find(r => r.id === p.id)).slice(0, 1);
+      return [...rec, ...pop];
+    }
+    return popularTours.slice(0, 4);
+  };
+
+  const displayTours = getDisplayTours();
+
+  if (loading) return <div className="p-8 text-center font-bold">Đang tải...</div>;
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-10">
-      {/* Tiêu đề + Thanh tìm kiếm nổi bật ở đầu trang */}
-      <div className="mb-12">
-        <h1 className="text-4xl font-black text-gray-900 mb-2">Khám phá tất cả Tour</h1>
-        <p className="text-gray-600 mb-8">Hàng trăm hành trình chất lượng đang chờ bạn</p>
-
-        {/* Thanh tìm kiếm chính - Đưa lên đầu */}
-        <div className="bg-white p-6 rounded-3xl shadow-lg border border-gray-100">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Tìm kiếm tour</label>
-              <input
-                type="text"
-                placeholder="Tìm theo tên tour, mô tả hoặc lịch trình..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-5 py-4 text-lg border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="md:w-48">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Ngày khởi hành</label>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="md:w-48">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Giá từ</label>
-              <input
-                type="number"
-                placeholder="Tối thiểu"
-                value={minPrice}
-                onChange={(e) => setMinPrice(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            <div className="md:w-48">
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Giá đến</label>
-              <input
-                type="number"
-                placeholder="Tối đa"
-                value={maxPrice}
-                onChange={(e) => setMaxPrice(e.target.value)}
-                className="w-full px-5 py-4 border border-gray-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
+    <div className="max-w-7xl mx-auto px-6 py-10 space-y-12">
+      {/* Search & Filter */}
+      <div className="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <input
+            type="text"
+            placeholder="Tìm kiếm tour..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="flex-[2] px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all font-bold text-sm shadow-sm"
+          />
+          <div className="flex-1 flex gap-4 items-center">
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest min-w-[70px]">Ngày đi</span>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all font-bold text-sm shadow-sm"
+            />
           </div>
+        </div>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 flex gap-4 items-center">
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest min-w-[70px]">Giá từ</span>
+            <input
+              type="text"
+              placeholder="Nhập số đầu..."
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all font-bold text-sm shadow-sm"
+            />
+          </div>
+          <div className="flex-1 flex gap-4 items-center">
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest min-w-[70px]">Đến</span>
+            <input
+              type="text"
+              placeholder="Nhập số đầu..."
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-100 transition-all font-bold text-sm shadow-sm"
+            />
+          </div>
+          <button 
+            onClick={resetFilters} 
+            className="px-6 py-3 text-xs font-black text-gray-400 uppercase hover:text-red-500 transition-colors"
+          >
+            Xóa bộ lọc
+          </button>
         </div>
       </div>
 
-      {/* PHẦN GỢI Ý & TOUR NỔI BẬT */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-        {/* Gợi ý cá nhân hóa */}
-        {token && recommendedTours.length > 0 && (
+      {/* Section Gộp */}
+      <section>
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2"> Gợi ý dành riêng cho bạn</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              {recommendedTours.slice(0, 4).map(tour => (
-                <Link key={tour.id} href={`/tours/${tour.id}`} className="block group">
-                  <div className="bg-white rounded-2xl overflow-hidden shadow hover:shadow-xl transition">
-                    <img src={tour.image} alt={tour.name} className="w-full h-40 object-cover group-hover:scale-105 transition" />
-                    <div className="p-4">
-                      <h3 className="font-bold text-lg line-clamp-2">{tour.name}</h3>
-                      <p className="text-emerald-600 font-bold mt-2">{tour.price.toLocaleString()} đ</p>
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">
+              {token && recommendedTours.length > 0 ? "Gợi ý dành riêng cho bạn" : "Hành trình tiêu biểu"}
+            </h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {displayTours.map((tour, index) => (
+            <Link key={tour.id} href={`/tours/${tour.id}`} className="group">
+              <div className="bg-white rounded-[2rem] overflow-hidden shadow-lg border border-gray-50 hover:shadow-2xl transition-all">
+                <div className="h-40 relative">
+                  <img src={tour.image} className="w-full h-full object-cover" alt="" />
+                  {token && index < 3 
+                  }
+                </div>
+                <div className="p-4">
+                  <h3 className="font-black text-gray-800 text-sm line-clamp-1">{tour.name}</h3>
+                  <p className="text-emerald-600 font-black text-lg mt-2">{Number(tour.price).toLocaleString()} đ</p>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Tất cả Tour */}
+      <section className="pt-8">
+        <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tighter mb-8 flex items-center gap-3">
+          Tất cả Tour ({filteredTours.length})
+          <span className="h-[2px] flex-1 bg-gray-100"></span>
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+          {filteredTours.map(tour => (
+            <Link key={tour.id} href={`/tours/${tour.id}`} className="group">
+              <div className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-gray-50 hover:shadow-2xl hover:-translate-y-1 transition-all">
+                <div className="h-56">
+                  <img src={tour.image} className="w-full h-full object-cover" alt="" />
+                </div>
+                <div className="p-6">
+                  <h3 className="font-black text-gray-900 text-lg line-clamp-1 group-hover:text-emerald-600 transition-colors">{tour.name}</h3>
+                  <p className="text-gray-400 text-[11px] font-bold uppercase mt-2 line-clamp-2">{tour.description || "Hành trình khám phá"}</p>
+                  <div className="flex justify-between items-center mt-6">
+                    <p className="text-xl font-black text-gray-900">{Number(tour.price).toLocaleString()} đ</p>
+                    <div className="w-10 h-10 rounded-2xl bg-gray-900 flex items-center justify-center text-white group-hover:bg-emerald-600 transition-colors">
+                      →
                     </div>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tour nổi bật */}
-        <div>
-          <h2 className="text-2xl font-bold mb-6"> Tour nổi bật</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {popularTours.slice(0, 4).map(tour => (
-              <Link key={tour.id} href={`/tours/${tour.id}`} className="block group">
-                <div className="bg-white rounded-2xl overflow-hidden shadow hover:shadow-xl transition">
-                  <img src={tour.image} alt={tour.name} className="w-full h-40 object-cover group-hover:scale-105 transition" />
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg line-clamp-2">{tour.name}</h3>
-                    <p className="text-emerald-600 font-bold mt-2">{tour.price.toLocaleString()} đ</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* DANH SÁCH TOUR */}
-      <h2 className="text-3xl font-bold mb-8">Tất cả Tour ({filteredTours.length})</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredTours.map(tour => (
-          <Link key={tour.id} href={`/tours/${tour.id}`} className="block group">
-            <div className="bg-white rounded-2xl overflow-hidden shadow hover:shadow-2xl transition-all">
-              <div className="h-52 bg-gray-200 relative">
-                <img
-                  src={tour.image || "https://via.placeholder.com/400x300?text=No+Image"}
-                  alt={tour.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-5">
-                <h3 className="font-bold text-xl line-clamp-2 group-hover:text-emerald-600 transition">{tour.name}</h3>
-                <p className="text-gray-500 text-sm mt-2 line-clamp-2">{tour.description}</p>
-                <div className="flex justify-between items-end mt-6">
-                  <span className="text-emerald-600 font-bold text-2xl">
-                    {tour.price.toLocaleString()} đ
-                  </span>
-                  <button className="px-5 py-2 border border-emerald-600 text-emerald-600 rounded-xl hover:bg-emerald-50 transition text-sm font-medium">
-                    Xem chi tiết
-                  </button>
                 </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {filteredTours.length === 0 && (
-        <div className="text-center py-20 text-gray-500 text-lg">
-          Không tìm thấy tour nào phù hợp với từ khóa bạn tìm.
+            </Link>
+          ))}
         </div>
-      )}
+      </section>
     </div>
   );
 }

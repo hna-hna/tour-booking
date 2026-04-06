@@ -16,6 +16,10 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [tourSearchTerm, setTourSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [minPrice, setMinPrice] = useState("");
+  const [maxPrice, setMaxPrice] = useState("");
+  const [customerSearchTerm, setCustomerSearchTerm] = useState("");
 
   useEffect(() => {
     const fetchOrders = async () => {
@@ -33,9 +37,30 @@ export default function AdminOrdersPage() {
   }, []);
 
   // 1. Tính toán số liệu thống kê
-  const filteredOrders = orders.filter(o =>
-    o.tour_name && o.tour_name.toLowerCase().includes(tourSearchTerm.toLowerCase())
-  );
+  const filteredOrders = orders.filter(o => {
+    // Lọc theo tên Tour
+    if (tourSearchTerm && (!o.tour_name || !o.tour_name.toLowerCase().includes(tourSearchTerm.toLowerCase()))) return false;
+    
+    // Lọc theo tên Khách hàng
+    if (customerSearchTerm && (!o.customer_name || !o.customer_name.toLowerCase().includes(customerSearchTerm.toLowerCase()))) return false;
+    
+    // Lọc theo trạng thái
+    if (statusFilter !== "all") {
+       const s = o.status.toLowerCase();
+       if (statusFilter === "success" && !['paid', 'đã thanh toán', 'success'].includes(s)) return false;
+       if (statusFilter === "pending" && !['pending', 'chờ xử lý'].includes(s)) return false;
+       if (statusFilter === "cancelled" && !['cancelled', 'đã hủy'].includes(s)) return false;
+    }
+
+    // Lọc theo khoảng giá
+    const minP = parseFloat(minPrice);
+    if (!isNaN(minP) && o.total_price < minP) return false;
+    
+    const maxP = parseFloat(maxPrice);
+    if (!isNaN(maxP) && o.total_price > maxP) return false;
+
+    return true;
+  });
 
   const totalRevenue = filteredOrders
     .filter(o => ['paid', 'đã thanh toán', 'success'].includes(o.status.toLowerCase()))
@@ -100,15 +125,71 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      {/* Tour Search & Filter */}
-      <div className="flex justify-end">
-        <input
-          type="text"
-          placeholder=" Tìm & Lọc Tour"
-          value={tourSearchTerm}
-          onChange={(e) => setTourSearchTerm(e.target.value)}
-          className="w-full md:w-80 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm"
-        />
+      {/* Search & Filter Section */}
+      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <input
+            type="text"
+            placeholder=" Tìm theo tên Tour"
+            value={tourSearchTerm}
+            onChange={(e) => setTourSearchTerm(e.target.value)}
+            className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm"
+          />
+          <input
+            type="text"
+            placeholder=" Tìm theo tên Khách Hàng"
+            value={customerSearchTerm}
+            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+            className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm"
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="md:w-64 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm bg-white cursor-pointer"
+          >
+            <option value="all">Tất cả trạng thái</option>
+            <option value="success">Đã Thanh Toán</option>
+            <option value="pending">Chờ Xử Lý</option>
+            <option value="cancelled">Đã Hủy</option>
+          </select>
+        </div>
+        
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 flex gap-4 items-center">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[70px]">Giá từ</span>
+            <input
+              type="number"
+              placeholder=" Tối thiểu"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm"
+            />
+          </div>
+          <div className="flex-1 flex gap-4 items-center">
+            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest min-w-[70px]">Đến</span>
+            <input
+              type="number"
+              placeholder=" Tối đa"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              className="flex-1 px-6 py-3 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all font-bold text-sm shadow-sm"
+            />
+          </div>
+          <div className="md:w-64 flex justify-end items-center">
+            <button 
+              onClick={() => {
+                setTourSearchTerm("");
+                setCustomerSearchTerm("");
+                setStatusFilter("all");
+                setMinPrice("");
+                setMaxPrice("");
+              }}
+              className="px-6 py-3 text-xs font-black text-gray-500 uppercase tracking-widest hover:text-blue-600 transition-colors"
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Orders Table */}
@@ -127,7 +208,7 @@ export default function AdminOrdersPage() {
             <tbody className="divide-y divide-gray-50">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-12 text-center text-gray-400 font-bold italic">Không tìm thấy đơn hàng nào khớp với tên Tour</td>
+                  <td colSpan={5} className="p-12 text-center text-gray-400 font-bold italic">Không tìm thấy đơn hàng nào khớp với bộ lọc</td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => (

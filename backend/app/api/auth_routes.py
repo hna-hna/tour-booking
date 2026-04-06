@@ -78,8 +78,12 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         # BƯỚC QUAN TRỌNG: Kiểm tra xem user có tồn tại hay không trước khi check pass
-        if user is None:
+        if user is None or user.is_deleted:
             return jsonify({"msg": "Email không tồn tại!"}), 401
+
+        # KIỂM TRA TRẠNG THÁI TÀI KHOẢN (KHÓA/CHẶN)
+        if not user.is_active:
+            return jsonify({"msg": "Tài khoản bị khóa"}), 403
 
         # Kiểm tra mật khẩu (Sử dụng cách so sánh trực tiếp của bạn)
         if user.check_password(password):

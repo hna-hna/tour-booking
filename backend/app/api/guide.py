@@ -166,6 +166,36 @@ def respond_to_request(request_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+# 8. Lấy doanh thu của tour (cho HDV)
+@guide_bp.route('/tours/<int:tour_id>/revenue', methods=['GET'])
+@jwt_required()
+def get_tour_revenue_for_guide(tour_id):
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+    if not guide:
+        return jsonify({"msg": "Không tìm thấy hồ sơ HDV"}), 404
+
+    # Kiểm tra xem HDV có được phân công cho tour này không
+    assignment = TourGuideAssignment.query.filter_by(tour_id=tour_id, guide_id=guide.id).first()
+    if not assignment:
+        return jsonify({"msg": "Bạn không có quyền xem thông tin tour này"}), 403
+
+    # Tính tổng doanh thu từ các đơn hàng 'paid' hoặc 'completed'
+    orders = Order.query.filter_by(tour_id=tour_id).filter(
+        Order.status.in_(['paid', 'completed', 'Đã thanh toán', 'Hoàn thành'])
+    ).all()
+    
+    total_revenue = sum(o.total_price for o in orders)
+    # Giả định hoa hồng Guide là 10% (có thể điều chỉnh sau)
+    guide_commission = total_revenue * 0.10
+
+    return jsonify({
+        "tour_id": tour_id,
+        "total_revenue": total_revenue,
+        "guide_commission": guide_commission,
+        "commission_rate": "10%"
+    }), 200
+
 
 # 5. Lấy danh sách khách hàng
 @guide_bp.route('/tours/<int:tour_id>/customers', methods=['GET'])

@@ -153,14 +153,14 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
             
             <div className="space-y-4 mb-8 border-t border-b border-gray-50 py-4">
               <div className="flex items-center gap-3 text-sm font-semibold text-emerald-700 bg-emerald-50 px-4 py-3 rounded-xl border border-emerald-100">
-                ⚡ Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
+                 Chỉ còn nhận tối đa: {tour.quantity || 0} chỗ
               </div>
               
               <div className="flex items-center gap-3 text-sm text-gray-600 px-2 font-medium">
-                ✅ Xác nhận tức thì
+                 Xác nhận tức thì
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-600 px-2 font-medium">
-                🛡️ Bảo hiểm du lịch trọn gói
+                 Bảo hiểm du lịch trọn gói
               </div>
             </div>
 

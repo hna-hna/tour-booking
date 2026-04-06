@@ -19,6 +19,7 @@ class User(db.Model):
     full_name = db.Column(db.String(100), nullable=False)
     role = db.Column(db.Enum(UserRole), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
+    is_deleted = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     phone = db.Column(db.String(20), nullable=True)      
     address = db.Column(db.String(255), nullable=True)   
@@ -29,4 +30,5 @@ class User(db.Model):
 
     # Hàm kiểm tra mật khẩu
     def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
         return check_password_hash(self.password_hash, password)

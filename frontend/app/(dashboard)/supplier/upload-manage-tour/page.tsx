@@ -414,7 +414,7 @@ export default function UploadManageTourPage() {
                     onClick={() => handleOpenAssignModal(t)}
                     className="bg-red-500 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-red-600 transition-all shadow-md"
                   >
-                    🔄 Chọn HDV mới
+                     Chọn HDV mới
                   </button>
                 )}
 

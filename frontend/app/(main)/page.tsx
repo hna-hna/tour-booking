@@ -78,7 +78,7 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 gap-4">
           <div>
             <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-              {userType === "user" ? "Gợi ý sản phẩm nổi bật" : "Tour được yêu thích nhất 🔥"}
+              {userType === "user" ? "Gợi ý sản phẩm nổi bật" : "Tour được yêu thích nhất "}
             </h2>
             <p className="text-gray-500 mt-2">
               {userType === "user" 

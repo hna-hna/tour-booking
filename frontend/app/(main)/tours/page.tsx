@@ -99,7 +99,6 @@ export default function ToursListPage() {
     setFilteredTours(result);
   }, [tours, searchTerm, minPrice, maxPrice, startDate]);
 
-  // --- HÀM NÀY BỊ THIẾU NÊN GÂY LỖI ĐÂY QUỲNH ƠI ---
   const resetFilters = () => {
     setSearchTerm("");
     setMinPrice("");
@@ -177,7 +176,7 @@ export default function ToursListPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter uppercase">
-              {token && recommendedTours.length > 0 ? "Gợi ý dành riêng cho bạn" : "Hành trình tiêu biểu"}
+              {token && recommendedTours.length > 0 ? "Gợi ý dành riêng cho bạn" : "Tour nổi bật hiện tại"}
             </h2>
           </div>
         </div>

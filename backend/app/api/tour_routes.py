@@ -98,31 +98,27 @@ def get_recommended_tours():
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
 def get_public_tours():
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 12, type=int)
+    # Lấy các tham số lọc từ URL
     status = request.args.get('status', 'approved')
-
-    query = Tour.query.filter(Tour.status == status, Tour.start_date >= datetime.utcnow())
     
-    result = paginate_query(query, page, per_page)
+    # Truy vấn lấy các tour thỏa điều kiện
+    query = Tour.query.filter(Tour.status == status, Tour.start_date >= datetime.utcnow()).all()
     
-    return jsonify({
-        "tours": [{
+    # Chuyển đổi dữ liệu sang dạng JSON
+    tours_list = []
+    for t in query:
+        tours_list.append({
             "id": t.id,
             "name": t.name,
-            "price": t.price,
-            "description": t.description or "",
-            "image": t.image,
-            "start_date": t.start_date,
-            "end_date": t.end_date
-        } for t in result["items"]],
-        "pagination": {
-            "total": result["total"],
-            "page": result["page"],
-            "per_page": result["per_page"],
-            "total_pages": result["total_pages"]
-        }
-    }), 200
+            "price": float(t.price) if t.price else 0,
+            "description": t.description or "Hành trình khám phá hấp dẫn",
+            "image": t.image or "https://via.placeholder.com/300",
+            "start_date": t.start_date.isoformat() if t.start_date else None,
+            "end_date": t.end_date.isoformat() if t.end_date else None
+        })
+    
+    # Trả về kết quả (Bỏ phần pagination phức tạp nếu chưa viết hàm hỗ trợ)
+    return jsonify(tours_list), 200
 
 # API: Lấy chi tiết 1 Tour (Public)
 @tour_bp.route('/<int:tour_id>', methods=['GET'])

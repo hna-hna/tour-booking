@@ -37,7 +37,7 @@ class TourRecommender:
                     interactions.append({'user_id': l.user_id, 'tour_id': l.tour_id, 'score': 1})
 
                 if not interactions:
-                    print("⚠️ Chưa có dữ liệu tương tác để train.")
+                    print(" Chưa có dữ liệu tương tác để train.")
                     return False
 
                 df = pd.DataFrame(interactions).groupby(['user_id', 'tour_id'])['score'].sum().reset_index()
@@ -74,8 +74,7 @@ class TourRecommender:
             if tour_id in interacted:
                 scores += self.similarity_matrix[idx]
 
-        recommended = [self.tour_ids[i] for i in np.argsort(scores)[::-1] 
-                      if self.tour_ids[i] not in interacted]
+        
         recommended = recommended[:top_n]
 
         # Fallback popular tours

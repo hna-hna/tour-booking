@@ -8,6 +8,7 @@ from app.models.log import SearchLog, TourViewLog
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import or_
 from datetime import datetime
+from app.log_service import log_user_action
 import requests
 import os
 import re
@@ -81,7 +82,7 @@ def get_chat_partners():
         
         partners = []
         for pid in partner_ids:
-            # 🛡️ FIX: Chỉ tìm User nếu ID có định dạng UUID hợp lệ (tránh lỗi '1', '2')
+            #  FIX: Chỉ tìm User nếu ID có định dạng UUID hợp lệ (tránh lỗi '1', '2')
             pid_str = str(pid)
             if len(pid_str) < 30: # UUID thường dài 32-36 ký tự, '1' sẽ bị bỏ qua
                 continue
@@ -135,6 +136,8 @@ def chat_with_ai():
 
     try:
         searches = SearchLog.query.filter_by(user_id=user_id).order_by(SearchLog.searched_at.desc()).limit(5).all() 
+        # Sau khi xử lý AI thành công
+        log_user_action("chat_ai", details=f"Chat với AI: {user_message[:100]}...")
         if searches:
             k_list = [s.keyword for s in searches if s.keyword]
             if k_list: recent_keywords = ", ".join(k_list)
@@ -185,7 +188,6 @@ def chat_with_ai():
         resp = requests.post(OLLAMA_API_URL, json=payload, timeout=60)
         if resp.status_code == 200:
             ai_text = resp.json().get('response', '').strip()
-            # 🛡️ FIX lỗi Extra data: Tách dòng và tìm JSON đầu tiên
             for line in ai_text.split('\n'):
                 line = line.strip()
                 if '{' in line and '}' in line:

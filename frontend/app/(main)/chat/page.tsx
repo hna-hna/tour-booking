@@ -40,7 +40,6 @@ function CustomerChatContent() {
     const userStr = localStorage.getItem("user");
     const token = localStorage.getItem("token");
 
-    // Nếu không có token -> Bắt đăng nhập, không cho khách vãng lai dùng chat
     if (!token || !userStr) {
       alert("Vui lòng đăng nhập để sử dụng chức năng hỗ trợ!");
       router.push("/login");
@@ -50,20 +49,33 @@ function CustomerChatContent() {
     const parsedUser = JSON.parse(userStr);
     setCurrentUser(parsedUser);
 
-    // Kiểm tra xem URL có yêu cầu chat với ai cụ thể không (ví dụ từ trang chi tiết tour bấm chat)
-    const rid = searchParams.get("receiver_id");
-    if (rid) {
-      setActiveTab(rid);
-    }
-
     // Load danh sách HDV đã từng nhắn tin
     axios.get("http://localhost:5000/api/chat/partners", {
       headers: { Authorization: `Bearer ${token}` }
     })
-    .then(res => setPartners(res.data || []))
+    .then(res => {
+      let loadedPartners = res.data || [];
+      
+      // Lấy URL params để xem có đang muốn chat với ai mới không
+      const rid = searchParams.get("receiver_id");
+      const rname = searchParams.get("name") || "Hướng dẫn viên"; // Bổ sung truyền name từ tour detail
+
+      if (rid) {
+        // Nếu HDV này chưa có trong danh sách partner cũ -> Ép thêm vào để UI hiển thị Tab
+        const exists = loadedPartners.find((p: any) => p.id === rid);
+        if (!exists) {
+          loadedPartners = [{ id: rid, name: rname, role: "Hướng dẫn viên" }, ...loadedPartners];
+        }
+        setActiveTab(rid);
+        
+        // Dọn dẹp URL cho sạch sẽ (tùy chọn)
+        window.history.replaceState(null, '', '/chat');
+      }
+
+      setPartners(loadedPartners);
+    })
     .catch(err => console.error("Lỗi lấy danh sách đối tác:", err));
   }, [searchParams, router]);
-
   // Cuộn xuống tin nhắn mới nhất
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -136,7 +148,6 @@ function CustomerChatContent() {
     const contentToSend = inputMsg.trim();
     setInputMsg("");
 
-    // Hiển thị tin nhắn của mình ngay lập tức (Optimistic Update)
     const myMsg: Message = {
         id: Date.now(),
         sender_id: String(currentUser.id),

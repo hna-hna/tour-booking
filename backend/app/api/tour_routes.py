@@ -5,7 +5,7 @@ from app.models.order import Order
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db 
 from datetime import datetime
-
+from app.log_service import log_user_action
 try:
     from app.ai_engine.recommender import TourRecommender
     recommender = TourRecommender()
@@ -122,27 +122,43 @@ def get_public_tours():
 
 # API: Lấy chi tiết 1 Tour (Public)
 @tour_bp.route('/<int:tour_id>', methods=['GET'])
+@jwt_required(optional=True) # Cho phép cả khách vãng lai và người dùng đã đăng nhập
 def get_tour_detail(tour_id):
+    # 1. Truy vấn tour, trả về 404 nếu không tồn tại
     tour = Tour.query.get_or_404(tour_id)
     
-    # Xử lý itinerary an toàn
+    # 2. Lấy user_id từ token (nếu có) để ghi log chính xác cho AI
+    current_user_id = get_jwt_identity()
+    
+    # 3. Ghi nhật ký hành động xem tour
+    try:
+        log_user_action(
+            action="view_tour", 
+            target_id=tour.id, 
+            user_id=current_user_id, # Sẽ là None nếu khách chưa đăng nhập
+            details=f"Xem tour: {tour.name}"
+        )
+    except Exception as e:
+        print(f"Lỗi ghi log view_tour: {str(e)}")
+
+    # 4. Xử lý dữ liệu itinerary (lịch trình) an toàn
     itinerary_data = []
     if tour.itinerary:
         if isinstance(tour.itinerary, str):
             try:
-                # Thử parse nếu là JSON array
+                # Thử parse nếu là chuỗi định dạng JSON array
                 parsed = json.loads(tour.itinerary)
                 if isinstance(parsed, list):
                     itinerary_data = parsed
                 else:
-                    # Nếu chỉ là string đơn giản (như "biển"), chuyển thành format array
                     itinerary_data = [{"day": 1, "title": "Thông tin lịch trình", "description": tour.itinerary}]
             except:
-                # Nếu không parse được, chuyển string thành 1 ngày
+                # Nếu là chuỗi văn bản thuần túy
                 itinerary_data = [{"day": 1, "title": "Lịch trình", "description": tour.itinerary}]
         elif isinstance(tour.itinerary, list):
             itinerary_data = tour.itinerary
 
+    # 5. Trả về phản hồi JSON
     return jsonify({
         "id": tour.id,
         "name": tour.name,
@@ -152,7 +168,7 @@ def get_tour_detail(tour_id):
         "start_date": tour.start_date.isoformat() if tour.start_date else None,
         "end_date": tour.end_date.isoformat() if tour.end_date else None,
         "status": tour.status,
-        "itinerary": itinerary_data,        # ← Luôn trả về mảng
+        "itinerary": itinerary_data,
         "quantity": getattr(tour, 'quantity', 0),
         "supplier_id": getattr(tour, 'supplier_id', None)
     }), 200

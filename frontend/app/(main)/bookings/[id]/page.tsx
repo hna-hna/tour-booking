@@ -194,7 +194,7 @@ export default function OrderDetailsPage() {
     <div className="flex gap-2 w-full sm:w-auto">
       {/* NÚT NHẮN TIN MỚI THÊM */}
       <button 
-        onClick={() => router.push(`/chat?receiver_id=${order.guide?.id}`)}
+        onClick={() => router.push(`/chat?receiver_id=${order.guide?.id}&name=${order.guide?.full_name}`)}
         className="flex-1 sm:flex-none px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition shadow-sm flex items-center justify-center gap-2"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

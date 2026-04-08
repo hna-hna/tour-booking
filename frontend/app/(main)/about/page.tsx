@@ -18,7 +18,7 @@ export default function AboutPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/reviews")
+    axios.get("http://127.0.0.1:5000/api/reviews")
       .then(res => setReviews(res.data))
       .catch(err => console.error("Lỗi lấy review:", err));
   }, []);

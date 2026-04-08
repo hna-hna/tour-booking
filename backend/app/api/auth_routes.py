@@ -3,6 +3,7 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import User, UserRole, TourGuide, GuideStatus
 from flask_jwt_extended import create_access_token
+from app.log_service import log_user_action
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -92,7 +93,8 @@ def login():
                 identity=str(user.id), 
                 additional_claims={"role": user.role.value}
             )
-            
+            log_user_action("login", details=f"Đăng nhập bằng {login_method}")
+
             return jsonify({
                 "msg": "Đăng nhập thành công",
                 "access_token": token,
@@ -110,22 +112,3 @@ def login():
         print(f"Lỗi hệ thống: {str(e)}")
         return jsonify({"msg": "Đã xảy ra lỗi hệ thống trên Server"}), 500
 
-@auth_bp.route('/fix-admin', methods=['GET'])
-def fix_admin():
-    from app.models.user import User, UserRole
-    from app.extensions import db
-    admins = User.query.filter_by(role=UserRole.ADMIN).all()
-    if not admins:
-        try:
-            new_admin = User(email="admin@example.com", full_name="System Admin", role=UserRole.ADMIN)
-            new_admin.set_password("admin123")
-            db.session.add(new_admin)
-            db.session.commit()
-            return "Đã tạo tài khoản Admin (admin@example.com / admin123)"
-        except Exception as e:
-            return f"Lỗi tạo admin: {e}"
-    else:
-        for admin in admins:
-            admin.set_password('admin123')
-        db.session.commit()
-        return "Đã đổi mật khẩu toàn bộ tài khoản Admin hiện có thành: admin123"

@@ -20,7 +20,6 @@ class TourRecommender:
         self._training_lock = threading.Lock()   # Giữ lock để tránh train đồng thời
 
     def train_model(self):
-        """Train model - Được gọi từ APScheduler (đã có app_context)"""
         with self._training_lock:
             print(" Đang train AI Recommender...")
             try:

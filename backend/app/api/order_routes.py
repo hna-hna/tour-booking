@@ -120,7 +120,7 @@ def get_my_orders():
     }), 200
 
 # ---------------------------------------------------------
-# 3. TẠO ĐƠN ĐẶT TOUR MỚI
+# 3. TẠO ĐƠN ĐẶT TOUR MỚI (Đã thêm Log)
 # ---------------------------------------------------------
 @order_bp.route('/', methods=['POST'])
 @jwt_required()
@@ -135,6 +135,11 @@ def create_order():
         
         if not tour_id or not total_price or not guest_count:
             return jsonify({"error": "Thiếu thông tin bắt buộc"}), 400
+        
+        # BƯỚC BỔ SUNG: Lấy thông tin tour để lấy cái tên (phục vụ cho việc ghi Log)
+        tour = Tour.query.get(tour_id)
+        if not tour:
+            return jsonify({"error": "Tour không tồn tại"}), 404
             
         new_order = Order(
             user_id=current_user_id,
@@ -145,7 +150,23 @@ def create_order():
         )
         
         db.session.add(new_order)
-        db.session.commit()
+        db.session.commit() # Lưu vào DB thành công
+        
+        # ──────────────────────────────────────────────────────────
+        # GHI LOG TẠI ĐÂY: Sau khi commit thành công
+        # ──────────────────────────────────────────────────────────
+        try:
+            from app.log_service import log_user_action
+            log_user_action(
+                action="create_order", 
+                target_id=new_order.id, 
+                user_id=current_user_id,
+                details=f"Đặt tour {tour.name} - {new_order.guest_count} người"
+            )
+        except Exception as log_e:
+            # Nếu lỗi log thì chỉ in ra console, không làm sập luồng đặt tour của khách
+            print(f"Lỗi ghi log create_order: {log_e}")
+        # ──────────────────────────────────────────────────────────
         
         return jsonify({"msg": "Đặt tour thành công!", "order_id": new_order.id}), 201
         
@@ -153,7 +174,7 @@ def create_order():
         db.session.rollback()
         print(f"Lỗi tạo đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
-
+    
 # ---------------------------------------------------------
 # 4. HỦY ĐƠN HÀNG (Trong vòng 24h)
 # ---------------------------------------------------------

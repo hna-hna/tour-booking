@@ -388,6 +388,15 @@ export default function UploadManageTourPage() {
               </div>
               <div className="md:col-span-2"><label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Mô tả</label><textarea rows={3} className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm" value={formData.description} onChange={e => setFormData({ ...formData, description: e.target.value })} /></div>
             </div>
+            <div className="md:col-span-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 block">Lịch trình chi tiết</label>
+                <textarea
+                  rows={5}
+                  className="w-full bg-gray-50 p-4 rounded-2xl font-medium text-sm outline-none focus:ring-2 ring-emerald-500"
+                  value={formData.itinerary}
+                  onChange={e => setFormData({ ...formData, itinerary: e.target.value })}
+                />
+              </div>
             <div className="flex justify-end gap-4 mt-10">
               <button onClick={() => setIsModalOpen(false)} className="px-8 py-3 text-gray-400 font-bold uppercase text-xs">Đóng</button>
               <button onClick={handleSubmit} disabled={uploading} className="bg-black text-white px-10 py-4 rounded-2xl font-black text-sm uppercase shadow-xl disabled:bg-gray-400">{uploading ? "Đang xử lý..." : (formData.id ? "Lưu thay đổi" : "Gửi tour")}</button>

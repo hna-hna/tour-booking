@@ -1,3 +1,5 @@
+#backend
+
 from flask import Blueprint, request, jsonify, current_app
 from app.extensions import db
 from app.models.tour import Tour
@@ -19,20 +21,29 @@ def get_my_tours():
     query = Tour.query.filter_by(supplier_id=sid)
     if status_filter:
         query = query.filter(Tour.status == status_filter)
+    
     tours = query.all()
     result = []
     for t in tours:
         guide_name = "Chưa phân công"
         guide_id = None
+        assignment_status = None # Trạng thái của yêu cầu phân công
+        
         if t.guide_assignments:
-            accepted = next((a for a in t.guide_assignments if a.status == 'accepted'), None)
-            pending = next((a for a in t.guide_assignments if a.status == 'pending'), None)
-            assignment = accepted or pending
-            if assignment:
-                guide = TourGuide.query.get(assignment.guide_id)
-                if guide:
-                    guide_id = guide.id
-                    guide_name = guide.full_name if accepted else f"{guide.full_name} (chờ xác nhận)"
+            # Lấy assignment mới nhất dựa trên ID (người được phân công gần nhất)
+            latest_assignment = sorted(t.guide_assignments, key=lambda x: x.id, reverse=True)[0]
+            
+            guide = TourGuide.query.get(latest_assignment.guide_id)
+            if guide:
+                guide_id = guide.id
+                assignment_status = latest_assignment.status
+                
+                if latest_assignment.status == 'accepted':
+                    guide_name = guide.full_name
+                elif latest_assignment.status == 'pending':
+                    guide_name = f"{guide.full_name} (chờ xác nhận)"
+                elif latest_assignment.status == 'rejected':
+                    guide_name = f"{guide.full_name} (đã từ chối)"
         
         result.append({
             "id": t.id,
@@ -44,6 +55,7 @@ def get_my_tours():
             "image": t.image,
             "guide_name": guide_name,
             "guide_id": guide_id,
+            "assignment_status": assignment_status,
             "itinerary": t.itinerary,
             "description": t.description,
             "start_date": t.start_date.strftime('%Y-%m-%d') if t.start_date else None,
@@ -140,23 +152,19 @@ def create_guide():
         if not data.get("email") or not data.get("full_name"):
             return jsonify({"msg": "Thiếu email hoặc full_name"}), 400
 
-        #  KIỂM TRA 1 HDV CHỈ THUỘC 1 SUPPLIER
         existing_guide = TourGuide.query.filter_by(email=data.get("email")).first()
         if existing_guide:
             return jsonify({
                 "msg": f"HDV '{data.get('full_name')}' đã thuộc supplier khác (ID: {existing_guide.supplier_id})"
             }), 400
 
-        # Kiểm tra user đã tồn tại chưa
         existing_user = User.query.filter_by(email=data.get("email")).first()
         if existing_user and existing_user.role != UserRole.GUIDE:
             return jsonify({"msg": "Email này đã được sử dụng cho tài khoản khác"}), 400
 
         if existing_user and existing_user.role == UserRole.GUIDE:
-            # User đã là guide → chỉ tạo TourGuide mới
             user = existing_user
         else:
-            # Tạo user mới
             user = User(
                 email=data.get("email"),
                 password_hash=generate_password_hash("123456"),
@@ -165,9 +173,8 @@ def create_guide():
                 is_active=True
             )
             db.session.add(user)
-            db.session.flush()  # Để lấy user.id
+            db.session.flush() 
         
-        #  TẠO GUIDE CHO SUPPLIER NÀY
         input_status = data.get("status", "AVAILABLE").upper()
         guide_status = GuideStatus[input_status] if input_status in GuideStatus.__members__ else GuideStatus.AVAILABLE
 
@@ -197,22 +204,28 @@ def assign_guide(tour_id):
     sid = get_jwt_identity()
     data = request.get_json()
     guide_id = data.get("guide_id")
+    
     tour = Tour.query.filter_by(id=tour_id, supplier_id=sid).first()
     if not tour: return jsonify({"msg": "Không tìm thấy tour"}), 404
-    if tour.status not in ['pending_guide', 'waiting_guide', 'pending']:
-        return jsonify({"msg": "Tour không ở trạng thái có thể phân công"}), 403
+    
+    # Chỉ cho phép phân công nếu chưa có ai nhận, hoặc người cũ đã từ chối (rejected)
+    # Nếu đang có một yêu cầu ở trạng thái 'pending', không cho phân công đè
+    active_assignment = TourGuideAssignment.query.filter_by(tour_id=tour_id, status='pending').first()
+    if active_assignment:
+        return jsonify({"msg": "Đang có yêu cầu chờ HDV xác nhận, không thể phân công mới"}), 400
+    
     guide = TourGuide.query.filter_by(id=guide_id, supplier_id=sid).first()
     if not guide: return jsonify({"msg": "Guide không hợp lệ"}), 404
     
-    existing = TourGuideAssignment.query.filter_by(tour_id=tour_id, guide_id=guide_id, status='pending').first()
-    if existing: return jsonify({"msg": "HDV này đã được phân công cho tour rồi"}), 400
-    
+    # Tạo yêu cầu mới
     assignment = TourGuideAssignment(tour_id=tour_id, guide_id=guide_id, status='pending')
     db.session.add(assignment)
+    
     tour.status = 'waiting_guide'
     if hasattr(tour, 'needs_guide'): tour.needs_guide = True
+    
     db.session.commit()
-    return jsonify({"msg": "Đã gửi yêu cầu dẫn tour cho HDV mới"}), 201
+    return jsonify({"msg": "Đã gửi yêu cầu dẫn tour thành công"}), 201
 
 @supplier_bp.route('/revenue/summary', methods=['GET'])
 @jwt_required()
@@ -243,10 +256,8 @@ def get_revenue_summary():
 @jwt_required()
 def get_revenue_by_tour():
     sid = get_jwt_identity()
-
-    #  FILTER & SORT PARAMS 
     name_filter = request.args.get('name', '').strip()
-    sort = request.args.get('sort', 'revenue')  # revenue | newest | oldest
+    sort = request.args.get('sort', 'revenue') 
 
     query = db.session.query(
         Tour.id.label('tour_id'),
@@ -260,20 +271,17 @@ def get_revenue_by_tour():
      .filter((Payment.status == 'success') | (Payment.id.is_(None)))\
      .group_by(Tour.id, Tour.name, Tour.created_at)
 
-    # FILTER THEO TÊN TOUR
     if name_filter:
         query = query.filter(Tour.name.ilike(f"%{name_filter}%"))
 
-    #  SORT 
     if sort == "newest":
         query = query.order_by(Tour.created_at.desc())
     elif sort == "oldest":
         query = query.order_by(Tour.created_at.asc())
-    else:  # revenue (default)
+    else: 
         query = query.order_by(func.sum(Payment.amount).desc().nulls_last())
 
     results = query.all()
-    
     data = []
     for r in results:
         total_rev = float(r.total_revenue or 0)
@@ -285,9 +293,7 @@ def get_revenue_by_tour():
             'supplier_revenue': total_rev * 0.85,
             'total_bookings': r.total_bookings or 0
         })
-
     return jsonify(data), 200
-
 
 @supplier_bp.route('/tours/<int:tour_id>/request-cancel', methods=['PUT'])
 @jwt_required()

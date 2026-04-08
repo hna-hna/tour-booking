@@ -22,7 +22,7 @@ export default function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // 1. Fetch bookings với xử lý an toàn
+  // 1. Fetch bookings
   useEffect(() => {
     const fetchBookings = async () => {
       try {
@@ -66,7 +66,7 @@ export default function BookingsPage() {
     fetchBookings();
   }, [router]);
 
-  // 2. Bộ lọc kết hợp Search + Status
+  // 2. Bộ lọc
   useEffect(() => {
     let result = [...bookings];
 
@@ -197,12 +197,22 @@ export default function BookingsPage() {
 
               {/* Actions Section */}
               <div className="flex flex-col gap-3 md:w-44 justify-center">
-                <button
-                  onClick={() => router.push(`/tours/${booking.tour_id}`)}
-                  className="bg-gray-50 hover:bg-gray-100 text-gray-700 py-3 rounded-2xl font-bold text-sm transition-colors"
-                >
-                  Xem Tour
-                </button>
+                {booking.status === "completed" ? (
+                  <button
+                    onClick={() => router.push(`/reviews?tour_id=${booking.tour_id}&order_id=${booking.id}`)}
+                    className="bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 transition-all active:scale-95"
+                  >
+                     Đánh giá Tour
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => router.push(`/tours/${booking.tour_id}`)}
+                    className="bg-gray-50 hover:bg-gray-100 text-gray-700 py-3 rounded-2xl font-bold text-sm transition-colors"
+                  >
+                    Xem Tour
+                  </button>
+                )}
+
                 <button
                   onClick={() => router.push(`/bookings/${booking.id}`)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-emerald-100 transition-all"

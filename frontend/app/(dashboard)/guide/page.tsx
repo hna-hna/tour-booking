@@ -146,7 +146,7 @@ export default function GuideDashboard() {
                   href={`/guide/tours/${tour.id}`} 
                   className="flex items-center justify-center w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-black transition-all shadow-lg"
                 >
-                  Quản lý hành khách [CHI TIẾT]
+                   CHI TIẾT
                 </Link>
               </div>
             </div>

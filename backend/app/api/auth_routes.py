@@ -93,6 +93,7 @@ def login():
                 identity=str(user.id), 
                 additional_claims={"role": user.role.value}
             )
+            login_method = data.get('login_method', 'email')
             log_user_action("login", details=f"Đăng nhập bằng {login_method}")
 
             return jsonify({

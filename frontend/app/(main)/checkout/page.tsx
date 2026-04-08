@@ -21,6 +21,124 @@ function CheckoutContent() {
     return date.toLocaleDateString("vi-VN");
   };
 
+  // CHUYỂN ĐỔI ÂM LỊCH SANG DƯƠNG LỊCH (Đơn giản hóa)
+  const lunarToSolar = (lunarDay: number, lunarMonth: number, year: number): Date | null => {
+    const tetData: Record<number, Date> = {
+      2024: new Date('2024-02-10'),
+      2025: new Date('2025-01-29'), 
+      2026: new Date('2026-02-17'),
+      2027: new Date('2027-02-06'),
+      2028: new Date('2028-01-26'),
+      2029: new Date('2029-02-13'),
+      2030: new Date('2030-02-03')
+    };
+
+    const tetDate = tetData[year];
+    if (!tetDate) return null;
+
+    const daysOffset = (lunarMonth - 1) * 29.5 + (lunarDay - 1);
+    const solarDate = new Date(tetDate);
+    solarDate.setDate(tetDate.getDate() + Math.floor(daysOffset));
+
+    return solarDate;
+  };
+
+  // KIỂM TRA NGÀY LỄ VIỆT NAM TỰ ĐỘNG THEO NĂM
+  const isHoliday = (dateString: string): boolean => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const dayOfWeek = date.getDay();
+
+    const fixedHolidays = [
+      { day: 1, month: 1 },
+      { day: 8, month: 3 },
+      { day: 30, month: 4 },
+      { day: 1, month: 5 },
+      { day: 14, month: 2 },
+      { day: 20, month: 10 },
+      { day: 2, month: 9 }
+    ];
+
+    const isFixedHoliday = fixedHolidays.some(holiday => 
+      holiday.day === day && holiday.month === month
+    );
+
+    const tetDates = [
+      lunarToSolar(1, 1, year),
+      lunarToSolar(2, 1, year),
+      lunarToSolar(3, 1, year)
+    ].filter(Boolean);
+
+    const isTetHoliday = tetDates.some(tetDate => {
+      if (!tetDate) return false;
+      return tetDate.getDate() === day && 
+             tetDate.getMonth() + 1 === month &&
+             tetDate.getFullYear() === year;
+    });
+
+    const gioToDate = lunarToSolar(10, 3, year);
+    const isGioToHoliday = gioToDate && 
+                          gioToDate.getDate() === day && 
+                          gioToDate.getMonth() + 1 === month &&
+                          gioToDate.getFullYear() === year;
+
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+    return isFixedHoliday || isTetHoliday || isGioToHoliday || isWeekend;
+  };
+
+  // LẤY TÊN NGÀY LỄ
+  const getHolidayName = (dateString: string): string => {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const dayOfWeek = date.getDay();
+
+    const holidayNames = {
+      '1-1': 'Tết Dương lịch',
+      '8-3': 'Ngày Phụ nữ 8/3', 
+      '14-2': 'Valentine',
+      '30-4': 'Giải phóng 30/4',
+      '1-5': 'Ngày Lao động',
+      '2-9': 'Quốc khánh',
+      '20-10': 'Phụ nữ VN 20/10'
+    };
+
+    for (const [key, name] of Object.entries(holidayNames)) {
+      const [hDay, hMonth] = key.split('-').map(Number);
+      if (hDay === day && hMonth === month) return name;
+    }
+
+    const tetDates = [
+      lunarToSolar(1, 1, year),
+      lunarToSolar(2, 1, year),
+      lunarToSolar(3, 1, year)
+    ];
+
+    const tetNames = ['Mùng 1 Tết', 'Mùng 2 Tết', 'Mùng 3 Tết'];
+    for (let i = 0; i < tetDates.length; i++) {
+       const currentTet = tetDates[i]; // Lấy ra biến tạm
+       if (currentTet && currentTet.getDate() === day && 
+           currentTet.getMonth() + 1 === month) {
+          return tetNames[i];
+      }
+    }
+
+    const gioToDate = lunarToSolar(10, 3, year);
+    if (gioToDate && gioToDate.getDate() === day && 
+        gioToDate.getMonth() + 1 === month) {
+      return 'Giỗ Tổ Hùng Vương';
+    }
+
+    if (dayOfWeek === 0) return 'Chủ nhật';
+    if (dayOfWeek === 6) return 'Thứ Bảy';
+
+    return '';
+  };
+
   useEffect(() => {
     if (tourId) {
       axios.get(`http://localhost:5000/api/tours/${tourId}`)
@@ -30,8 +148,15 @@ function CheckoutContent() {
   }, [tourId]);
 
   const TOUR_BASE_PRICE = tour ? tour.price : 0;
-
-  const totalAmount = guestCount * TOUR_BASE_PRICE;
+  
+  // TÍNH GIÁ TĂNG 10% NGÀY LỄ
+  const holidaySurchargePercent = 0.10; // 10%
+  const holidaySurcharge = isHoliday(tour?.start_date || '') ? 
+    Math.round(TOUR_BASE_PRICE * holidaySurchargePercent) : 0;
+  const finalPricePerGuest = TOUR_BASE_PRICE + holidaySurcharge;
+  const totalAmount = guestCount * finalPricePerGuest;
+  const hasHolidaySurcharge = holidaySurcharge > 0;
+  const holidayName = hasHolidaySurcharge ? getHolidayName(tour?.start_date || '') : '';
 
   const handlePayment = () => {
     if (guestCount <= 0) {
@@ -85,14 +210,21 @@ function CheckoutContent() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-                {/* HIỂN THỊ THỜI GIAN TOUR */}
+                {/* HIỂN THỊ THỜI GIAN TOUR - BỎ 10% */}
                 {tour && (
                   <div>
                     <label className="block text-[10px] font-bold text-gray-400 mb-3 uppercase tracking-[0.2em]">
                       Thời gian tour
-</label>
-                    <div className="p-4 bg-gray-50 rounded-2xl font-bold text-gray-700">
-                      {formatDate(tour.start_date)} → {formatDate(tour.end_date)}
+                    </label>
+                    <div className={`p-4 rounded-2xl font-bold ${hasHolidaySurcharge ? 'bg-orange-50 border-2 border-orange-200' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2">
+                        {formatDate(tour.start_date)} → {formatDate(tour.end_date)}
+                        {hasHolidaySurcharge && (
+                          <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wide">
+                            {holidayName}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -156,7 +288,7 @@ function CheckoutContent() {
           <div className="h-fit sticky top-10">
 
             <div className="bg-white border border-gray-100 rounded-xl p-6 shadow-md overflow-hidden">
-<div className="bg-gray-50 -mx-6 -mt-6 p-4 mb-6 border-b border-gray-100">
+              <div className="bg-gray-50 -mx-6 -mt-6 p-4 mb-6 border-b border-gray-100">
                 <h2 className="text-md font-bold text-center text-gray-700 uppercase">
                   Chi tiết thanh toán
                 </h2>
@@ -179,6 +311,18 @@ function CheckoutContent() {
                     </span>
                   </div>
 
+                  {hasHolidaySurcharge && (
+                    <div className="flex justify-between items-center text-sm bg-orange-50 p-3 rounded-xl border border-orange-200">
+                      <span className="text-orange-700 font-semibold">
+                        {holidayName ? `Phí ${holidayName}:` : 'Phí ngày lễ:'}
+                      </span>
+                      <span className="font-bold text-orange-600 text-lg">
+                        +{holidaySurcharge.toLocaleString()}đ 
+                        <span className="text-sm font-normal">({(holidaySurchargePercent * 100).toFixed(0)}%)</span>
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between items-center text-sm pb-4 border-b">
                     <span className="text-gray-500">Số lượng:</span>
                     <span className="font-semibold text-gray-800">
@@ -189,7 +333,7 @@ function CheckoutContent() {
                   <div className="pt-2">
                     <div className="flex justify-between items-end">
                       <span className="font-bold text-gray-700">Tổng cộng:</span>
-                      <span className="text-2xl font-black text-red-600 leading-none">
+                      <span className={`text-2xl font-black leading-none ${hasHolidaySurcharge ? 'text-orange-600' : 'text-red-600'}`}>
                         {totalAmount.toLocaleString()}đ
                       </span>
                     </div>
@@ -219,10 +363,10 @@ function CheckoutContent() {
 
             <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-100">
               <p className="text-[11px] text-blue-700 text-center leading-relaxed font-medium">
-                Hệ thống thanh toán bảo mật. <br /> Thông tin luôn được mã hóa tuyệt đối.
+                Hệ thống tự động áp dụng phí ngày lễ theo lịch Việt Nam. <br />Thông tin luôn được mã hóa tuyệt đối.
               </p>
             </div>
-</div>
+          </div>
         </div>
       </div>
     </div>

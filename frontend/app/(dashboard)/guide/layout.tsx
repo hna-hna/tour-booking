@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X, ShieldAlert } from "lucide-react";
 import axios from "axios";
 
 interface UserInfo {
@@ -17,22 +17,30 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
 
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
 
-  // Lấy thông tin HDV từ API
   useEffect(() => {
-    setIsMounted(true);
-
-    const fetchGuideProfile = async () => {
+    const checkAuth = async () => {
       const token = localStorage.getItem("token");
+      const role = localStorage.getItem("role");
+
+      // 1. Kiểm tra Token có tồn tại không
       if (!token) {
         router.push("/login");
         return;
       }
 
+      // 2. Kiểm tra Role có phải là 'guide' không
+      if (role !== "guide") {
+        alert("CẢNH BÁO: Bạn không có quyền truy cập vào khu vực dành cho Hướng dẫn viên!");
+        handleForcedLogout();
+        return;
+      }
+
       try {
+        // 3. Gọi API lấy profile để xác thực token còn hạn hay không
         const res = await axios.get("http://localhost:5000/api/guide/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -43,22 +51,39 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
           email: res.data.email,
           role: "guide",
         });
-      } catch (error) {
-        console.error("Không lấy được thông tin hướng dẫn viên:", error);
-        // Fallback nếu lỗi
-        setUser({
-          id: 0,
-          full_name: "Hướng Dẫn Viên",
-          email: "",
-          role: "guide",
-        });
+        setIsAuthorized(true); // Đã xác thực thành công
+      } catch (error: any) {
+        console.error("Xác thực thất bại:", error);
+        
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          alert("Phiên đăng nhập đã hết hạn hoặc không hợp lệ!");
+          handleForcedLogout();
+        } else {
+          // Lỗi mạng hoặc server khác, vẫn tạm thời cho vào nếu role khớp (hoặc tùy bạn xử lý)
+          setIsAuthorized(true);
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchGuideProfile();
+    checkAuth();
   }, [router]);
+
+  // Hàm xử lý đăng xuất cưỡng bức khi vi phạm quyền
+  const handleForcedLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("user_info");
+    router.push("/login");
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
+      handleForcedLogout();
+    }
+  };
 
   const menuItems = [
     { name: "Lịch Tour Hiện Tại", href: "/guide" },
@@ -68,23 +93,18 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     { name: "Hồ Sơ & Cài Đặt", href: "/guide/profile"},
   ];
 
-  const handleLogout = () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất?")) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("role");
-      localStorage.removeItem("user_info");
-      localStorage.removeItem("user_id");
-      router.push("/login");
-    }
-  };
-
-  if (!isMounted || loading) {
+  // Trong lúc đang kiểm tra quyền, hiển thị màn hình chờ trắng để tránh lộ nội dung (Flash content)
+  if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <p className="text-gray-500">Đang tải thông tin...</p>
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+        <p className="mt-4 text-slate-500 font-medium italic">Đang kiểm tra quyền truy cập...</p>
       </div>
     );
   }
+
+  // Nếu không được quyền vào, không render gì cả (để router.push hoạt động)
+  if (!isAuthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex">

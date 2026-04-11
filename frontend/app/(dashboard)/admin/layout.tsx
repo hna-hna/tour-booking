@@ -1,20 +1,69 @@
-/* app/(dashboard)/admin/layout.tsx */
 "use client";
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, Map, ShoppingCart, BarChart3, LogOut, ClipboardList } from "lucide-react";
+import { 
+  Menu, X, LayoutDashboard, Users, Map, 
+  ShoppingCart, BarChart3, LogOut, ClipboardList, ShieldCheck 
+} from "lucide-react";
+import axios from "axios";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  
   const [isSidebarOpen, setSidebarOpen] = useState(true);
-  const [isMounted, setIsMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [adminInfo, setAdminInfo] = useState<{full_name: string} | null>(null);
 
-  // Fix lỗi Hydration của Next.js khi dùng localStorage hoặc Window
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    const checkAdminAuth = async () => {
+      const token = localStorage.getItem("token");
+      const role = localStorage.getItem("role");
+
+      // 1. Kiểm tra nhanh tại Client
+      if (!token || role !== "admin") {
+        if (token) alert("Truy cập bị từ chối! Khu vực này chỉ dành cho Admin.");
+        handleForcedLogout();
+        return;
+      }
+
+      try {
+        // 2. Gọi API xác thực sâu (Sử dụng endpoint profile chung hoặc admin riêng của bạn)
+        // Giả sử bạn dùng endpoint này để verify token và lấy tên Admin
+        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        // Đảm bảo API trả về đúng role là admin để tránh trường hợp user đổi role dưới local
+        if (res.data.role !== "admin") {
+          throw new Error("Invalid role");
+        }
+
+        setAdminInfo({ full_name: res.data.full_name });
+        setIsAuthorized(true);
+      } catch (error) {
+        console.error("Xác thực Admin thất bại:", error);
+        handleForcedLogout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAdminAuth();
+  }, [router]);
+
+  const handleForcedLogout = () => {
+    localStorage.clear();
+    router.push("/login");
+  };
+
+  const handleLogout = () => {
+    if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống Admin?")) {
+      handleForcedLogout();
+    }
+  };
 
   const menuItems = [
     { name: "Tổng quan", href: "/admin", icon: <LayoutDashboard size={20} /> },
@@ -28,97 +77,73 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "TK Hướng dẫn viên", href: "/admin/role-stats/guides", icon: <BarChart3 size={18} className="ml-2" /> },
   ];
 
-  const handleLogout = () => {
-    if (window.confirm("Bạn có chắc chắn muốn đăng xuất khỏi hệ thống Admin?")) {
-      localStorage.clear();
-      router.push("/login");
-    }
-  };
+  // Màn hình chờ khi đang check quyền
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center">
+        <ShieldCheck size={48} className="text-emerald-500 animate-pulse mb-4" />
+        <p className="text-slate-400 font-medium tracking-widest uppercase text-xs">Security Checking...</p>
+      </div>
+    );
+  }
 
-  if (!isMounted) return null;
+  if (!isAuthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* 1. SIDEBAR - Giao diện Gradient tối */}
-      <aside 
-        className={`bg-gradient-to-b from-slate-800 to-slate-900 text-slate-100 transition-all duration-300 flex flex-col fixed h-full z-30 shadow-xl ${
-          isSidebarOpen ? "w-72" : "w-20"
-        }`}
-      >
-        {/* Logo Area */}
-        <div className="h-16 flex items-center px-6 border-b border-slate-700/50">
+      {/* SIDEBAR */}
+      <aside className={`bg-slate-900 text-slate-100 transition-all duration-300 flex flex-col fixed h-full z-30 shadow-2xl ${isSidebarOpen ? "w-72" : "w-20"}`}>
+        <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold shrink-0">
-              A
-            </div>
-            {isSidebarOpen && (
-              <span className="text-lg font-semibold tracking-tight whitespace-nowrap">Admin Portal</span>
-            )}
+            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">A</div>
+            {isSidebarOpen && <span className="text-lg font-bold tracking-tighter uppercase">Admin Panel</span>}
           </div>
         </div>
 
-        {/* Menu Items */}
-        <nav className="flex-1 py-8 px-4 space-y-1.5">
+        <nav className="flex-1 py-6 px-4 space-y-1 overflow-y-auto custom-scrollbar">
           {menuItems.map((item) => {
             const isActive = pathname === item.href;
             return (
-              <Link 
-                key={item.href} 
-                href={item.href}
-                className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all font-medium text-sm ${
-                  isActive 
-                    ? "bg-emerald-600 text-white shadow-lg shadow-emerald-900/20" 
-                    : "text-slate-400 hover:bg-slate-700/40 hover:text-white"
+              <Link key={item.href} href={item.href}
+                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all text-sm font-medium ${
+                  isActive ? "bg-emerald-600 text-white shadow-lg" : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
               >
                 <span className="shrink-0">{item.icon}</span>
-                {isSidebarOpen && <span className="whitespace-nowrap">{item.name}</span>}
+                {isSidebarOpen && <span>{item.name}</span>}
               </Link>
             );
           })}
         </nav>
 
-        {/* Logout Section */}
-        <div className="p-4 border-t border-slate-700/50">
-          <button 
-            onClick={handleLogout}
-            className="flex items-center gap-4 w-full px-4 py-3.5 rounded-xl text-slate-400 hover:bg-red-600/20 hover:text-red-400 transition-all font-medium text-sm text-left"
-          >
-            <LogOut size={20} className="shrink-0" />
+        <div className="p-4 border-t border-slate-800">
+          <button onClick={handleLogout} className="flex items-center gap-4 w-full px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-500 transition-all text-sm font-medium">
+            <LogOut size={20} />
             {isSidebarOpen && <span>Đăng xuất</span>}
           </button>
         </div>
       </aside>
 
-      {/* 2. MAIN CONTENT AREA */}
-      <div 
-        className={`flex-1 flex flex-col transition-all duration-300 ${
-          isSidebarOpen ? "ml-72" : "ml-20"
-        }`}
-      >
-        {/* Top Header Bar */}
-        <header className="h-16 bg-white border-b border-slate-200 shadow-sm flex items-center justify-between px-6 sticky top-0 z-20">
-          <button 
-            onClick={() => setSidebarOpen(!isSidebarOpen)} 
-            className="p-2 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
-          >
-            {isSidebarOpen ? <X size={24} /> : <Menu size={24} />}
+      {/* MAIN CONTENT */}
+      <div className={`flex-1 flex flex-col transition-all duration-300 ${isSidebarOpen ? "ml-72" : "ml-20"}`}>
+        <header className="h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-20">
+          <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+            {isSidebarOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
 
           <div className="flex items-center gap-4">
-            <div className="hidden md:block text-right">
-              <p className="font-bold text-slate-800 text-sm leading-none uppercase">Quản trị viên</p>
-              <p className="text-[10px] text-emerald-600 font-bold uppercase mt-1 tracking-wider">Trực tuyến</p>
+            <div className="text-right hidden sm:block">
+              <p className="font-bold text-slate-800 text-sm leading-none uppercase">{adminInfo?.full_name || "Admin"}</p>
+              <p className="text-[10px] text-red-500 font-black mt-1 tracking-tighter uppercase">System Root</p>
             </div>
-            <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 font-bold text-xs shadow-inner">
+            <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-emerald-500 font-bold border-2 border-emerald-500/20 shadow-lg">
               AD
             </div>
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 p-6 md:p-10 bg-slate-50">
-          <div className="max-w-7xl mx-auto">
+          <div className="max-w-7xl mx-auto animate-in fade-in duration-500">
             {children}
           </div>
         </main>

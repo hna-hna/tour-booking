@@ -17,42 +17,39 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [adminInfo, setAdminInfo] = useState<{full_name: string} | null>(null);
 
-  useEffect(() => {
-    const checkAdminAuth = async () => {
-      const token = localStorage.getItem("token");
-      const role = localStorage.getItem("role");
+useEffect(() => {
+  const checkAdminAuth = async () => {
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
 
-      // 1. Kiểm tra nhanh tại Client
-      if (!token || role !== "admin") {
-        if (token) alert("Truy cập bị từ chối! Khu vực này chỉ dành cho Admin.");
-        handleForcedLogout();
-        return;
+    if (!token || role?.trim().toUpperCase() !== "ADMIN") {
+      handleForcedLogout();
+      return;
+    }
+
+    try {
+      const res = await axios.get("http://localhost:5000/api/profile/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.data.role?.trim().toUpperCase() !== "ADMIN") {
+        throw new Error("Invalid role");
       }
 
-      try {
-        // 2. Gọi API xác thực sâu (Sử dụng endpoint profile chung hoặc admin riêng của bạn)
-        // Giả sử bạn dùng endpoint này để verify token và lấy tên Admin
-        const res = await axios.get("http://localhost:5000/api/auth/profile", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+      setAdminInfo({ full_name: res.data.full_name });
+      setIsAuthorized(true);
 
-        // Đảm bảo API trả về đúng role là admin để tránh trường hợp user đổi role dưới local
-        if (res.data.role !== "admin") {
-          throw new Error("Invalid role");
-        }
+    } catch (error: any) {
+      console.error("Auth Error:", error);
+      alert("Xác thực thất bại. Vui lòng đăng nhập lại.");
+      handleForcedLogout();
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setAdminInfo({ full_name: res.data.full_name });
-        setIsAuthorized(true);
-      } catch (error) {
-        console.error("Xác thực Admin thất bại:", error);
-        handleForcedLogout();
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkAdminAuth();
-  }, [router]);
+  checkAdminAuth();
+}, []);
 
   const handleForcedLogout = () => {
     localStorage.clear();

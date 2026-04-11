@@ -22,28 +22,47 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
       const token = localStorage.getItem("token");
       const role = localStorage.getItem("role");
 
-      // 1. Kiểm tra nhanh tại Client-side
-      if (!token || role !== "supplier") {
-        if (token) alert("Bạn không có quyền truy cập vào khu vực Nhà cung cấp!");
+      console.log("=== DEBUG SUPPLIER AUTH ===");
+      console.log("Token:", token ? "✅ Có" : "❌ Không");
+      console.log("Role localStorage:", `"${role}"`);
+
+      // 1. Kiểm tra nhanh (linh hoạt hơn)
+      if (!token || role?.trim().toUpperCase() !== "SUPPLIER") {
+        if (token) {
+          alert(`Bạn không có quyền truy cập!\nRole hiện tại: ${role}`);
+        }
         handleForcedLogout();
         return;
       }
 
       try {
-        // 2. Gọi API xác thực sâu
-        const res = await axios.get("http://localhost:5000/api/auth/profile", {
+        // 2. Gọi API profile (đã sửa đúng endpoint)
+        const res = await axios.get("http://localhost:5000/api/profile/me", {
           headers: { Authorization: `Bearer ${token}` },
         });
 
-        // Kiểm tra role trả về từ server để tránh giả mạo localStorage
-        if (res.data.role !== "supplier") {
+        console.log("✅ API Profile trả về:", res.data);
+
+        const serverRole = res.data.role?.trim().toUpperCase();
+        
+        if (serverRole !== "SUPPLIER") {
+          console.log(`❌ Role từ server không phải SUPPLIER: ${res.data.role}`);
           throw new Error("Invalid role");
         }
 
-        setSupplierName(res.data.full_name);
+        setSupplierName(res.data.full_name || "Nhà cung cấp");
         setIsAuthorized(true);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Xác thực Supplier thất bại:", error);
+        
+        if (error.response?.status === 401) {
+          alert("Token hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.");
+        } else if (error.response?.status === 404) {
+          alert("Sai endpoint API. Vui lòng kiểm tra backend.");
+        } else {
+          alert("Xác thực thất bại. Vui lòng đăng nhập lại.");
+        }
+        
         handleForcedLogout();
       } finally {
         setLoading(false);
@@ -51,7 +70,7 @@ export default function SupplierLayout({ children }: { children: React.ReactNode
     };
 
     checkSupplierAuth();
-  }, [router]);
+  }, []);
 
   const handleForcedLogout = () => {
     localStorage.clear();

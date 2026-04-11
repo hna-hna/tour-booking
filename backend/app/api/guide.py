@@ -3,11 +3,26 @@ from flask import Blueprint, jsonify, request, current_app
 from app.extensions import db
 from app.models.tour import Tour
 from app.models.tour_guide import TourGuide, TourGuideAssignment
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.order import Order
 from flask_jwt_extended import jwt_required, get_jwt_identity
-
+from datetime import datetime, timedelta
 guide_bp = Blueprint('guide', __name__)
+
+def check_request_timeout(guide):
+    if guide.supplier_id and not getattr(guide, 'is_approved', True):
+        request_at = getattr(guide, 'request_at', None)
+        if request_at:
+            # Nếu quá 30 phút
+            if datetime.utcnow() > request_at + timedelta(minutes=30):
+                guide.supplier_id = None
+                # Khôi phục trạng thái cũ nếu có
+                if hasattr(guide, 'old_status') and guide.old_status:
+                    guide.status = guide.old_status
+                guide.request_at = None
+                db.session.commit()
+                return True
+    return False
 
 # --- HÀM TRỢ GIÚP LẤY GUIDE ---
 def get_current_guide(user_id):
@@ -218,53 +233,6 @@ def get_tour_customers(tour_id):
     return jsonify(customers), 200
 
 
-# 6. Profile Guide
-@guide_bp.route('/profile', methods=['GET', 'PUT'])
-@jwt_required()
-def guide_profile():
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    guide = TourGuide.query.filter_by(user_id=user_id).first()
-
-    if not user:
-        return jsonify({"msg": "Không tìm thấy người dùng"}), 404
-
-    if request.method == 'GET':
-        raw_status = getattr(guide, 'status', 'AVAILABLE')
-        status_value = raw_status.value if hasattr(raw_status, 'value') else str(raw_status)
-
-        return jsonify({
-            "id": user.id,
-            "full_name": user.full_name,
-            "email": user.email,
-            "phone": getattr(user, 'phone', ''),
-            "status": status_value,
-            "years_of_experience": getattr(guide, 'years_of_experience', 0),
-            "languages": getattr(guide, 'languages', '')
-        }), 200
-
-    if request.method == 'PUT':
-        data = request.get_json()
-        if 'full_name' in data:
-            user.full_name = data['full_name']
-        if 'phone' in data:
-            user.phone = data['phone']
-
-        if guide:
-            if 'status' in data:
-                guide.status = data['status']
-            if 'languages' in data:
-                langs = data['languages']
-                guide.languages = ", ".join(langs) if isinstance(langs, list) else langs
-            if 'years_of_experience' in data:
-                guide.years_of_experience = data['years_of_experience']
-
-        try:
-            db.session.commit()
-            return jsonify({"msg": "Cập nhật hồ sơ thành công"}), 200
-        except Exception as e:
-            db.session.rollback()
-            return jsonify({"error": "Lỗi database"}), 500
 
 
 # 7. Kết thúc tour
@@ -313,6 +281,80 @@ def finish_tour(tour_id):
             "status": "completed"
         }), 200
 
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+# Thêm vào app/api/guide.py
+@guide_bp.route('/profile', methods=['GET', 'PUT'])
+@jwt_required()
+def guide_profile():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    guide = get_current_guide(user_id)
+
+    if not user: return jsonify({"msg": "Không tìm thấy"}), 404
+
+    # Kiểm tra xem yêu cầu gia nhập cty có bị quá 30p không
+    check_request_timeout(guide)
+
+    if request.method == 'GET':
+        status_value = guide.status.value if hasattr(guide.status, 'value') else str(guide.status)
+        # Lấy tên cty chủ nếu đã được duyệt
+        supplier_name = ""
+        if guide.supplier_id and getattr(guide, 'is_approved', False):
+            supplier = User.query.get(guide.supplier_id)
+            supplier_name = supplier.full_name if supplier else ""
+
+        return jsonify({
+            "id": user.id,
+            "full_name": user.full_name,
+            "email": user.email,
+            "phone": getattr(user, 'phone', ''),
+            "status": status_value,
+            "supplier_id": guide.supplier_id,
+            "supplier_name": supplier_name,
+            "is_approved": getattr(guide, 'is_approved', False),
+            "years_of_experience": guide.years_of_experience,
+            "languages": guide.languages
+        }), 200
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        user.full_name = data.get('full_name', user.full_name)
+        user.phone = data.get('phone', user.phone)
+        guide.status = data.get('status', guide.status)
+        guide.languages = ", ".join(data['languages']) if isinstance(data.get('languages'), list) else guide.languages
+        guide.years_of_experience = data.get('years_of_experience', guide.years_of_experience)
+        db.session.commit()
+        return jsonify({"msg": "Cập nhật thành công"}), 200
+
+@guide_bp.route('/suppliers', methods=['GET'])
+@jwt_required()
+def get_all_suppliers():
+    suppliers = User.query.filter_by(role=UserRole.SUPPLIER, is_active=True).all()
+    return jsonify([{"id": s.id, "full_name": s.full_name} for s in suppliers]), 200
+
+@guide_bp.route('/request-join-supplier', methods=['POST'])
+@jwt_required()
+def request_join_supplier():
+    user_id = get_jwt_identity()
+    guide = get_current_guide(user_id)
+    supplier_id = request.get_json().get('supplier_id')
+
+    if not guide: return jsonify({"msg": "Lỗi"}), 404
+
+    try:
+        # Lưu trạng thái cũ để khôi phục sau này
+        guide.old_status = guide.status.value if hasattr(guide.status, 'value') else str(guide.status)
+        guide.supplier_id = supplier_id
+        guide.is_approved = False
+        guide.request_at = datetime.utcnow()
+        # Chuyển trạng thái sang BUSY (hoặc một trạng thái chờ)
+        guide.status = "BUSY" 
+        
+        db.session.commit()
+        return jsonify({"msg": "Yêu cầu đã gửi. Chờ duyệt trong 30p"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

@@ -9,7 +9,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from sqlalchemy import func
 from app.models.user import User, UserRole
 from werkzeug.security import generate_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 
 supplier_bp = Blueprint('supplier_bp', __name__)
 
@@ -353,6 +353,50 @@ def delete_guide(guide_id):
         db.session.delete(guide)
         db.session.commit()
         return jsonify({"msg": "Xóa HDV thành công"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+@supplier_bp.route('/pending-guides', methods=['GET'])
+@jwt_required()
+def get_pending_guides():
+    sid = get_jwt_identity()
+    # Lấy các HDV đã chọn cty này nhưng is_approved = False
+    pending = TourGuide.query.filter_by(supplier_id=sid, is_approved=False).all()
+    
+    results = []
+    for g in pending:
+        # Kiểm tra timeout ngay khi NCC xem danh sách
+        if datetime.utcnow() > g.request_at + timedelta(minutes=30):
+            g.supplier_id = None
+            db.session.commit()
+            continue
+
+        results.append({
+            "user_id": g.user_id,
+            "full_name": g.full_name,
+            "email": g.email,
+            "phone": g.phone,
+            "created_at": g.request_at # Thời điểm gửi yêu cầu
+        })
+    return jsonify(results), 200
+
+@supplier_bp.route('/approve-guide/<int:user_id>', methods=['POST'])
+@jwt_required()
+def approve_guide(user_id):
+    sid = get_jwt_identity()
+    guide = TourGuide.query.filter_by(user_id=user_id, supplier_id=sid).first()
+    
+    if not guide: return jsonify({"msg": "Không Fthấy HDV"}), 404
+
+    try:
+        guide.is_approved = True
+        if guide.old_status:
+            guide.status = guide.old_status
+        else:
+            guide.status = "AVAILABLE"
+            
+        db.session.commit()
+        return jsonify({"msg": "Đã duyệt HDV gia nhập công ty"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

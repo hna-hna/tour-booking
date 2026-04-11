@@ -10,7 +10,7 @@ import urllib.parse
 
 payment_bp = Blueprint('payment', __name__)
 
-stripe.api_key = 'thoww'
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 @payment_bp.route('/create-payment-intent', methods=['POST'])
 @jwt_required()
 def create_payment():

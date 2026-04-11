@@ -116,9 +116,9 @@ export default function BookingHistoryPage() {
                   <h3 className="text-xl font-bold text-gray-900 mb-2">{item.tour_name}</h3>
                   
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p>🗓 Ngày khởi hành: <span className="font-semibold">{item.start_date}</span></p>
-                    <p>👥 Số khách: {item.guest_count} người</p>
-                    <p>🕒 Ngày đặt: {item.booking_date}</p>
+                    <p> Ngày khởi hành: <span className="font-semibold">{item.start_date}</span></p>
+                    <p> Số khách: {item.guest_count} người</p>
+                    <p> Ngày đặt: {item.booking_date}</p>
                   </div>
                 </div>
 

@@ -219,6 +219,15 @@ export default function BookingsPage() {
                 >
                   Chi tiết đơn
                 </button>
+
+                {booking.status === "pending" && (
+                   <button
+                     onClick={() => router.push(`/payments?id=${booking.tour_id}&orderId=${booking.id}&amount=${booking.total_price}&guests=${booking.guest_count}`)}
+                     className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
+                   >
+                      Thanh toán ngay
+                   </button>
+                )}
               </div>
             </div>
           ))}

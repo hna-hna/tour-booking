@@ -213,16 +213,28 @@ export default function OrderDetailsPage() {
   )}
 </div>
 
-              {/* Chính sách hủy tour */}
-              <div className="mt-8 bg-orange-50 rounded-2xl p-5 border border-orange-100 flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+              {/* Chính sách hoặc Trạng thái hủy tour */}
+              {order.status === 'cancelled' ? (
+                <div className="mt-8 bg-rose-50 rounded-2xl p-5 border border-rose-100 flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-rose-800 text-sm mb-1">Đơn hàng đã được hủy</h4>
+                    <p className="text-xs text-rose-700 leading-relaxed">Lệnh hoàn tiền tự động đã được gửi đến cổng thanh toán. Số tiền sẽ được hoàn về tài khoản của bạn trong 3-5 ngày làm việc.</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-orange-800 text-sm mb-1">Chính sách hủy tour</h4>
-                  <p className="text-xs text-orange-700 leading-relaxed">Bạn sẽ nhận được khoản tiền hoàn lại đầy đủ nếu hủy trong vòng 24 giờ kể từ khi đặt đơn.</p>
+              ) : (
+                <div className="mt-8 bg-orange-50 rounded-2xl p-5 border border-orange-100 flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-orange-800 text-sm mb-1">Chính sách hủy tour</h4>
+                    <p className="text-xs text-orange-700 leading-relaxed">Bạn sẽ nhận được khoản tiền hoàn lại đầy đủ nếu hủy trong vòng 24 giờ kể từ khi đặt đơn.</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Cột Phải - Thanh toán */}
@@ -271,7 +283,16 @@ export default function OrderDetailsPage() {
               </div>
 
               {/* Nút hành động */}
-              <div>
+              <div className="space-y-3">
+                {order.status === "pending" && (
+                   <button
+                     onClick={() => router.push(`/payments?id=${order.tour.id}&orderId=${order.id}&amount=${order.total_price}&guests=${order.guest_count}`)}
+                     className="w-full py-4 text-center rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition shadow-lg hover:shadow-xl hover:shadow-blue-500/20 active:scale-95 flex items-center justify-center gap-2"
+                   >
+                     Thanh toán ngay
+                   </button>
+                )}
+
                 {canCancel ? (
                   <button 
                     onClick={handleCancel}
@@ -281,9 +302,11 @@ export default function OrderDetailsPage() {
                     {canceling ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : "Hủy đơn & Hoàn tiền ngay"}
                   </button>
                 ) : (
-                   <button disabled className="w-full py-4 text-center rounded-xl bg-slate-200 text-slate-400 font-bold cursor-not-allowed">
-                     {order.status === 'cancelled' ? 'Đơn hàng đã hủy' : 'Hết hạn hủy miễn phí'}
-                   </button>
+                   order.status !== "pending" && (
+                     <button disabled className="w-full py-4 text-center rounded-xl bg-slate-200 text-slate-400 font-bold cursor-not-allowed">
+                       {order.status === 'cancelled' ? 'Đơn hàng đã hủy' : 'Hết hạn hủy miễn phí'}
+                     </button>
+                   )
                 )}
               </div>
             </div>

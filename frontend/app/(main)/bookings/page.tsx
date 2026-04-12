@@ -11,6 +11,7 @@ interface Booking {
   status: string;
   booking_date: string;
   tour_id: number;
+  cancel_reason?: string;
 }
 
 export default function BookingsPage() {
@@ -93,7 +94,22 @@ export default function BookingsPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getCancelReasonText = (reason: string) => {
+    switch (reason) {
+      case "expired":
+        return "Quá hạn thanh toán";
+      case "user_cancelled":
+        return "Bạn đã hủy";
+      default:
+        return "";
+    }
+  };
+
+
+  const getStatusText = (status: string, reason?: string) => {
+    if (status === "cancelled" && reason === "expired") {
+      return "Đã hủy quá hạn thanh toán";
+    }
     const map: { [key: string]: string } = {
       paid: "Đã thanh toán",
       completed: "Hoàn thành",
@@ -108,17 +124,16 @@ export default function BookingsPage() {
       {/* Header & Filter Section */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
         <h1 className="text-3xl font-bold text-gray-800">Đơn đặt tour của tôi</h1>
-        
+
         <div className="flex flex-wrap gap-2 justify-center">
           {["all", "paid", "completed", "cancelled", "pending"].map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-                statusFilter === st
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${statusFilter === st
                   ? "bg-emerald-600 text-white shadow-lg shadow-emerald-200"
                   : "bg-gray-100 hover:bg-gray-200 text-gray-600"
-              }`}
+                }`}
             >
               {st === "all" ? "Tất cả" : getStatusText(st)}
             </button>
@@ -170,9 +185,12 @@ export default function BookingsPage() {
               <div className="flex-1">
                 <div className="flex justify-between items-start mb-4">
                   <h3 className="text-xl font-bold text-gray-800 line-clamp-1">{booking.tour_name}</h3>
-                  <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
-                    {getStatusText(booking.status)}
-                  </span>
+                  <div className="flex flex-col items-end">
+                    <span className={`px-4 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${getStatusColor(booking.status)}`}>
+                      {getStatusText(booking.status, booking.cancel_reason)}
+                    </span>
+
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -202,7 +220,7 @@ export default function BookingsPage() {
                     onClick={() => router.push(`/reviews?tour_id=${booking.tour_id}&order_id=${booking.id}`)}
                     className="bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-amber-200 transition-all active:scale-95"
                   >
-                     Đánh giá Tour
+                    Đánh giá Tour
                   </button>
                 ) : (
                   <button
@@ -221,12 +239,12 @@ export default function BookingsPage() {
                 </button>
 
                 {booking.status === "pending" && (
-                   <button
-                     onClick={() => router.push(`/payments?id=${booking.tour_id}&orderId=${booking.id}&amount=${booking.total_price}&guests=${booking.guest_count}`)}
-                     className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
-                   >
-                      Thanh toán ngay
-                   </button>
+                  <button
+                    onClick={() => router.push(`/payments?id=${booking.tour_id}&orderId=${booking.id}&amount=${booking.total_price}&guests=${booking.guest_count}`)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl font-bold text-sm shadow-lg shadow-blue-200 transition-all active:scale-95"
+                  >
+                    Thanh toán ngay
+                  </button>
                 )}
               </div>
             </div>

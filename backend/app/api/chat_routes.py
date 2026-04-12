@@ -4,9 +4,10 @@ from app.models.user import User
 from app.models.chat import Message, AIChatHistory
 from app.models.tour import Tour
 from app.models.order import Order
+from app.models.review import Review
 from app.models.log import SearchLog, TourViewLog
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from sqlalchemy import or_
+from sqlalchemy import func, desc
 from datetime import datetime
 from app.log_service import log_user_action
 import requests
@@ -14,11 +15,8 @@ import os
 import re
 import json
 from app.services.recommendation_service import get_popular_tours
-from app.ai_engine.recommender import TourRecommender
 
 chat_bp = Blueprint('chat', __name__)
-recommender = TourRecommender()
-
 OLLAMA_API_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "llama3"
 
@@ -26,30 +24,30 @@ def detect_intent(message):
     msg = message.lower().strip()
     
     intent = {
-        "beach": any(kw in msg for kw in ["biển", "biển xanh", "bãi biển", "nam du", "nha trang", "phú yên", "quy nhơn", "hòn sơn", "đà nẵng"]),
-        "mountain": any(kw in msg for kw in ["núi", "đà lạt", "măng đen", "hà nội", "sapa", "tây bắc"]),
-        "family": any(kw in msg for kw in ["gia đình", "cả nhà", "trẻ em", "con nhỏ"]),
-        "couple": any(kw in msg for kw in ["cặp đôi", "người yêu", "trăng mật", "romantic"]),
-        "relax": any(kw in msg for kw in ["nghỉ dưỡng", "thư giãn", "resort", "spa"]),
-        "adventure": any(kw in msg for kw in ["phiêu lưu", "khám phá", "trekking", "leo núi"]),
-        "short_trip": any(kw in msg for kw in ["2 ngày 1 đêm", "3 ngày 2 đêm", "cuối tuần", "ngắn ngày"]),
-        "long_trip": any(kw in msg for kw in ["4 ngày", "5 ngày", "dài ngày", "kỳ nghỉ dài"]),
+        "beach": any(kw in msg for kw in ["biển", "đảo", "nha trang", "phú quốc", "quy nhơn", "hòn", "vịnh", "nam du"]),
+        "mountain": any(kw in msg for kw in ["núi", "đà lạt", "sapa", "tây bắc", "cao nguyên", "mộc châu", "măng đen"]),
+        "popular": any(kw in msg for kw in ["bán chạy", "nhiều người mua", "hot", "phổ biến", "được chuộng"]),
+        "top_rated": any(kw in msg for kw in ["đánh giá cao", "tốt nhất", "nhiều sao", "chất lượng", "review tốt"]),
+        "duration": None, # Số ngày đi
+        "budget_max": None # Ngân sách
     }
     
+    # 1. Bắt ý định: Số ngày đi (Ví dụ: "tour 3 ngày", "đi 4 ngày")
+    duration_match = re.search(r'(\d+)\s*ngày', msg)
+    if duration_match:
+        intent["duration"] = int(duration_match.group(1))
+
+    # 2. Bắt ý định: Ngân sách (Ví dụ: "giá 5 triệu", "5tr")
     budget_match = re.search(r'(\d+)\s*(triệu|tr|đồng|d|vnđ)?', msg)
-    budget_max = None
     if budget_match:
         num = int(budget_match.group(1))
         unit = budget_match.group(2) or ""
         if "triệu" in unit or "tr" in unit:
-            budget_max = num * 1_000_000
-        elif "đồng" in unit or "d" in unit or "vnđ" in unit:
-            budget_max = num
+            intent["budget_max"] = num * 1_000_000
         else:
-            budget_max = num * 1_000_000 
+            intent["budget_max"] = num if num > 1000000 else num * 1_000_000 
 
-    return intent, budget_max
-
+    return intent
 
 def ensure_minimum_tours(tours, min_count=4):
     if len(tours) >= min_count:
@@ -82,9 +80,8 @@ def get_chat_partners():
         
         partners = []
         for pid in partner_ids:
-            #  FIX: Chỉ tìm User nếu ID có định dạng UUID hợp lệ (tránh lỗi '1', '2')
             pid_str = str(pid)
-            if len(pid_str) < 30: # UUID thường dài 32-36 ký tự, '1' sẽ bị bỏ qua
+            if len(pid_str) < 30: # UUID thường dài 32-36 ký tự
                 continue
                 
             user = User.query.filter_by(id=pid_str).first() 
@@ -96,7 +93,7 @@ def get_chat_partners():
                 
                 user_msgs.sort(key=lambda x: x.get('timestamp', ''), reverse=True)    
                 last_msg = user_msgs[0] if user_msgs else None
-                role_display = "Hướng dẫn viên" if user.role == 'guide' else "Khách hàng"
+                role_display = "Hướng dẫn viên" if user.role.value == 'guide' else "Khách hàng"
 
                 partners.append({
                     "id": str(user.id),
@@ -125,7 +122,7 @@ def chat_with_ai():
     data = request.get_json()
     user_message = data.get('message')
     user_id = str(get_jwt_identity()) 
-    session_id = data.get('session_id')
+    session_id = data.get('session_id', 'default')
     
     if not user_message:
         return jsonify({"reply": "Bạn chưa nhập tin nhắn."}), 400
@@ -136,7 +133,6 @@ def chat_with_ai():
 
     try:
         searches = SearchLog.query.filter_by(user_id=user_id).order_by(SearchLog.searched_at.desc()).limit(5).all() 
-        # Sau khi xử lý AI thành công
         log_user_action("chat_ai", details=f"Chat với AI: {user_message[:100]}...")
         if searches:
             k_list = [s.keyword for s in searches if s.keyword]
@@ -154,16 +150,44 @@ def chat_with_ai():
 
     context_extra = f"Khách tìm kiếm: {recent_keywords}\nKhách đã xem: {recent_views}\nKhách đã đặt: {recent_orders}"
 
-    intent, budget_max = detect_intent(user_message)
-    query = Tour.query.filter_by(status='approved')
+    # LỌC NÂNG CAO THEO Ý ĐỊNH KHÁCH HÀNG
+    intent = detect_intent(user_message)
+    query = Tour.query.filter(Tour.status == 'approved', Tour.start_date >= datetime.utcnow())
 
-    if intent["beach"]: query = query.filter(Tour.itinerary.ilike("%biển%") | Tour.description.ilike("%biển%"))
-    if intent["mountain"]: query = query.filter(Tour.itinerary.ilike("%núi%") | Tour.description.ilike("%núi%"))
-    if budget_max: query = query.filter(Tour.price <= budget_max)
+    if intent["beach"]: 
+        query = query.filter(Tour.itinerary.ilike("%biển%") | Tour.description.ilike("%biển%"))
+    
+    if intent["mountain"]: 
+        query = query.filter(Tour.itinerary.ilike("%núi%") | Tour.description.ilike("%núi%"))
+    
+    if intent["budget_max"]: 
+        query = query.filter(Tour.price <= intent["budget_max"])
 
-    filtered_tours = query.limit(10).all()
-    final_tours = ensure_minimum_tours(filtered_tours, min_count=5)
-    tour_context = "\n".join([f"- ID {t.id}: {t.name} ({t.price:,} VNĐ)" for t in final_tours])
+    # Lọc theo số ngày đi
+    if intent["duration"]:
+        # Tương thích SQLite/PostgreSQL
+        try:
+            query = query.filter(func.extract('day', Tour.end_date - Tour.start_date) >= (intent["duration"] - 1))
+            query = query.filter(func.extract('day', Tour.end_date - Tour.start_date) <= (intent["duration"] + 1))
+        except Exception:
+            pass # Bỏ qua nếu DB không hỗ trợ extract day trực tiếp
+
+    # Sắp xếp theo Tour Bán Chạy Nhất (Join bảng Order)
+    if intent["popular"]:
+        query = query.outerjoin(Order, Tour.id == Order.tour_id)\
+                     .filter(Order.status.in_(['paid', 'completed', 'success']))\
+                     .group_by(Tour.id)\
+                     .order_by(desc(func.count(Order.id)))
+
+    # Sắp xếp theo Đánh Giá Cao Nhất (Join bảng Review)
+    elif intent["top_rated"]:
+        query = query.outerjoin(Review, Tour.id == Review.tour_id)\
+                     .group_by(Tour.id)\
+                     .order_by(desc(func.avg(Review.rating)))
+
+    filtered_tours = query.limit(6).all()
+    final_tours = ensure_minimum_tours(filtered_tours, min_count=4)
+    tour_context = "\n".join([f"- ID {t.id}: {t.name} ({t.price:,} VNĐ) - Bắt đầu: {t.start_date.strftime('%d/%m/%Y') if t.start_date else 'N/A'}" for t in final_tours])
 
     system_prompt = f"""
     Bạn là **Trợ lý du lịch chuyên nghiệp** của công ty tour Việt Nam, tên là "DuLichAI".
@@ -181,7 +205,7 @@ def chat_with_ai():
         "temperature": 0.7
     }
 
-    reply = "Chào anh/chị! Em có thể giúp gì cho việc tìm kiếm tour hôm nay ạ?"
+    reply = "Chào anh/chị! Dưới đây là những tour em tìm được theo đúng yêu cầu của anh/chị ạ:"
     suggested_ids = []
 
     try:

@@ -73,8 +73,8 @@ def confirm_order():
             return jsonify(msg="Thanh toán chưa hoàn tất trên Stripe"), 400
     except Exception as e:
         return jsonify(error=str(e)), 500
-VNP_TMN_CODE = os.getenv("VNP_TMN_CODE")
-VNP_HASH_SECRET = os.getenv("VNP_HASH_SECRET")
+VNP_TMN_CODE = "UTD4XGMJ"
+VNP_HASH_SECRET = "95R9Y4MFJ1FJPK3AQPDCQAAWPQRTQFHF" 
 
 VNP_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"
 VNP_RETURN_URL = "http://localhost:3000/vnpay-return"

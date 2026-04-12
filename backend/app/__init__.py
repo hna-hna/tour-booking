@@ -84,7 +84,7 @@ def create_app():
     scheduler.add_job(
         func=scheduled_train,
         trigger='interval',
-        minutes=30,
+        hours=3,
         id='periodic_train_ai'
     )
 

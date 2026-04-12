@@ -11,7 +11,6 @@ from datetime import datetime
 # Import hàm chung từ services
 from app.services.recommendation_service import get_popular_tours
 
-
 class TourRecommender:
     def __init__(self):
         self.similarity_matrix = None
@@ -21,7 +20,7 @@ class TourRecommender:
 
     def train_model(self):
         with self._training_lock:
-            print(" Đang train AI Recommender...")
+            print("🔄 Đang train AI Recommender...")
             try:
                 orders = Order.query.all()
                 logs = TourViewLog.query.all()
@@ -36,7 +35,7 @@ class TourRecommender:
                     interactions.append({'user_id': l.user_id, 'tour_id': l.tour_id, 'score': 1})
 
                 if not interactions:
-                    print(" Chưa có dữ liệu tương tác để train.")
+                    print("⚠️ Chưa có dữ liệu tương tác để train.")
                     return False
 
                 df = pd.DataFrame(interactions).groupby(['user_id', 'tour_id'])['score'].sum().reset_index()
@@ -47,43 +46,69 @@ class TourRecommender:
                 self.tour_ids = list(item_user_matrix.index)
                 self.last_trained = datetime.utcnow()
 
-                print(f" AI Model trained successfully! ({len(self.tour_ids)} tours)")
+                print(f"✅ AI Model trained successfully! ({len(self.tour_ids)} tours)")
                 return True
 
             except Exception as e:
-                print(f" Lỗi khi train AI: {e}")
+                print(f"❌ Lỗi khi train AI: {e}")
                 return False
 
     def recommend(self, user_id, top_n=6):
         if self.similarity_matrix is None:
-            print(" Model chưa được train, đang train ngay...")
+            print("🔄 Model chưa được train, đang train ngay...")
             self.train_model()
 
-        # Cold start
+        # 1. Lấy lịch sử tương tác của user
         user_history = set(t[0] for t in db.session.query(Order.tour_id).filter_by(user_id=user_id).all())
         user_views = set(t[0] for t in db.session.query(TourViewLog.tour_id).filter_by(user_id=user_id).all())
         interacted = user_history | user_views
 
+        recommended = []
+
+        # 2. Xử lý COLD START (User mới hoàn toàn)
         if not interacted:
             popular = get_popular_tours(top_n)
             return [t.id for t in popular]
 
+        # 3. Tính điểm Collaborative Filtering (Exploitation - Khai thác)
         scores = np.zeros(len(self.tour_ids))
         for idx, tour_id in enumerate(self.tour_ids):
             if tour_id in interacted:
                 scores += self.similarity_matrix[idx]
 
-        
-        recommended = recommended[:top_n]
+        # Xếp hạng ID tour theo điểm từ cao xuống thấp
+        sorted_indices = np.argsort(scores)[::-1]
+        for idx in sorted_indices:
+            t_id = self.tour_ids[idx]
+            if t_id not in interacted:
+                recommended.append(t_id)
 
-        # Fallback popular tours
-        if len(recommended) < top_n:
+        # 4. KỸ THUẬT EXPLORATION-EXPLOITATION (Trộn tour mới vào)
+        # Giữ lại 4 tour đúng gu nhất từ AI
+        ai_recommendations = recommended[:4] 
+        
+        # Lấy các tour MỚI ĐĂNG lên hệ thống và còn hạn (Exploration - Khám phá)
+        newest_tours = Tour.query.filter(
+            Tour.status == 'approved', 
+            Tour.start_date >= datetime.utcnow()
+        ).order_by(Tour.created_at.desc()).limit(10).all()
+
+        final_recommendations = list(ai_recommendations)
+        
+        # Trộn tour mới vào danh sách gợi ý để giúp Tour mới có lượt xem
+        for new_tour in newest_tours:
+            if new_tour.id not in final_recommendations and new_tour.id not in interacted:
+                final_recommendations.append(new_tour.id)
+            if len(final_recommendations) >= top_n:
+                break
+
+        # Nếu vẫn chưa đủ top_n, bù đắp bằng tour phổ biến nhất
+        if len(final_recommendations) < top_n:
             popular = get_popular_tours(top_n)
-            popular_ids = [t.id for t in popular]
-            for p_id in popular_ids:
-                if p_id not in recommended and p_id not in interacted:
-                    recommended.append(p_id)
-                if len(recommended) >= top_n:
+            for p in popular:
+                if p.id not in final_recommendations and p.id not in interacted:
+                    final_recommendations.append(p.id)
+                if len(final_recommendations) >= top_n:
                     break
 
-        return recommended
+        return final_recommendations

@@ -12,7 +12,7 @@ class Order(db.Model):
     is_checked_in = db.Column(db.Boolean, default=False) # HDV điểm danh
     note = db.Column(db.Text, nullable=True) # Ghi chú của HDV về khách
     booking_date = db.Column(db.DateTime, default=datetime.utcnow, index=True)
-
+    cancel_reason = db.Column(db.String(50), nullable=True)
 # 3. Bảng Thanh toán
 class Payment(db.Model):
     __tablename__ = 'payments'

@@ -1,9 +1,15 @@
 import os
+import stripe
+import requests
+import random
+import hashlib
+import hmac
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.extensions import db
 from datetime import datetime
-
+from datetime import timedelta
+from app.models.order import Payment
 # Import các Model cần thiết cho việc truy vấn và Join bảng
 from app.models.order import Order
 from app.models.tour import Tour
@@ -18,6 +24,22 @@ def paginate_query(query, page=1, per_page=10):
     items = query.offset((page-1)*per_page).limit(per_page).all()
     return {"items": items, "total": total, "page": page, "per_page": per_page, "total_pages": (total + per_page - 1) // per_page} 
 
+def auto_cancel_expired_orders():
+    now = datetime.utcnow()
+    expired_time = now - timedelta(hours=72)
+
+    expired_orders = Order.query.filter(
+        Order.status == "pending",
+        Order.booking_date <= expired_time
+    ).all()
+
+    for order in expired_orders:
+        order.status = "cancelled"
+        order.cancel_reason = "expired"
+
+    if expired_orders:
+        db.session.commit()
+        print(f"[AUTO] Đã hủy {len(expired_orders)} đơn quá hạn 72h")
 # ---------------------------------------------------------
 # 1. LẤY CHI TIẾT ĐƠN HÀNG (Kèm thông tin Hướng dẫn viên)
 # ---------------------------------------------------------
@@ -27,10 +49,7 @@ def get_order_detail(order_id):
     try:
         current_user_id = get_jwt_identity()
         
-        # Thực hiện Join 4 bảng để lấy đầy đủ thông tin:
-        # Order -> Tour (để lấy tên tour)
-        # Tour -> Assignment (bảng trung gian)
-        # Assignment -> TourGuide (để lấy thông tin người dẫn đoàn)
+        auto_cancel_expired_orders()
         result = db.session.query(Order, Tour, TourGuide)\
             .join(Tour, Order.tour_id == Tour.id)\
             .outerjoin(TourGuideAssignment, Tour.id == TourGuideAssignment.tour_id)\
@@ -48,6 +67,7 @@ def get_order_detail(order_id):
             "status": order.status,
             "total_price": order.total_price,
             "guest_count": order.guest_count,
+            "cancel_reason": order.cancel_reason,
             "booking_date": order.booking_date.isoformat() if order.booking_date else None,
             "tour": {
                 "id": tour.id,
@@ -57,6 +77,7 @@ def get_order_detail(order_id):
                 "price_per_person": tour.price,
                 "start_date": tour.start_date.isoformat() if tour.start_date and hasattr(tour.start_date, 'isoformat') else tour.start_date,
                 "end_date": tour.end_date.isoformat() if tour.end_date and hasattr(tour.end_date, 'isoformat') else tour.end_date
+            
             },
             # Trả về thông tin HDV nếu đã được phân công
             "guide": {
@@ -88,6 +109,7 @@ def get_order_detail(order_id):
 def get_my_orders():
     current_user_id = get_jwt_identity()
 
+    auto_cancel_expired_orders()
     orders_data = db.session.query(Order, Tour)\
         .join(Tour, Order.tour_id == Tour.id)\
         .filter(Order.user_id == current_user_id)\
@@ -112,6 +134,7 @@ def get_my_orders():
             "total_price": order.total_price,
             "guest_count": order.guest_count,
             "status": order.status,
+            "cancel_reason": order.cancel_reason,
             "booking_date": order.booking_date.isoformat() if order.booking_date else None,
         })
 
@@ -146,7 +169,7 @@ def create_order():
             tour_id=tour_id,
             total_price=float(total_price),
             guest_count=int(guest_count),
-            status='paid' # Mặc định sau khi đặt là đã thanh toán
+            status='pending' # Mặc định sau khi đặt là đã thanh toán
         )
         
         db.session.add(new_order)
@@ -199,14 +222,8 @@ def cancel_order(order_id):
             return jsonify({"error": "Không thể hủy đơn hàng ở trạng thái này."}), 400
 
         # ========== THỰC HIỆN HOÀN TIỀN (REFUND) TỰ ĐỘNG ==========
-        # Import thư viện cần thiết ngay trong hàm (có thể dời lên đầu file nếu cần thiết)
-        import stripe
-        import requests
-        import random
-        import hashlib
-        import hmac
-        from datetime import timedelta
-        from app.models.order import Payment
+        
+       
 
         if order.status in ['paid', 'Đã thanh toán']:
             try:
@@ -214,6 +231,7 @@ def cancel_order(order_id):
                 if payment:
                     if payment.payment_method == 'stripe':
                         stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
                         stripe.Refund.create(payment_intent=payment.transaction_id)
                         print(f"Stripe Refund OK for payment {payment.transaction_id}")
                     
@@ -256,14 +274,13 @@ def cancel_order(order_id):
                         res = requests.post(vnp_RefundUrl, json=payload)
                         print(f"VNPay Refund API Result: {res.json()}")
                         
-                        # Chú ý: Ở môi trường sandbox, thời gian Request có thể lệch vài giây do máy chủ cá nhân => Lỗi mã 91.
-                        # Ta vẫn cho phép bypass để cập nhật DB cho mục đích demo web.
-                        # Trong Production, ta sẽ check: if res.json().get("vnp_ResponseCode") != "00": return error
+
             except Exception as e:
                 print(f"Lỗi hoàn tiền qua API: {e}")
                 # Bỏ qua để vẫn hoàn thành luồng update DB, trong thực tế sẽ rollback.
             
         order.status = 'cancelled'
+        order.cancel_reason = 'user_cancelled' 
         db.session.commit()
         
         return jsonify({"msg": "Hủy đơn hàng và gửi yêu cầu hoàn tiền thành công!", "order_id": order_id}), 200
@@ -272,3 +289,4 @@ def cancel_order(order_id):
         db.session.rollback()
         print(f"Lỗi hủy đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
+    

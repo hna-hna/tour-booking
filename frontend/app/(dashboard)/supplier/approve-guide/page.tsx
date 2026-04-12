@@ -4,7 +4,7 @@ import axios from "axios";
 import { useRouter } from "next/navigation";
 
 interface PendingGuide {
-  user_id: number;
+  user_id: string;
   full_name: string;
   email: string;
   phone: string;
@@ -15,7 +15,7 @@ export default function ApproveGuidePage() {
   const router = useRouter();
   const [guides, setGuides] = useState<PendingGuide[]>([]);
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState<number | null>(null);
+  const [approving, setApproving] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   
   const fetchGuides = async () => {
@@ -36,7 +36,7 @@ export default function ApproveGuidePage() {
 
   useEffect(() => { fetchGuides(); }, [router]);
 
-  const handleApprove = async (userId: number) => {
+  const handleApprove = async (userId: string) => {
     setApproving(userId);
     const token = localStorage.getItem("token");
     try {
@@ -47,6 +47,23 @@ export default function ApproveGuidePage() {
       setGuides(guides.filter(g => g.user_id !== userId));
     } catch (err: any) {
       setMessage({ text: "Lỗi khi duyệt hồ sơ.", type: "error" });
+    } finally {
+      setApproving(null);
+    }
+  };
+
+  const handleReject = async (userId: string) => {
+    if (!window.confirm("Bạn có chắc chắn muốn từ chối hướng dẫn viên này?")) return;
+    setApproving(userId);
+    const token = localStorage.getItem("token");
+    try {
+      await axios.post(`http://127.0.0.1:5000/api/supplier/reject-guide/${userId}`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setMessage({ text: "Đã từ chối nhân sự vào công ty!", type: "success" });
+      setGuides(guides.filter(g => g.user_id !== userId));
+    } catch (err: any) {
+      setMessage({ text: "Lỗi khi từ chối hồ sơ.", type: "error" });
     } finally {
       setApproving(null);
     }
@@ -95,13 +112,20 @@ export default function ApproveGuidePage() {
                         {new Date(guide.created_at).toLocaleTimeString('vi-VN')}
                     </span>
                   </td>
-                  <td className="px-8 py-6 text-right">
+                  <td className="px-8 py-6 text-right space-x-3 flex justify-end">
+                    <button
+                      disabled={approving === guide.user_id}
+                      onClick={() => handleReject(guide.user_id)}
+                      className="bg-rose-50 hover:bg-rose-100 text-rose-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all"
+                    >
+                      Từ chối
+                    </button>
                     <button
                       disabled={approving === guide.user_id}
                       onClick={() => handleApprove(guide.user_id)}
                       className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg shadow-emerald-100"
                     >
-                      {approving === guide.user_id ? "Đang xử lý..." : "Chấp nhận gia nhập"}
+                      {approving === guide.user_id ? "Đang xử lý..." : "Chấp nhận"}
                     </button>
                   </td>
                 </tr>

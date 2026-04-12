@@ -41,7 +41,7 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
 
       try {
         // 3. Gọi API lấy profile để xác thực token còn hạn hay không
-        const res = await axios.get("http://localhost:5000/api/guide/profile", {
+        const res = await axios.get("http://127.0.0.1:5000/api/guide/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
 

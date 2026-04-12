@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 guide_bp = Blueprint('guide', __name__)
 
 def check_request_timeout(guide):
+    if not guide: return False
     if guide.supplier_id and not getattr(guide, 'is_approved', True):
         request_at = getattr(guide, 'request_at', None)
         if request_at:
@@ -294,6 +295,17 @@ def guide_profile():
     guide = get_current_guide(user_id)
 
     if not user: return jsonify({"msg": "Không tìm thấy"}), 404
+
+    # Tự động tạo hồ sơ TourGuide nếu User là GUIDE nhưng chưa có row trong db
+    if not guide and user.role == UserRole.GUIDE:
+        guide = TourGuide(
+            user_id=user.id,
+            full_name=user.full_name,
+            email=user.email,
+            phone=getattr(user, 'phone', '')
+        )
+        db.session.add(guide)
+        db.session.commit()
 
     # Kiểm tra xem yêu cầu gia nhập cty có bị quá 30p không
     check_request_timeout(guide)

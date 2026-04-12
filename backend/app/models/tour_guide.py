@@ -41,6 +41,10 @@ class TourGuide(db.Model):
         nullable=False
     )
 
+    is_approved = db.Column(db.Boolean, default=True)
+    request_at = db.Column(db.DateTime, nullable=True)
+    old_status = db.Column(db.String(50), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -59,7 +63,10 @@ class TourGuide(db.Model):
             "years_of_experience": self.years_of_experience,
             "languages": self.languages,
             "specialties": self.specialties,
-            "status": self.status.value
+            "status": self.status.value,
+            "is_approved": self.is_approved,
+            "request_at": self.request_at.isoformat() if self.request_at else None,
+            "old_status": self.old_status
         }
 
 class TourGuideAssignment(db.Model):

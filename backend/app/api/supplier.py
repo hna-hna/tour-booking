@@ -365,6 +365,10 @@ def get_pending_guides():
     
     results = []
     for g in pending:
+        # Bỏ qua các HDV cũ (rác database) không có thời gian tạo request
+        if not g.request_at:
+            continue
+            
         # Kiểm tra timeout ngay khi NCC xem danh sách
         if datetime.utcnow() > g.request_at + timedelta(minutes=30):
             g.supplier_id = None
@@ -376,11 +380,11 @@ def get_pending_guides():
             "full_name": g.full_name,
             "email": g.email,
             "phone": g.phone,
-            "created_at": g.request_at # Thời điểm gửi yêu cầu
+            "created_at": g.request_at.isoformat() if g.request_at else None
         })
     return jsonify(results), 200
 
-@supplier_bp.route('/approve-guide/<int:user_id>', methods=['POST'])
+@supplier_bp.route('/approve-guide/<string:user_id>', methods=['POST'])
 @jwt_required()
 def approve_guide(user_id):
     sid = get_jwt_identity()
@@ -397,6 +401,29 @@ def approve_guide(user_id):
             
         db.session.commit()
         return jsonify({"msg": "Đã duyệt HDV gia nhập công ty"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@supplier_bp.route('/reject-guide/<string:user_id>', methods=['POST'])
+@jwt_required()
+def reject_guide(user_id):
+    sid = get_jwt_identity()
+    guide = TourGuide.query.filter_by(user_id=user_id, supplier_id=sid).first()
+    
+    if not guide: return jsonify({"msg": "Không tìm thấy HDV"}), 404
+
+    try:
+        guide.is_approved = False
+        guide.supplier_id = None
+        guide.request_at = None
+        if guide.old_status:
+            guide.status = guide.old_status
+        else:
+            guide.status = "AVAILABLE"
+            
+        db.session.commit()
+        return jsonify({"msg": "Đã từ chối HDV gia nhập công ty"}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500

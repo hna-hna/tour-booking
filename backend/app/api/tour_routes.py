@@ -11,7 +11,7 @@ try:
     recommender = TourRecommender()
 except ImportError:
     recommender = None
-    print("Cảnh báo: Không tìm thấy TourRecommender. AI gợi ý sẽ bị tắt.")
+    print(" Không tìm thấy TourRecommender. AI gợi ý sẽ bị tắt.")
 
 tour_bp = Blueprint("tour", __name__, url_prefix="/api/tours")
 
@@ -38,9 +38,7 @@ def format_tours_from_ids(tour_ids):
         for t in tours
     ]
 
-# ──────────────────────────────────────────────
-# 1. API: TOUR PHỔ BIẾN 
-# ──────────────────────────────────────────────
+# API: TOUR PHỔ BIẾN 
 @tour_bp.route("/popular", methods=["GET"])
 def get_popular_tours():
     # Lấy 6 tour mới nhất đã được phê duyệt và còn hạn khởi hành
@@ -57,9 +55,7 @@ def get_popular_tours():
     return jsonify(result), 200
 
 
-# ──────────────────────────────────────────────
-# 2. API: TOUR GỢI Ý (Đã xử lý dứt điểm ép kiểu UUID)
-# ──────────────────────────────────────────────
+#  API: TOUR GỢI Ý 
 @tour_bp.route("/recommend", methods=["GET"])
 @jwt_required()
 def get_recommended_tours():
@@ -68,22 +64,18 @@ def get_recommended_tours():
 
     try:
         if recommender:
-            # Trường hợp ID là số nguyên tự tăng (SQLite/MySQL cục bộ cũ)
             if str(user_id).isdigit():
                 uid_internal = int(user_id)
-                tour_ids = recommender.recommend(uid_internal) # Gọi hàm mặc định của bạn
+                tour_ids = recommender.recommend(uid_internal) 
             else:
-                # Trường hợp chuỗi UUID của Supabase (Truyền named parameter nếu hàm của bạn hỗ trợ top_n)
                 try:
                     tour_ids = recommender.recommend(user_id=user_id, top_n=6)
                 except TypeError:
-                    # Nếu hàm recommend cũ của bạn không hỗ trợ user_id kiểu string UUID, bẫy lỗi ở đây
                     tour_ids = []
     except Exception as e:
         print(f"Lỗi AI Recommender: {e}")
         tour_ids = []
 
-    # Cơ chế Fallback: Nếu AI chưa có dữ liệu (User mới/UUID mới), trả về 6 tour phổ biến
     if not tour_ids:
         fallback_tours = Tour.query.filter(Tour.status == 'approved', Tour.start_date >= datetime.utcnow()).limit(6).all()
         tour_ids = [t.id for t in fallback_tours]
@@ -92,9 +84,7 @@ def get_recommended_tours():
     return jsonify(result), 200
 
 
-# ──────────────────────────────────────────────
-# 3. API: DANH SÁCH TẤT CẢ TOUR (Public)
-# ──────────────────────────────────────────────
+# API: DANH SÁCH TẤT CẢ TOUR (Public)
 @tour_bp.route("", methods=["GET"])
 @tour_bp.route("/", methods=["GET"])
 def get_public_tours():
@@ -117,48 +107,40 @@ def get_public_tours():
             "end_date": t.end_date.isoformat() if t.end_date else None
         })
     
-    # Trả về kết quả (Bỏ phần pagination phức tạp nếu chưa viết hàm hỗ trợ)
     return jsonify(tours_list), 200
 
 # API: Lấy chi tiết 1 Tour (Public)
 @tour_bp.route('/<int:tour_id>', methods=['GET'])
-@jwt_required(optional=True) # Cho phép cả khách vãng lai và người dùng đã đăng nhập
+@jwt_required(optional=True) 
 def get_tour_detail(tour_id):
-    # 1. Truy vấn tour, trả về 404 nếu không tồn tại
     tour = Tour.query.get_or_404(tour_id)
     
-    # 2. Lấy user_id từ token (nếu có) để ghi log chính xác cho AI
     current_user_id = get_jwt_identity()
     
-    # 3. Ghi nhật ký hành động xem tour
     try:
         log_user_action(
             action="view_tour", 
             target_id=tour.id, 
-            user_id=current_user_id, # Sẽ là None nếu khách chưa đăng nhập
+            user_id=current_user_id, 
             details=f"Xem tour: {tour.name}"
         )
     except Exception as e:
         print(f"Lỗi ghi log view_tour: {str(e)}")
 
-    # 4. Xử lý dữ liệu itinerary (lịch trình) an toàn
     itinerary_data = []
     if tour.itinerary:
         if isinstance(tour.itinerary, str):
             try:
-                # Thử parse nếu là chuỗi định dạng JSON array
                 parsed = json.loads(tour.itinerary)
                 if isinstance(parsed, list):
                     itinerary_data = parsed
                 else:
                     itinerary_data = [{"day": 1, "title": "Thông tin lịch trình", "description": tour.itinerary}]
             except:
-                # Nếu là chuỗi văn bản thuần túy
                 itinerary_data = [{"day": 1, "title": "Lịch trình", "description": tour.itinerary}]
         elif isinstance(tour.itinerary, list):
             itinerary_data = tour.itinerary
 
-    # 5. Trả về phản hồi JSON
     return jsonify({
         "id": tour.id,
         "name": tour.name,

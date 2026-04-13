@@ -9,7 +9,7 @@ export default function GuideTourHistoryPage() {
   
   // --- STATE BỔ SUNG ĐỂ LỌC ---
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterDate, setFilterDate] = useState(""); // Lọc theo ngày phân công (YYYY-MM-DD)
+  const [filterDate, setFilterDate] = useState(""); // Lọc theo ngày phân công 
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -38,7 +38,6 @@ export default function GuideTourHistoryPage() {
     fetchHistory();
   }, []);
 
-  // --- LOGIC LỌC DỮ LIỆU ---
   // Dùng useMemo để tối ưu hiệu năng, chỉ tính toán lại khi history hoặc điều kiện lọc thay đổi
   const filteredHistory = useMemo(() => {
     return history.filter((item) => {
@@ -82,7 +81,6 @@ export default function GuideTourHistoryPage() {
         </div>
       </div>
 
-      {/* --- THANH BỘ LỌC (SEARCH & FILTER) --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
         <div className="relative">
           <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Tìm kiếm tên tour</label>
@@ -113,7 +111,6 @@ export default function GuideTourHistoryPage() {
         </div>
       </div>
 
-      {/* Grid Danh sách */}
       {filteredHistory.length === 0 ? (
         <div className="bg-white rounded-2xl p-20 text-center border border-dashed border-gray-300">
           <p className="text-gray-400 font-medium">Không tìm thấy tour nào khớp với điều kiện lọc.</p>

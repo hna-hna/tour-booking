@@ -17,7 +17,6 @@ def check_request_timeout(guide):
             # Nếu quá 30 phút
             if datetime.utcnow() > request_at + timedelta(minutes=30):
                 guide.supplier_id = None
-                # Khôi phục trạng thái cũ nếu có
                 if hasattr(guide, 'old_status') and guide.old_status:
                     guide.status = guide.old_status
                 guide.request_at = None
@@ -25,11 +24,10 @@ def check_request_timeout(guide):
                 return True
     return False
 
-# --- HÀM TRỢ GIÚP LẤY GUIDE ---
 def get_current_guide(user_id):
     return TourGuide.query.filter_by(user_id=user_id).first()
 
-# 1. Lấy danh sách tour ĐÃ ĐỒNG Ý
+#Lấy danh sách tour ĐÃ ĐỒNG Ý
 @guide_bp.route('/tours', methods=['GET'])
 @jwt_required()
 def get_assigned_tours():
@@ -55,7 +53,7 @@ def get_assigned_tours():
     return jsonify(results), 200
 
 
-# 2. Lấy danh sách LỊCH SỬ tour
+# Lấy danh sách LỊCH SỬ tour
 @guide_bp.route('/tours/history', methods=['GET'])
 @jwt_required()
 def get_tour_history():
@@ -82,7 +80,7 @@ def get_tour_history():
     return jsonify(results), 200
 
 
-# 3. Lấy danh sách YÊU CẦU dẫn tour
+# Lấy danh sách YÊU CẦU dẫn tour
 @guide_bp.route('/requests', methods=['GET'])
 @jwt_required()
 def get_tour_requests():
@@ -113,7 +111,7 @@ def get_tour_requests():
     return jsonify(results), 200
 
 
-# 4. Phản hồi yêu cầu
+#Phản hồi yêu cầu
 @guide_bp.route('/requests/<int:request_id>/respond', methods=['PUT'])
 @jwt_required()
 def respond_to_request(request_id):
@@ -140,18 +138,16 @@ def respond_to_request(request_id):
     if not tour:
         return jsonify({"msg": "Không tìm thấy tour"}), 404
 
-    # ❗ CHỈ cho phản hồi khi đang waiting_guide
     if tour.status not in ['waiting_guide', 'pending_guide']:
         return jsonify({"msg": "Tour chưa sẵn sàng để phản hồi"}), 403
 
-    # ===== LOGIC MỚI =====
     if action == 'accept':
         assign.status = 'accepted'
 
-        # ✅ chuyển sang chờ admin duyệt
+        # chuyển sang chờ admin duyệt
         tour.status = 'pending'
 
-        # ✅ tránh nhiều guide nhận
+        # tránh nhiều guide nhận
         TourGuideAssignment.query.filter(
             TourGuideAssignment.tour_id == tour.id,
             TourGuideAssignment.id != assign.id
@@ -165,7 +161,7 @@ def respond_to_request(request_id):
     elif action == 'reject':
         assign.status = 'rejected'
 
-        # ✅ trả về cho supplier assign lại
+        # trả về cho supplier assign lại
         tour.status = 'pending_guide'
 
         if hasattr(tour, 'needs_guide'):
@@ -183,7 +179,7 @@ def respond_to_request(request_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# 8. Lấy doanh thu của tour (cho HDV)
+# Lấy doanh thu của tour (cho HDV)
 @guide_bp.route('/tours/<int:tour_id>/revenue', methods=['GET'])
 @jwt_required()
 def get_tour_revenue_for_guide(tour_id):
@@ -214,7 +210,7 @@ def get_tour_revenue_for_guide(tour_id):
     }), 200
 
 
-# 5. Lấy danh sách khách hàng
+# Lấy danh sách khách hàng
 @guide_bp.route('/tours/<int:tour_id>/customers', methods=['GET'])
 @jwt_required()
 def get_tour_customers(tour_id):
@@ -233,11 +229,7 @@ def get_tour_customers(tour_id):
             })
     return jsonify(customers), 200
 
-
-
-
 # 7. Kết thúc tour
-# 7. Kết thúc tour (BẢN ĐÃ FIX LỖI 500)
 @guide_bp.route('/tours/<int:tour_id>/finish', methods=['PUT'])
 @jwt_required()
 def finish_tour(tour_id):
@@ -272,9 +264,7 @@ def finish_tour(tour_id):
         for order in orders:
             order.status = 'completed'
 
-        # --- ĐÃ XÓA LOGIC TÍNH TIỀN VÀO CỘT BALANCE Ở ĐÂY ---
-        # Không còn gọi đến supplier.balance nữa nên sẽ không bị lỗi 500
-
+      
         db.session.commit()
 
         return jsonify({
@@ -286,7 +276,6 @@ def finish_tour(tour_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# Thêm vào app/api/guide.py
 @guide_bp.route('/profile', methods=['GET', 'PUT'])
 @jwt_required()
 def guide_profile():
@@ -296,7 +285,6 @@ def guide_profile():
 
     if not user: return jsonify({"msg": "Không tìm thấy"}), 404
 
-    # Tự động tạo hồ sơ TourGuide nếu User là GUIDE nhưng chưa có row trong db
     if not guide and user.role == UserRole.GUIDE:
         guide = TourGuide(
             user_id=user.id,
@@ -357,12 +345,10 @@ def request_join_supplier():
     if not guide: return jsonify({"msg": "Lỗi"}), 404
 
     try:
-        # Lưu trạng thái cũ để khôi phục sau này
         guide.old_status = guide.status.value if hasattr(guide.status, 'value') else str(guide.status)
         guide.supplier_id = supplier_id
         guide.is_approved = False
         guide.request_at = datetime.utcnow()
-        # Chuyển trạng thái sang BUSY (hoặc một trạng thái chờ)
         guide.status = "BUSY" 
         
         db.session.commit()

@@ -82,7 +82,6 @@ class TourGuideAssignment(db.Model):
     notes = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(20), default='pending')
 
-    # FIX: Dùng back_populates thay vì backref để tránh xung đột tên guide_assignments
     tour = db.relationship('Tour', back_populates='guide_assignments')
     
     def to_dict(self):   

@@ -12,20 +12,18 @@ interface Tour {
   start_date: string;
   end_date: string;
   created_at: string;
-  status: string; // Thêm status để nhận diện loại yêu cầu
+  status: string; 
 }
 
 export default function ApproveToursPage() {
   const [tours, setTours] = useState<Tour[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // States cho Modal Từ chối
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectTourId, setRejectTourId] = useState<number | null>(null);
   const [rejectStatus, setRejectStatus] = useState<string>("");
   const [rejectReason, setRejectReason] = useState("");
 
-  // 1. Gọi API lấy danh sách Tour đang chờ duyệt (Pending + Cancel Requested)
   const fetchPendingTours = async () => {
     try {
       const res = await axios.get("http://localhost:5000/api/admin/tours/pending");

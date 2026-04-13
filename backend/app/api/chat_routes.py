@@ -32,12 +32,12 @@ def detect_intent(message):
         "budget_max": None # Ngân sách
     }
     
-    # 1. Bắt ý định: Số ngày đi (Ví dụ: "tour 3 ngày", "đi 4 ngày")
+    #Lấy ý định: Số ngày đi (Ví dụ: "tour 3 ngày", "đi 4 ngày")
     duration_match = re.search(r'(\d+)\s*ngày', msg)
     if duration_match:
         intent["duration"] = int(duration_match.group(1))
 
-    # 2. Bắt ý định: Ngân sách (Ví dụ: "giá 5 triệu", "5tr")
+    #lấy ý định: Ngân sách (Ví dụ: "giá 5 triệu", "5tr")
     budget_match = re.search(r'(\d+)\s*(triệu|tr|đồng|d|vnđ)?', msg)
     if budget_match:
         num = int(budget_match.group(1))
@@ -61,9 +61,7 @@ def ensure_minimum_tours(tours, min_count=4):
             break
     return tours
 
-# ──────────────────────────────────────────────
 # ROUTES
-# ──────────────────────────────────────────────
 
 @chat_bp.route('/partners', methods=['GET'])
 @jwt_required()
@@ -81,7 +79,7 @@ def get_chat_partners():
         partners = []
         for pid in partner_ids:
             pid_str = str(pid)
-            if len(pid_str) < 30: # UUID thường dài 32-36 ký tự
+            if len(pid_str) < 30: 
                 continue
                 
             user = User.query.filter_by(id=pid_str).first() 
@@ -165,21 +163,20 @@ def chat_with_ai():
 
     # Lọc theo số ngày đi
     if intent["duration"]:
-        # Tương thích SQLite/PostgreSQL
         try:
             query = query.filter(func.extract('day', Tour.end_date - Tour.start_date) >= (intent["duration"] - 1))
             query = query.filter(func.extract('day', Tour.end_date - Tour.start_date) <= (intent["duration"] + 1))
         except Exception:
-            pass # Bỏ qua nếu DB không hỗ trợ extract day trực tiếp
+            pass
 
-    # Sắp xếp theo Tour Bán Chạy Nhất (Join bảng Order)
+    # Sắp xếp theo Tour Bán Chạy Nhất 
     if intent["popular"]:
         query = query.outerjoin(Order, Tour.id == Order.tour_id)\
                      .filter(Order.status.in_(['paid', 'completed', 'success']))\
                      .group_by(Tour.id)\
                      .order_by(desc(func.count(Order.id)))
 
-    # Sắp xếp theo Đánh Giá Cao Nhất (Join bảng Review)
+    # Sắp xếp theo Đánh Giá Cao Nhất 
     elif intent["top_rated"]:
         query = query.outerjoin(Review, Tour.id == Review.tour_id)\
                      .group_by(Tour.id)\

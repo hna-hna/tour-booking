@@ -9,7 +9,6 @@ from app.api.payment_routes import payment_bp
 
 app = create_app()
 
-# CORS cho các route API thông thường
 CORS(app, 
      resources={r"/*": {"origins": ["http://localhost:3000", "http://127.0.0.1:3000"]}},
      supports_credentials=True)

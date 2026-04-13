@@ -21,7 +21,6 @@ export default function GuideTourDetailPage() {
       .then((res) => {
         let data = res.data;
 
-        // Xử lý itinerary
         if (data && typeof data.itinerary === "string") {
           try {
             data.itinerary = JSON.parse(data.itinerary);
@@ -106,7 +105,6 @@ export default function GuideTourDetailPage() {
           </p>
         </div>
 
-        {/* STAT CARDS */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
           <div className="relative overflow-hidden bg-gradient-to-br from-sky-100 to-blue-200 rounded-3xl p-8 text-slate-800 shadow-lg shadow-blue-200/40 hover:scale-[1.01] transition-transform duration-300">
             <p className="text-sm text-slate-600 font-medium">Ngày bắt đầu</p>
@@ -131,10 +129,8 @@ export default function GuideTourDetailPage() {
           </div>
         </div>
 
-        {/* INFO + ITINERARY */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
 
-          {/* Description */}
           <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl p-8 shadow-xl">
             <h2 className="text-xl font-black text-gray-800 mb-4">Mô tả / Địa điểm</h2>
             <p className="text-gray-600 leading-relaxed text-sm">
@@ -154,7 +150,6 @@ export default function GuideTourDetailPage() {
             </div>
           </div>
 
-          {/* Itinerary */}
           <div className="bg-white/80 backdrop-blur border border-gray-200 rounded-3xl p-8 shadow-xl">
             <h2 className="text-xl font-black text-gray-800 mb-4">Lịch trình di chuyển</h2>
 
@@ -181,7 +176,6 @@ export default function GuideTourDetailPage() {
           </div>
         </div>
 
-        {/* CUSTOMER TABLE */}
         <div className="bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-lg">
           <div className="p-8 border-b bg-gray-50 flex justify-between items-center">
             <div>

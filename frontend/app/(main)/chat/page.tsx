@@ -38,7 +38,6 @@ function CustomerChatContent() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasLoadedPartners = useRef(false); // Dùng để chặn load API 2 lần
 
-  // 1. KIỂM TRA ĐĂNG NHẬP & LẤY THÔNG TIN USER (CHỈ CHẠY 1 LẦN)
   useEffect(() => {
     const userStr = localStorage.getItem("user");
     const token = localStorage.getItem("token");
@@ -49,14 +48,12 @@ function CustomerChatContent() {
       return;
     }
     
-    // Chỉ set user nếu state đang rỗng, tránh tạo object mới liên tục
     setCurrentUser((prev: any) => prev ? prev : JSON.parse(userStr));
   }, [router]);
 
-  // Biến nguyên thủy để làm dependency an toàn cho React
   const currentUserId = currentUser?.id ? String(currentUser.id) : null;
 
-  // 2. LOAD DANH SÁCH ĐỐI TÁC VÀ XỬ LÝ URL
+  //LOAD DANH SÁCH ĐỐI TÁC VÀ XỬ LÝ URL
   useEffect(() => {
     const token = localStorage.getItem("token");
     // Đợi có user và chưa load partner thì mới chạy
@@ -83,7 +80,6 @@ function CustomerChatContent() {
         setPartners(loadedPartners);
         setActiveTab(targetId);
         
-        // Dọn dẹp URL bằng cách replace, không làm re-render component
         const params = new URLSearchParams(searchParams.toString());
         params.delete("receiver_id");
         params.delete("name");
@@ -95,7 +91,7 @@ function CustomerChatContent() {
     .catch(err => console.error("Lỗi lấy danh sách đối tác:", err));
   }, [currentUserId, searchParams, pathname, router]);
 
-  // 3. TẢI LỊCH SỬ CHAT & CÀI ĐẶT REALTIME SUPABASE (CHỈ CHẠY KHI ĐỔI TAB)
+  // TẢI LỊCH SỬ CHAT & CÀI ĐẶT REALTIME SUPABASE 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (!token || !currentUserId) return;
@@ -155,14 +151,13 @@ function CustomerChatContent() {
     
         return () => { supabase.removeChannel(channel); };
     }
-  }, [activeTab, currentUserId]); // Dependency cực kỳ sạch sẽ, không có object
+  }, [activeTab, currentUserId]);
 
-  // Cuộn xuống tin mới nhất
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  // 4. XỬ LÝ GỬI TIN NHẮN
+  // XỬ LÝ GỬI TIN NHẮN
   const handleSend = async () => {
     if (!inputMsg.trim() || !currentUserId) return;
     
@@ -170,7 +165,6 @@ function CustomerChatContent() {
     const contentToSend = inputMsg.trim();
     setInputMsg("");
 
-    // Optimistic Update: Thêm ngay tin nhắn vào UI
     const myMsg: Message = {
         id: `temp-${Date.now()}`,
         sender_id: currentUserId,
@@ -297,7 +291,7 @@ function CustomerChatContent() {
               </div>
             ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400 opacity-60">
-                  <div className="text-4xl mb-2">💬</div>
+                  <div className="text-4xl mb-2"></div>
                   <p>Hãy bắt đầu cuộc trò chuyện!</p>
               </div>
             ) : (
@@ -323,7 +317,6 @@ function CustomerChatContent() {
                         </div>
                       </div>
 
-                      {/* Hiển thị Card Tour nếu AI gợi ý */}
                       {msg.tours && msg.tours.length > 0 && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 ml-10 w-full">
                           {msg.tours.map((t: any) => (

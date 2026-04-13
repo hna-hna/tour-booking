@@ -11,7 +11,6 @@ customer_bp = Blueprint('customer_bp', __name__)
 recommender = TourRecommender()
 
 
-# ================= SEARCH =================
 @customer_bp.route('/tours/search', methods=['GET'])
 def search_tours():
     query_string = request.args.get('q', '').strip()
@@ -37,7 +36,6 @@ def search_tours():
     return jsonify(results), 200
 
 
-# ================= RECOMMEND =================
 @customer_bp.route('/tours/recommend', methods=['GET'])
 @jwt_required()
 def get_recommendations():
@@ -55,7 +53,6 @@ def get_recommendations():
     return jsonify(results), 200
 
 
-# ================= POPULAR =================
 @customer_bp.route('/tours/popular', methods=['GET'])
 def get_popular_tours():
     try:

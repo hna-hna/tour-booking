@@ -92,7 +92,6 @@ def create_payment_vnpay():
         date_str = data.get('date')
         booking_date = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.utcnow()
         
-        # ĐÃ SỬA LỖI 3: KHÔNG KHOẢNG TRẮNG, KHÔNG DẤU
         order_desc = f"ThanhToan_{tour_id}_{int(datetime.now().timestamp())}"
 
         new_order = Order(
@@ -122,7 +121,6 @@ def create_payment_vnpay():
         vnp.requestData['vnp_OrderType'] = 'other'
         vnp.requestData['vnp_Locale'] = 'vn'
         
-        # ĐÃ SỬA LỖI 3: FIX IP LOCAL TRÁNH VNPAY CHẶN
         ipaddr = request.remote_addr
         if ipaddr in ['127.0.0.1', '::1', None]:
             ipaddr = '113.160.225.12'

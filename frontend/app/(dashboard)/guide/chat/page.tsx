@@ -89,7 +89,6 @@ useEffect(() => {
       (payload) => {
         const newMsg = payload.new;
 
-        // Chỉ một điều kiện so sánh duy nhất và chặt chẽ
         const isRelevant =
           (String(newMsg.sender_id) === myId && String(newMsg.receiver_id) === partnerId) ||
           (String(newMsg.sender_id) === partnerId && String(newMsg.receiver_id) === myId);
@@ -99,7 +98,7 @@ useEffect(() => {
             // Ngăn chặn tin nhắn trùng lặp
             if (prev.some(m => String(m.id) === String(newMsg.id))) return prev;
             if (String(newMsg.sender_id) === String(currentUser.id)) {
-                return prev; // Không làm gì cả, vì handleSend đã vẽ giao diện rồi
+                return prev;
             }
             return [...prev, {
               id: newMsg.id,
@@ -230,7 +229,7 @@ useEffect(() => {
             </>
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-4">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-3xl">💬</div>
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-3xl"></div>
               <p className="font-bold tracking-tight">Chọn một cuộc hội thoại để bắt đầu hỗ trợ</p>
             </div>
           )}

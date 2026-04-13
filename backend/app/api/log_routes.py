@@ -13,9 +13,8 @@ def get_current_user_id_safe():
     except Exception:
         return None 
 
-# Hàm trợ giúp: Gọi hàm này ở bất kỳ đâu để ghi log hành động
 def log_user_action(user_id, action, target_id=None, details=None):
-    if not user_id: return # Không ghi log nếu không có user (khách vãng lai)
+    if not user_id: return 
     try:
         log = UserLog(
             user_id=user_id,
@@ -29,7 +28,7 @@ def log_user_action(user_id, action, target_id=None, details=None):
         db.session.rollback()
         print(f"Lỗi ghi UserLog: {e}")
 
-# 1. API Ghi nhận Xem Tour (Dành cho AI Gợi ý)
+# API Ghi nhận Xem Tour
 @log_bp.route('/view', methods=['POST'])
 def log_view_tour():
     data = request.get_json()
@@ -39,18 +38,18 @@ def log_view_tour():
     if not tour_id:
         return jsonify({"msg": "Missing tour_id"}), 400
 
-    # Ghi vào TourViewLog (để AI học)
+    # Ghi vào TourViewLog
     new_view = TourViewLog(user_id=user_id, tour_id=tour_id)
     db.session.add(new_view)
     
-    # Đồng thời ghi vào UserLog (để quản lý)
+    # Đồng thời ghi vào UserLog
     if user_id:
         log_user_action(user_id, "view_tour", tour_id, f"Người dùng xem chi tiết tour ID: {tour_id}")
     
     db.session.commit()
     return jsonify({"msg": "View logged"}), 201
 
-# 2. API Ghi nhận Tìm kiếm
+# API Ghi nhận Tìm kiếm
 @log_bp.route('/search', methods=['POST'])
 def log_search():
     data = request.get_json()

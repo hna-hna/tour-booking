@@ -40,9 +40,8 @@ def auto_cancel_expired_orders():
     if expired_orders:
         db.session.commit()
         print(f"[AUTO] Đã hủy {len(expired_orders)} đơn quá hạn 72h")
-# ---------------------------------------------------------
-# 1. LẤY CHI TIẾT ĐƠN HÀNG (Kèm thông tin Hướng dẫn viên)
-# ---------------------------------------------------------
+
+# LẤY CHI TIẾT ĐƠN HÀNG 
 @order_bp.route('/<int:order_id>', methods=['GET'])
 @jwt_required()
 def get_order_detail(order_id):
@@ -79,10 +78,9 @@ def get_order_detail(order_id):
                 "end_date": tour.end_date.isoformat() if tour.end_date and hasattr(tour.end_date, 'isoformat') else tour.end_date
             
             },
-            # Trả về thông tin HDV nếu đã được phân công
             "guide": {
                 "id": guide.id,
-                "user_id": str(guide.user_id), # Dùng ID này để Front-end mở trang Chat
+                "user_id": str(guide.user_id), 
                 "full_name": guide.full_name,
                 "phone": guide.phone,
                 "license_number": guide.license_number,
@@ -101,9 +99,7 @@ def get_order_detail(order_id):
         print(f"Lỗi lấy chi tiết đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
 
-# ---------------------------------------------------------
-# 2. LẤY DANH SÁCH LỊCH SỬ ĐƠN HÀNG CỦA TÔI
-# ---------------------------------------------------------
+#  LẤY DANH SÁCH LỊCH SỬ ĐƠN HÀNG CỦA TÔI
 @order_bp.route('/my-orders', methods=['GET'])
 @jwt_required()
 def get_my_orders():
@@ -142,9 +138,7 @@ def get_my_orders():
         "orders": data
     }), 200
 
-# ---------------------------------------------------------
-# 3. TẠO ĐƠN ĐẶT TOUR MỚI (Đã thêm Log)
-# ---------------------------------------------------------
+# TẠO ĐƠN ĐẶT TOUR MỚI (Đã thêm Log)
 @order_bp.route('/', methods=['POST'])
 @jwt_required()
 def create_order():
@@ -159,7 +153,6 @@ def create_order():
         if not tour_id or not total_price or not guest_count:
             return jsonify({"error": "Thiếu thông tin bắt buộc"}), 400
         
-        # BƯỚC BỔ SUNG: Lấy thông tin tour để lấy cái tên (phục vụ cho việc ghi Log)
         tour = Tour.query.get(tour_id)
         if not tour:
             return jsonify({"error": "Tour không tồn tại"}), 404
@@ -169,15 +162,12 @@ def create_order():
             tour_id=tour_id,
             total_price=float(total_price),
             guest_count=int(guest_count),
-            status='pending' # Mặc định sau khi đặt là đã thanh toán
+            status='pending' 
         )
         
         db.session.add(new_order)
-        db.session.commit() # Lưu vào DB thành công
-        
-        # ──────────────────────────────────────────────────────────
-        # GHI LOG TẠI ĐÂY: Sau khi commit thành công
-        # ──────────────────────────────────────────────────────────
+        db.session.commit() 
+
         try:
             from app.log_service import log_user_action
             log_user_action(
@@ -187,9 +177,7 @@ def create_order():
                 details=f"Đặt tour {tour.name} - {new_order.guest_count} người"
             )
         except Exception as log_e:
-            # Nếu lỗi log thì chỉ in ra console, không làm sập luồng đặt tour của khách
             print(f"Lỗi ghi log create_order: {log_e}")
-        # ──────────────────────────────────────────────────────────
         
         return jsonify({"msg": "Đặt tour thành công!", "order_id": new_order.id}), 201
         
@@ -198,9 +186,7 @@ def create_order():
         print(f"Lỗi tạo đơn hàng: {e}")
         return jsonify({"error": "Lỗi máy chủ nội bộ"}), 500
     
-# ---------------------------------------------------------
-# 4. HỦY ĐƠN HÀNG (Trong vòng 24h)
-# ---------------------------------------------------------
+# HỦY ĐƠN HÀNG (Trong vòng 24h)
 @order_bp.route('/<int:order_id>/cancel', methods=['PUT'])
 @jwt_required()
 def cancel_order(order_id):
@@ -220,10 +206,7 @@ def cancel_order(order_id):
         # Kiểm tra trạng thái đơn hàng có được phép hủy không
         if order.status not in ['pending', 'paid', 'Đã thanh toán']: 
             return jsonify({"error": "Không thể hủy đơn hàng ở trạng thái này."}), 400
-
-        # ========== THỰC HIỆN HOÀN TIỀN (REFUND) TỰ ĐỘNG ==========
-        
-       
+               
 
         if order.status in ['paid', 'Đã thanh toán']:
             try:
@@ -277,7 +260,6 @@ def cancel_order(order_id):
 
             except Exception as e:
                 print(f"Lỗi hoàn tiền qua API: {e}")
-                # Bỏ qua để vẫn hoàn thành luồng update DB, trong thực tế sẽ rollback.
             
         order.status = 'cancelled'
         order.cancel_reason = 'user_cancelled' 

@@ -5,17 +5,14 @@ from app.models.user import User, UserRole
 from app.models.order import Order         
 from sqlalchemy import func, extract
 from datetime import datetime, timedelta, date
-# from flask_jwt_extended import jwt_required, get_jwt_identity # Bật lại khi nào có Auth
+from flask_jwt_extended import jwt_required, get_jwt_identity 
 
-# Thêm url_prefix để tất cả API đều bắt đầu bằng /api/admin
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
-# QUẢN LÝ TOUR 
 @admin_bp.route('/tours/pending', methods=['GET'])
-# @jwt_required()
-# @role_required(['admin'])  decorator check quyền
+@jwt_required()
+#@role_required(['admin'])  
 def get_pending_tours():
-    # Lấy các tour có trạng thái = 'pending' HOẶC 'cancel_requested'
     tours = Tour.query.filter(Tour.status.in_(['pending', 'cancel_requested'])).all()
     
     result = []
@@ -36,14 +33,12 @@ def get_pending_tours():
         })
     return jsonify(result), 200
 
-#  Lấy danh sách tour yêu cầu hủy (Giữ nguyên để dùng nếu cần riêng)
 @admin_bp.route('/tours/history', methods=['GET'])
 def get_tours_history():
     tours = Tour.query.filter(Tour.status.in_(['approved', 'rejected', 'cancelled'])).all()
     
     result = []
     for t in tours:
-        # Xử lý an toàn nếu description bị None
         desc = getattr(t, 'description', '') or ''
         
         result.append({
@@ -59,7 +54,6 @@ def get_tours_history():
         })
     return jsonify(result), 200
 
-#  Lấy danh sách tour yêu cầu hủy (Giữ nguyên để dùng nếu cần riêng)
 @admin_bp.route('/tours/cancel-requests', methods=['GET'])
 def get_cancel_requests():
     tours = Tour.query.filter_by(status='cancel_requested').all()
@@ -81,11 +75,10 @@ def get_cancel_requests():
 
 
 
-#  Duyệt hoặc từ chối yêu cầu hủy tour
 @admin_bp.route('/tours/<int:tour_id>/cancel', methods=['PUT'])
 def handle_cancel_request(tour_id):
     data = request.get_json()
-    action = data.get('action')  # approve | reject
+    action = data.get('action') 
 
     tour = Tour.query.get(tour_id)
     if not tour:
@@ -99,7 +92,7 @@ def handle_cancel_request(tour_id):
             tour.status = 'cancelled'
             msg = "Đã duyệt hủy tour"
         elif action == 'reject':
-            tour.status = 'approved'  # 🔥 trả lại trạng thái cũ
+            tour.status = 'approved' 
             msg = "Đã từ chối yêu cầu hủy"
         else:
             return jsonify({"msg": "Hành động không hợp lệ"}), 400
@@ -111,13 +104,11 @@ def handle_cancel_request(tour_id):
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-#API Duyệt hoặc Từ chối Tour mới
 @admin_bp.route('/tours/<int:tour_id>/moderate', methods=['PUT'])
-# @jwt_required()
+@jwt_required()
 def moderate_tour(tour_id):
-    # Body nhận vào: { "action": "approve" } hoặc { "action": "reject", "reject_reason": "..." }
     data = request.get_json()
-    action = data.get('action') # 'approve' hoặc 'reject'
+    action = data.get('action')
     reject_reason = data.get('reject_reason')
     
     tour = Tour.query.get(tour_id)
@@ -140,9 +131,8 @@ def moderate_tour(tour_id):
     return jsonify({"msg": msg, "status": tour.status}), 200
 
 
-# QUẢN LÝ USER
 
-# lấy danh sách toàn bộ Users
+
 @admin_bp.route('/users', methods=['GET'])
 def get_all_users():
     status_filter = request.args.get('status', 'all')
@@ -157,7 +147,6 @@ def get_all_users():
         elif status_filter == 'deleted':
             query = query.filter_by(is_deleted=True)
         else:
-            # Mặc định 'all' nhưng ẩn các user đã bị xóa
             query = query.filter_by(is_deleted=False)
         
         users = query.all()
@@ -178,13 +167,11 @@ def get_all_users():
         } for u in users
     ]), 200
 
-# Khóa/Mở khóa User
 @admin_bp.route('/users/<user_id>/toggle-status', methods=['PUT'])
 def toggle_user_status(user_id):
     user = User.query.get_or_404(user_id)
     
     try:
-        # Đảo ngược trạng thái
         user.is_active = not user.is_active
         db.session.commit()
         
@@ -194,7 +181,6 @@ def toggle_user_status(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# Thêm User Mới
 @admin_bp.route('/users', methods=['POST'])
 def create_user():
     data = request.get_json()
@@ -214,7 +200,7 @@ def create_user():
         full_name=data['full_name'],
         role=role_enum
     )
-    new_user.set_password("123456") # Mật khẩu mặc định
+    new_user.set_password("123456")
 
     try:
         db.session.add(new_user)
@@ -236,7 +222,6 @@ def create_user():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
-# Cập nhật thông tin User
 @admin_bp.route('/users/<user_id>', methods=['PUT'])
 def update_user_info(user_id):
     user = User.query.get_or_404(user_id)
@@ -263,25 +248,21 @@ def update_user_info(user_id):
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-#Xóa User (Soft delete)
 @admin_bp.route('/users/<user_id>', methods=['DELETE'])
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
     
     try:
-        # Soft delete (Đổi trạng thái is_deleted)
         user.is_deleted = True
-        user.is_active = False # Khóa luôn cho chắc
+        user.is_active = False 
         db.session.commit()
         return jsonify({'message': 'Đã xóa người dùng thành công (Xóa mềm)'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
 
-# lấy danh sách toàn bộ đơn hàng
 @admin_bp.route('/orders', methods=['GET'])
 def get_all_orders():
-    # Sử dụng outerjoin để lấy thông tin user và tour
     query_result = db.session.query(Order, User, Tour)\
         .outerjoin(User, Order.user_id == User.id)\
         .outerjoin(Tour, Order.tour_id == Tour.id)\
@@ -308,26 +289,22 @@ def get_all_orders():
     return jsonify(results), 200
         
         
-# 8. API Tổng quan 
 @admin_bp.route('/dashboard/stats', methods=['GET'])
 def get_admin_dashboard_stats():
     period = request.args.get('period', 'all')
     now = datetime.utcnow()
     
-    # 1. Định nghĩa khoảng thời gian hiện tại (current) và trước đó (previous)
     curr_start, curr_end = None, None
     prev_start, prev_end = None, None
     
     if period == 'month':
         curr_start = date(now.year, now.month, 1)
         curr_end = now
-        # Tính tháng trước
         if now.month == 1:
             prev_start = date(now.year - 1, 12, 1)
             prev_end = date(now.year - 1, 12, 31)
         else:
             prev_start = date(now.year, now.month - 1, 1)
-            # Ngày cuối tháng trước là ngày ngay trước ngày 1 tháng này
             prev_end = curr_start - timedelta(days=1)
             
     elif period == 'year':
@@ -336,7 +313,6 @@ def get_admin_dashboard_stats():
         prev_start = date(now.year - 1, 1, 1)
         prev_end = date(now.year - 1, 12, 31)
 
-    # 2. Hàm query doanh thu theo khoảng thời gian
     def get_revenue(start, end):
         query = db.session.query(func.sum(Order.total_price)).filter(
             Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed', 'success'])
@@ -350,15 +326,12 @@ def get_admin_dashboard_stats():
     total_flow = get_revenue(curr_start, curr_end)
     prev_flow = get_revenue(prev_start, prev_end)
     
-    # Tính % tăng trưởng (Change)
     revenue_change = 0
     if prev_flow > 0:
         revenue_change = ((total_flow - prev_flow) / prev_flow) * 100
     elif total_flow > 0:
-        revenue_change = 100 # Coi như tăng 100% nếu kỳ trước chưa có gì
+        revenue_change = 100
 
-    # 3. Tính toán các chỉ số khác (Giữ nguyên hoặc theo kỳ nếu cần)
-    # Ở đây chúng ta tính tổng quan toàn hệ thống cho các số lượng khác
     admin_commission = total_flow * 0.15
     escrow_balance = total_flow * 0.85  
     
@@ -377,10 +350,8 @@ def get_admin_dashboard_stats():
         "pending_tours": Tour.query.filter_by(status='pending').count()
     }), 200
 
-# 9. Báo cáo chi tiết theo tour (Admin)
 @admin_bp.route('/dashboard/revenue-by-tour', methods=['GET'])
 def get_admin_revenue_by_tour():
-    # Lấy tổng doanh thu theo từng tour bằng 1 câu lệnh JOIN
     results = db.session.query(
         Tour.id,
         Tour.name,
@@ -401,21 +372,18 @@ def get_admin_revenue_by_tour():
             data.append({
                 'tour_id': r.id,
                 'tour_name': r.name,
-                'total_revenue': rev, # Tổng tiền khách đã trả
-                'admin_commission': rev * 0.15, # Tiền nền tảng nhận được
-                'supplier_revenue': rev * 0.85, # Tiền trả nhà cung cấp
+                'total_revenue': rev,
+                'admin_commission': rev * 0.15,
+                'supplier_revenue': rev * 0.85, 
                 'total_bookings': r.total_bookings
             })
     
-    # Sắp xếp theo tổng doanh thu giảm dần
     data.sort(key=lambda x: x['total_revenue'], reverse=True)
             
     return jsonify(data), 200
 
-# 10. API Thống kê theo Role
 @admin_bp.route('/role-stats', methods=['GET'])
 def get_role_stats():
-    # 1. Customer Stats
     customer_query = db.session.query(
         User.id, User.full_name, User.email,
         Order.total_price, Order.status, Tour.name.label("tour_name")
@@ -464,7 +432,6 @@ def get_role_stats():
         for v in s_dict.values() if v["total_tours"] > 0
     ]
 
-    # 3. Guide Stats
     from app.models.tour_guide import TourGuide, TourGuideAssignment
     guide_query = db.session.query(
         User.id, User.full_name, User.email,
@@ -499,12 +466,10 @@ def get_role_stats():
         "guides": guide_result
     }), 200
 
-# 11. Chi tiết doanh thu tour cụ thể (Admin)
 @admin_bp.route('/tours/<int:tour_id>/revenue-details', methods=['GET'])
 def get_admin_tour_revenue_details(tour_id):
     tour = Tour.query.get_or_404(tour_id)
     
-    # Tính tổng doanh thu từ orders
     orders = Order.query.filter_by(tour_id=tour_id).filter(
         Order.status.in_(['Đã thanh toán', 'Hoàn thành', 'paid', 'completed', 'success'])
     ).all()
@@ -512,10 +477,9 @@ def get_admin_tour_revenue_details(tour_id):
     total_revenue = sum(o.total_price for o in orders)
     total_bookings = len(orders)
     
-    # Tính toán hoa hồng
     admin_commission = total_revenue * 0.15
     supplier_revenue = total_revenue * 0.85
-    guide_commission = total_revenue * 0.10 # Giả định 10% như đề xuất
+    guide_commission = total_revenue * 0.10 
     
     return jsonify({
         "tour_id": tour.id,

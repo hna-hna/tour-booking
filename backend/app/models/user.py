@@ -10,7 +10,6 @@ class UserRole(enum.Enum):
     GUIDE = "guide"
     ADMIN = "admin"
 
-# 1. Bảng USERS (Người dùng)
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -24,10 +23,8 @@ class User(db.Model):
     phone = db.Column(db.String(20), nullable=True)      
     address = db.Column(db.String(255), nullable=True)   
     avatar = db.Column(db.String(500), nullable=True)    
-# Hàm mã hóa mật khẩu
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
-    # Hàm kiểm tra mật khẩu
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)

@@ -77,12 +77,10 @@ export default function MainLayout({
     }
   };
 
-  // Lấy chữ cái đầu của tên để hiển thị trong avatar
   const getInitial = () => {
     return userName.charAt(0).toUpperCase();
   };
 
-  // Đóng dropdown khi click bên ngoài
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;

@@ -34,4 +34,4 @@ def start_scheduler():
     )
     
     scheduler.start()
-    logging.info("Background scheduler started - AI Recommender training every 3 hours")
+    logging.info("AI Recommender training every 3 hours")

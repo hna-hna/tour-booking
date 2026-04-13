@@ -26,13 +26,13 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
       const token = localStorage.getItem("token");
       const role = localStorage.getItem("role");
 
-      // 1. Kiểm tra Token có tồn tại không
+      // Kiểm tra Token có tồn tại không
       if (!token) {
         router.push("/login");
         return;
       }
 
-      // 2. Kiểm tra Role có phải là 'guide' không
+      // Kiểm tra Role có phải là 'guide' không
       if (role !== "guide") {
         alert("CẢNH BÁO: Bạn không có quyền truy cập vào khu vực dành cho Hướng dẫn viên!");
         handleForcedLogout();
@@ -40,7 +40,7 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
       }
 
       try {
-        // 3. Gọi API lấy profile để xác thực token còn hạn hay không
+        // Gọi API lấy profile để xác thực token còn hạn hay không
         const res = await axios.get("http://127.0.0.1:5000/api/guide/profile", {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -51,7 +51,7 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
           email: res.data.email,
           role: "guide",
         });
-        setIsAuthorized(true); // Đã xác thực thành công
+        setIsAuthorized(true); 
       } catch (error: any) {
         console.error("Xác thực thất bại:", error);
         
@@ -59,7 +59,6 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
           alert("Phiên đăng nhập đã hết hạn hoặc không hợp lệ!");
           handleForcedLogout();
         } else {
-          // Lỗi mạng hoặc server khác, vẫn tạm thời cho vào nếu role khớp (hoặc tùy bạn xử lý)
           setIsAuthorized(true);
         }
       } finally {
@@ -93,7 +92,6 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     { name: "Hồ Sơ & Cài Đặt", href: "/guide/profile"},
   ];
 
-  // Trong lúc đang kiểm tra quyền, hiển thị màn hình chờ trắng để tránh lộ nội dung (Flash content)
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
@@ -103,12 +101,10 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  // Nếu không được quyền vào, không render gì cả (để router.push hoạt động)
   if (!isAuthorized) return null;
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      {/* Sidebar */}
       <aside
         className={`bg-gradient-to-b from-slate-800 to-slate-900 text-slate-100 transition-all duration-300 flex flex-col fixed h-full z-30 shadow-xl ${
           isSidebarOpen ? "w-72" : "w-20"

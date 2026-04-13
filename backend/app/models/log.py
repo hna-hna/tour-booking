@@ -13,7 +13,7 @@ class UserLog(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
-# bảng Log xem Tour (dữ liệu đầu vào cho AI gợi ý)
+# bảng Log xem Tour 
 class TourViewLog(db.Model):
     __tablename__ = 'tour_view_logs'
     id = db.Column(db.Integer, primary_key=True)
@@ -21,7 +21,7 @@ class TourViewLog(db.Model):
     tour_id = db.Column(db.Integer, db.ForeignKey('tours.id'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-#bảng Log Tìm kiếm (dữ liệu để AI hiểu nhu cầu khách)
+#bảng Log Tìm kiếm 
 class SearchLog(db.Model):
     __tablename__ = 'search_logs'
     id = db.Column(db.Integer, primary_key=True)

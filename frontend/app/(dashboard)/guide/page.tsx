@@ -162,7 +162,7 @@ export default function GuideDashboard() {
               onClick={() => setRevenueModalOpen(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-black text-2xl font-bold"
             >
-              DÓNG [X]
+              ĐÓNG [X]
             </button>
             <h2 className="text-2xl font-black text-gray-800 mb-2 uppercase tracking-tighter">Thu nhập của bạn</h2>
             <p className="text-sm text-gray-500 font-medium mb-8 italic">Theo dõi hoa hồng từ tour: <span className="text-emerald-600 font-bold">{selectedTour.name}</span></p>

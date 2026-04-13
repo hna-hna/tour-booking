@@ -8,7 +8,6 @@ from app.extensions import db
 from sqlalchemy import func, desc
 from datetime import datetime
 
-# Import hàm chung từ services
 from app.services.recommendation_service import get_popular_tours
 
 class TourRecommender:
@@ -16,11 +15,11 @@ class TourRecommender:
         self.similarity_matrix = None
         self.tour_ids = []
         self.last_trained = None
-        self._training_lock = threading.Lock()   # Giữ lock để tránh train đồng thời
+        self._training_lock = threading.Lock()   
 
     def train_model(self):
         with self._training_lock:
-            print("🔄 Đang train AI Recommender...")
+            print(" Đang train AI Recommender...")
             try:
                 orders = Order.query.all()
                 logs = TourViewLog.query.all()
@@ -35,7 +34,7 @@ class TourRecommender:
                     interactions.append({'user_id': l.user_id, 'tour_id': l.tour_id, 'score': 1})
 
                 if not interactions:
-                    print("⚠️ Chưa có dữ liệu tương tác để train.")
+                    print("Chưa có dữ liệu tương tác để train.")
                     return False
 
                 df = pd.DataFrame(interactions).groupby(['user_id', 'tour_id'])['score'].sum().reset_index()
@@ -46,31 +45,31 @@ class TourRecommender:
                 self.tour_ids = list(item_user_matrix.index)
                 self.last_trained = datetime.utcnow()
 
-                print(f"✅ AI Model trained successfully! ({len(self.tour_ids)} tours)")
+                print(f"train AI thành công({len(self.tour_ids)} tours)")
                 return True
 
             except Exception as e:
-                print(f"❌ Lỗi khi train AI: {e}")
+                print(f" Lỗi khi train AI: {e}")
                 return False
 
     def recommend(self, user_id, top_n=6):
         if self.similarity_matrix is None:
-            print("🔄 Model chưa được train, đang train ngay...")
+            print(" Model chưa được train, đang train ngay...")
             self.train_model()
 
-        # 1. Lấy lịch sử tương tác của user
+        #Lấy lịch sử tương tác của user
         user_history = set(t[0] for t in db.session.query(Order.tour_id).filter_by(user_id=user_id).all())
         user_views = set(t[0] for t in db.session.query(TourViewLog.tour_id).filter_by(user_id=user_id).all())
         interacted = user_history | user_views
 
         recommended = []
 
-        # 2. Xử lý COLD START (User mới hoàn toàn)
+        #Xử lý COLD START 
         if not interacted:
             popular = get_popular_tours(top_n)
             return [t.id for t in popular]
 
-        # 3. Tính điểm Collaborative Filtering (Exploitation - Khai thác)
+        #Tính điểm Collaborative Filtering 
         scores = np.zeros(len(self.tour_ids))
         for idx, tour_id in enumerate(self.tour_ids):
             if tour_id in interacted:
@@ -83,11 +82,11 @@ class TourRecommender:
             if t_id not in interacted:
                 recommended.append(t_id)
 
-        # 4. KỸ THUẬT EXPLORATION-EXPLOITATION (Trộn tour mới vào)
+        #KỸ THUẬT EXPLORATION-EXPLOITATION 
         # Giữ lại 4 tour đúng gu nhất từ AI
         ai_recommendations = recommended[:4] 
         
-        # Lấy các tour MỚI ĐĂNG lên hệ thống và còn hạn (Exploration - Khám phá)
+        # Lấy các tour MỚI ĐĂNG lên hệ thống và còn hạn 
         newest_tours = Tour.query.filter(
             Tour.status == 'approved', 
             Tour.start_date >= datetime.utcnow()

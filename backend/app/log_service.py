@@ -14,7 +14,6 @@ def log_user_action(action: str, target_id=None, details=None, user_id=None):
     - user_id: Nếu truyền vào (dùng cho guest), không truyền sẽ lấy từ JWT
     """
     try:
-        # Ưu tiên user_id truyền vào (hỗ trợ khách vãng lai)
         if user_id is None:
             user_id = get_jwt_identity()
 

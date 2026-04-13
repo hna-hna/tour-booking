@@ -19,17 +19,17 @@ class TourRecommender:
         self.tour_ids = []
         self.last_trained = None
         self._training_lock = threading.Lock()
-        self._train_in_background()  # Train lần đầu async
+        self._train_in_background() 
 
     def _train_in_background(self):
         def train_job():
-            time.sleep(5)  # Chờ server khởi động xong
+            time.sleep(5)  
             self.train_model()
         threading.Thread(target=train_job, daemon=True).start()
 
     def train_model(self):
         with self._training_lock:
-            print("🔄 Đang train AI Recommender...")
+            print(" Đang train AI Recommender...")
             orders = Order.query.all()
             logs = TourViewLog.query.all()
             reviews = Review.query.all()
@@ -43,7 +43,7 @@ class TourRecommender:
                 interactions.append({'user_id': l.user_id, 'tour_id': l.tour_id, 'score': 1})
 
             if not interactions:
-                print("⚠️ Chưa có dữ liệu tương tác.")
+                print(" Chưa có dữ liệu tương tác.")
                 return False
 
             df = pd.DataFrame(interactions).groupby(['user_id', 'tour_id'])['score'].sum().reset_index()
@@ -53,7 +53,7 @@ class TourRecommender:
             self.similarity_matrix = cosine_similarity(item_user_matrix)
             self.tour_ids = list(item_user_matrix.index)
             self.last_trained = datetime.utcnow()
-            print(f"✅ AI Model trained successfully! ({len(self.tour_ids)} tours)")
+            print(f" AI Model trained successfully! ({len(self.tour_ids)} tours)")
             return True
 
    
@@ -71,7 +71,6 @@ def get_popular_tours(limit=6):
             .all()
     except Exception as e:
         print(f"Lỗi get_popular_tours: {e}")
-        # Fallback: lấy tour mới nhất nếu không có order
         return Tour.query.filter(
             Tour.status == 'approved',
             Tour.start_date >= now

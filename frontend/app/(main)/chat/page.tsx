@@ -36,7 +36,7 @@ function CustomerChatContent() {
   const [isTyping, setIsTyping] = useState<boolean>(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const hasLoadedPartners = useRef(false); // Dùng để chặn load API 2 lần
+  const hasLoadedPartners = useRef(false); 
 
   useEffect(() => {
     const userStr = localStorage.getItem("user");

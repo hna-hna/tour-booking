@@ -3,7 +3,6 @@
 import { use, useEffect, useState } from "react";
 import axios from "axios";
 
-// Định nghĩa interface để quản lý dữ liệu tốt hơn
 interface ItineraryItem {
   day: number;
   title: string;
@@ -15,7 +14,7 @@ interface Tour {
   name: string;
   price: number;
   description: string;
-  itinerary: ItineraryItem[] | string; // Có thể là mảng Object hoặc String dự phòng
+  itinerary: ItineraryItem[] | string; 
   image: string;
   image_url?: string;
   quantity?: number;
@@ -138,7 +137,6 @@ export default function TourDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Cột phải: Form đặt tour (Sticky) */}
         <div className="lg:col-span-1">
           <div className="sticky top-28 bg-white p-8 rounded-3xl shadow-2xl border border-gray-100 ring-1 ring-gray-900/5">
             <div className="flex justify-between items-end mb-6">

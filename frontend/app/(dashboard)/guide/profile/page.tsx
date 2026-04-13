@@ -209,7 +209,6 @@ export default function GuideProfilePage() {
             </div>
           </div>
 
-          {/* BOX CHỌN CÔNG TY: Hiện khi ĐANG CHỈNH SỬA và (Chưa có cty hoặc yêu cầu đã bị hủy) */}
           {isEditing && (!profile.supplier_id || profile.is_approved === false) && (
             <div className="mt-10 bg-amber-50 border border-amber-200 p-8 rounded-[2rem] animate-in slide-in-from-top-4 duration-500">
               <h3 className="text-amber-800 font-black uppercase text-[10px] tracking-widest mb-4 italic">Gia nhập công ty lữ hành đối tác</h3>

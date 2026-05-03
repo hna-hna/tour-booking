@@ -28,6 +28,10 @@ def detect_intent(message):
         "mountain": any(kw in msg for kw in ["núi", "đà lạt", "sapa", "tây bắc", "cao nguyên", "mộc châu", "măng đen"]),
         "popular": any(kw in msg for kw in ["bán chạy", "nhiều người mua", "hot", "phổ biến", "được chuộng"]),
         "top_rated": any(kw in msg for kw in ["đánh giá cao", "tốt nhất", "nhiều sao", "chất lượng", "review tốt"]),
+        "healing_solo": any(kw in msg for kw in ["buồn", "thất tình", "chán", "chữa lành", "giải khuây", "xả stress", "1 mình", "một mình", "yên bình", "tĩnh lặng", "áp lực"]),
+        "group_fun": any(kw in msg for kw in ["vui", "nhóm", "đám bạn", "bạn bè", "đông người", "quẩy", "team building", "sôi động", "công ty"]),
+        "dating": any(kw in msg for kw in ["hẹn hò", "người yêu", "bạn gái", "bạn trai", "cặp đôi", "lãng mạn", "trăng mật", "tuần trăng mật", "hâm nóng"]),
+        "family": any(kw in msg for kw in ["gia đình", "bố mẹ", "ông bà", "người già", "lớn tuổi", "trẻ con", "trẻ em", "em bé", "nghỉ dưỡng"]),
         "duration": None, # Số ngày đi
         "budget_max": None # Ngân sách
     }
@@ -148,7 +152,6 @@ def chat_with_ai():
 
     context_extra = f"Khách tìm kiếm: {recent_keywords}\nKhách đã xem: {recent_views}\nKhách đã đặt: {recent_orders}"
 
-    # LỌC NÂNG CAO THEO Ý ĐỊNH KHÁCH HÀNG
     intent = detect_intent(user_message)
     query = Tour.query.filter(Tour.status == 'approved', Tour.start_date >= datetime.utcnow())
 
@@ -158,6 +161,18 @@ def chat_with_ai():
     if intent["mountain"]: 
         query = query.filter(Tour.itinerary.ilike("%núi%") | Tour.description.ilike("%núi%"))
     
+    if intent["healing_solo"]:
+        query = query.filter(Tour.description.ilike("%chữa lành%") | Tour.description.ilike("%một mình%") | Tour.description.ilike("%tĩnh lặng%") | Tour.description.ilike("%buồn%") | Tour.description.ilike("%stress%"))
+    
+    if intent["group_fun"]:
+        query = query.filter(Tour.description.ilike("%nhóm%") | Tour.description.ilike("%vui%") | Tour.description.ilike("%quẩy%") | Tour.description.ilike("%team building%"))
+    
+    if intent["dating"]:
+        query = query.filter(Tour.description.ilike("%hẹn hò%") | Tour.description.ilike("%cặp đôi%") | Tour.description.ilike("%lãng mạn%"))
+        
+    if intent["family"]:
+        query = query.filter(Tour.description.ilike("%gia đình%") | Tour.description.ilike("%trẻ%") | Tour.description.ilike("%người lớn%"))
+
     if intent["budget_max"]: 
         query = query.filter(Tour.price <= intent["budget_max"])
 
